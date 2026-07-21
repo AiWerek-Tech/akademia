@@ -82,9 +82,9 @@ class TeacherMergeService
                 'is_active'       => 0,
                 'profile_status'  => 'ARCHIVED',
                 'notes'           => trim(($duplicate['notes'] ?? '') . "\n[MERGED] Digabungkan ke guru ID #" . $canonicalTeacherId . ' pada ' . date('Y-m-d H:i:s')),
-                'deleted_at'      => date('Y-m-d H:i:s'),
                 'updated_by'      => session()->get('user_id'),
             ]);
+            $teacherModel->delete($duplicateTeacherId);
 
             // 5. Update Review Group status if provided
             if ($reviewGroupId !== null) {

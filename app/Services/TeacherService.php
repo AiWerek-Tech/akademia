@@ -85,7 +85,19 @@ class TeacherService
         try {
             $teacherModel = new TeacherModel();
 
-            // Prepare normalized fields
+            // Input Validation
+            if (empty($data['full_name']) || strlen(trim($data['full_name'])) < 3) {
+                throw new \InvalidArgumentException('Nama Lengkap wajib diisi dan minimal 3 karakter.');
+            }
+            if (empty($data['employment_status'])) {
+                throw new \InvalidArgumentException('Status Kepegawaian wajib diisi.');
+            }
+            if (!empty($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+                throw new \InvalidArgumentException('Format email tidak valid.');
+            }
+            if (!empty($data['birth_date']) && strtotime($data['birth_date']) > time()) {
+                throw new \InvalidArgumentException('Tanggal lahir tidak boleh di masa depan.');
+            }
             $data['normalized_name'] = TeacherDuplicateDetectionService::normalizeName($data['full_name'] ?? '');
             $data['profile_status']  = 'INCOMPLETE';
             $data['revision_number'] = 1;

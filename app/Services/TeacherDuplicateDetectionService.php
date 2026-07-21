@@ -64,18 +64,40 @@ class TeacherDuplicateDetectionService
 
             // Tier 2: Name & Birth Date / Unit Fuzzy Match
             $candidateNormName = self::normalizeName($candidate['full_name'] ?? '');
-            if ($normalizedName !== '' && $candidateNormName !== '' && $normalizedName === $candidateNormName) {
-                $score += 50;
-                $reasons[] = 'Nama lengkap (normalisasi) sama persis';
-
-                if (!empty($teacherData['birth_date']) && !empty($candidate['birth_date']) && $teacherData['birth_date'] === $candidate['birth_date']) {
-                    $score += 35;
-                    $reasons[] = 'Tanggal lahir sama (' . $candidate['birth_date'] . ')';
+            if ($normalizedName !== '' && $candidateNormName !== '') {
+                $nameMatched = false;
+                if ($normalizedName === $candidateNormName) {
+                    $score += 50;
+                    $reasons[] = 'Nama lengkap (normalisasi) sama persis';
+                    $nameMatched = true;
+                } else {
+                    // Levenshtein check
+                    $levDist = levenshtein($normalizedName, $candidateNormName);
+                    $maxLen = max(strlen($normalizedName), strlen($candidateNormName));
+                    $similarity = $maxLen > 0 ? (1 - ($levDist / $maxLen)) * 100 : 0;
+                    if ($similarity >= 75) {
+                        $score += 40;
+                        $reasons[] = 'Kemiripan nama fuzzy (Levenshtein: ' . round($similarity, 1) . '%)';
+                        $nameMatched = true;
+                    }
                 }
 
-                if (!empty($teacherData['primary_unit_id']) && !empty($candidate['primary_unit_id']) && (int)$teacherData['primary_unit_id'] === (int)$candidate['primary_unit_id']) {
-                    $score += 10;
-                    $reasons[] = 'Unit sekolah utama sama';
+                // Soundex check
+                if (soundex($normalizedName) === soundex($candidateNormName)) {
+                    $score += 20;
+                    $reasons[] = 'Nama terdengar mirip (Soundex)';
+                }
+
+                if ($nameMatched) {
+                    if (!empty($teacherData['birth_date']) && !empty($candidate['birth_date']) && $teacherData['birth_date'] === $candidate['birth_date']) {
+                        $score += 35;
+                        $reasons[] = 'Tanggal lahir sama (' . $candidate['birth_date'] . ')';
+                    }
+
+                    if (!empty($teacherData['primary_unit_id']) && !empty($candidate['primary_unit_id']) && (int)$teacherData['primary_unit_id'] === (int)$candidate['primary_unit_id']) {
+                        $score += 10;
+                        $reasons[] = 'Unit sekolah utama sama';
+                    }
                 }
             }
 

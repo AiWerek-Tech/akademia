@@ -1,20 +1,14 @@
-# Known Technical Debt & Intentional Scope Boundaries
+# Known Limitations — Milestone 2
 
-## Milestone 1 Scope Boundaries
-In strict accordance with project directives, the following modules and tables have **intentionally NOT been created** in Milestone 1:
-- Teachers (`guru`)
-- Subjects (`mata_pelajaran`)
-- Classrooms (`kelas`)
-- Rooms (`ruang`)
-- Curriculum (`kurikulum`)
-- Assignments (`tugas`)
-- Workload (`beban_kerja`)
-- Schedules (`jadwal`)
-- Duty Roster (`piket`)
-- Documents (`dokumen`)
+Berikut adalah daftar batasan yang diketahui pada Milestone 2 (Master Data Akademik Terpadu):
 
-These domain entities will be built starting in Milestone 2.
+1. **PDF Export Tidak Didukung**:
+   - Ekspor saat ini hanya mendukung format Excel `.xlsx`.
+   - Ekspor PDF ditandai sebagai keterbatasan sistem (tidak diimplementasikan karena dependensi mPDF/dompdf tidak terpasang di server).
+   
+2. **Cakupan Pengujian Browser**:
+   - Pengujian browser otomatis (`browser_subagent`) hanya memverifikasi login admin dan pemuatan dashboard utama.
+   - Pengujian fungsional halaman lainnya dan peran pengguna lainnya (guru, wakasek) diverifikasi sepenuhnya lewat unit/feature tests di PHPUnit.
 
-## Technical Debt & Asset Prefixes
-1. **Asset CSS Class Prefixes**: Some CSS utility classes retain `sp-` and `spmb-` prefixes copied from the foundation design system. These prefixes have been audited and verified to cause zero runtime collisions or external network requests. Full refactoring to `--ak-*` prefixes can be scheduled as non-breaking technical debt cleanup in future iterations.
-2. **CSRF Testing Override**: In automated test suites (`FeatureTestTrait`), global CSRF protection is bypassed by default to allow unit-level endpoint testing. Real HTTP CSRF enforcement is rigorously tested and proven in the dedicated test suite `tests/Security/CsrfEnforcementTest.php` using `$GLOBALS['enable_csrf_testing'] = true`.
+3. **Routing Filter Default**:
+   - Beberapa route Milestone 2 (`/teachers`, `/subjects`, dll.) tidak secara eksplisit didaftarkan di filter `auth` dalam file `Config/Filters.php`. Keamanan dipastikan lewat pengecekan `has_permission()` di setiap method controller.

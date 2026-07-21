@@ -1,22 +1,24 @@
-# WMVAA Akademia — Milestone Roadmap
+# Milestone Plan — WMVAA Akademia
 
-## Milestone 1: Foundation, Security, RBAC & Core Admin UI (CLOSED)
-- [x] Base CodeIgniter 4.7.4 installation and PHP 8.2 compatibility
-- [x] Database migrations & seeders (`CoreSeeder`)
-- [x] Unit isolation (SMP vs SMA) & Multi-tenant access controls
-- [x] Session-based authentication & forced password change workflow
-- [x] Dynamic Role-Based Access Control (RBAC) permission checking
-- [x] Academic Period lifecycle workflow (`DRAFT` -> `VALIDATED` -> `REVIEWED` -> `APPROVED` -> `LOCKED`)
-- [x] Real-time Audit Logging system
-- [x] 100% PHPUnit Test Suite coverage (53 tests, 149 assertions, 0 errors, 0 warnings)
-- [x] Dedicated CSRF HTTP enforcement test suite (`CsrfEnforcementTest`)
-- [x] Browser runtime verification endpoint (`/system/runtime`)
-- [x] SPMB design system migration & offline asset independence (`public/assets/`)
-- [x] Final Acceptance Evidence Gate — **PASSED**
+Proyek WMVAA Akademia direncanakan dalam beberapa Milestone berikut.
 
-## Milestone 2: Academic Domain & Curriculum Management (PENDING)
-- [ ] Teacher management (`guru`)
-- [ ] Subject catalog (`mata_pelajaran`)
-- [ ] Classrooms & room allocation (`kelas`, `ruang`)
-- [ ] Curriculum & workload management
-- [ ] Schedule generation & duty roster
+---
+
+## Milestone 1: Manajemen Sesi & Autentikasi
+- **Status**: ✅ **SELESAI**
+- **Cakupan**: Login, Logout, Ganti Password Terpaksa, Manajemen User, RBAC dasar, Unit/Period switcher, Audit Logging, CSRF, Dark/Light Mode.
+
+## Milestone 2: Master Data Akademik Terpadu
+- **Status**: ✅ **SELESAI & DIKERASKAN (HARDENED)**
+- **Cakupan**:
+  - **Guru**: Manajemen profil lengkap, hitung persentase kelengkapan data, pengaitan unit (SMP/SMA/Multi-unit), verifikasi admin.
+  - **Duplikasi Guru**: Deteksi duplikasi berbasis Fuzzy Name, NIP, NIK, No HP, penggabungan data (merge), soft-delete data terduplikasi, dan riwayat audit.
+  - **Mata Pelajaran**: Kode unik global, ketersediaan per unit sekolah, nama alias mapel, optimisic locking.
+  - **Tingkat Kelas**: Data awal (seeder) SMP VII-IX dan SMA X-XII beserta fasenya, seeder rerun-safe.
+  - **Rombongan Belajar (Kelas)**: Pembuatan rombel baru per periode & unit, fungsi salin/copy rombel lintas periode akademik, optimistic locking.
+  - **Ruangan**: Ruangan unit-specific dan bersama (shared), kapasitas non-negatif, detail fasilitas (JSON).
+  - **Import & Export**: Impor dari berkas Excel menggunakan alur staging (upload -> validasi baris & fuzzy check -> preview -> commit), ekspor data ke Excel.
+
+## Milestone 3: Perencanaan Kurikulum & Penjadwalan
+- **Status**: ⏳ **BELUM DIMULAI**
+- **Cakupan**: Matriks struktur kurikulum, jam pelajaran (JP) mingguan, penugasan guru (teaching assignments), beban kerja (workload), penjadwalan otomatis/heuristik, piket harian, SK resmi (PDF).
