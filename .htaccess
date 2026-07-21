@@ -2,6 +2,12 @@
 # WMVAA AKADEMIA - ROOT APACHE CONFIGURATION (.htaccess)
 # ====================================================================
 
+# Target PHP 8.2 in local XAMPP Apache without restarting
+<If "%{HTTP_HOST} =~ /^(app\.wmvaa\.local|localhost)$/ && %{REQUEST_URI} =~ /\.php/">
+    SetEnv PHPRC "E:/xampp/php82"
+    SetHandler application/x-httpd-php82
+</If>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /wmvaa-akademia/
