@@ -1,68 +1,123 @@
-# CodeIgniter 4 Application Starter
+# WMVAA Akademia — Perencanaan Akademik Terpadu SMP–SMA
 
-## What is CodeIgniter?
+[![CodeIgniter](https://img.shields.io/badge/Framework-CodeIgniter%204.7.4-orange.svg)](https://codeigniter.com/)
+[![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%207.4%20Compat-blue.svg)](https://www.php.net/)
+[![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20MariaDB-blue.svg)](https://www.mysql.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.
-More information can be found at the [official site](https://codeigniter.com).
+**WMVAA Akademia** adalah subsistem Web Admin Panel dalam ekosistem **WMVAA HUB**, yang dikembangkan khusus untuk sekolah **SMP & SMA Advent Sogokmo**. Aplikasi ini dibangun menggunakan framework **CodeIgniter 4** dengan arsitektur terpadu berbasis multi-unit (`unit_id`) untuk menyatukan administrasi data akademik SMP dan SMA tanpa adanya duplikasi tabel.
 
-This repository holds a composer-installable app starter.
-It has been built from the
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+---
 
-More information about the plans for version 4 can be found in [CodeIgniter 4](https://forum.codeigniter.com/forumdisplay.php?fid=28) on the forums.
+## 🗺️ Arsitektur Sistem
 
-You can read the [user guide](https://codeigniter.com/user_guide/)
-corresponding to the latest version of the framework.
+Ekosistem WMVAA HUB berjalan dengan arsitektur terpadu:
+- **Database Utama**: Google Spreadsheet (Sinkronisasi API) & Database Relasional Lokal (MySQL/MariaDB) untuk pemrosesan admin lokal yang cepat.
+- **Backend API**: Google Apps Script API.
+- **Penyimpanan Berkas**: Google Drive.
+- **Mobile Client**: Aplikasi Kodular (Offline-First) untuk Guru, Siswa, dan Orang Tua.
+- **Web Admin Panel**: Web App CodeIgniter 4 (aplikasi di repositori ini) yang mengelola kontrol penuh atas master data sekolah.
 
-## Installation & updates
+---
 
-`composer create-project codeigniter4/appstarter` then `composer update` whenever
-there is a new release of the framework.
+## 🚀 Fitur Utama (Milestone 1 & 2)
 
-When updating, check the release notes to see if there are any changes you might need to apply
-to your `app` folder. The affected files can be copied or merged from
-`vendor/codeigniter4/framework/app`.
+### 1. Fondasi Sistem & Keamanan (Milestone 1)
+*   **Multi-Unit Tenant**: Mendukung unit **SMP** dan **SMA** secara berdampingan.
+*   **Tahun Pelajaran & Periode Akademik**: Manajemen siklus pendaftaran dan semester dengan state workflow control (`DRAFT` $\rightarrow$ `VALIDATED` $\rightarrow$ `REVIEWED` $\rightarrow$ `APPROVED` $\rightarrow$ `LOCKED`).
+*   **Manajemen Pengguna & RBAC**: Kontrol akses berbasis peran (Role-Based Access Control) yang ketat (Super Admin, Kepala Sekolah, Wakasek Kurikulum, Admin Unit, Guru, Tata Usaha).
+*   **Audit Trail Log**: Pencatatan otomatis untuk setiap aksi modifikasi data (`CREATE`, `UPDATE`, `DELETE`, `MERGE`, dsb.).
+*   **Optimistic Locking**: Perlindungan dari konflik penimpaan data menggunakan `revision_number` pada seluruh tabel master.
 
-## Setup
+### 2. Master Data Akademik Terpadu (Milestone 2)
+*   **Master Guru Global**: Data kepegawaian guru terpusat dengan relasi multi-unit, riwayat kualifikasi akademik, serta status verifikasi kelengkapan profil (*Profile Completeness Evaluation*).
+*   **Pendeteksi Duplikasi Guru**: Analisis kemiripan nama dan data identitas menggunakan metrik perbandingan kemiripan string (*Levenshtein Distance* & *Soundex Algorithm*) secara real-time.
+*   **Penggabungan Guru (Merge Tool)**: Utilitas interaktif untuk menggabungkan data guru duplikat menjadi satu record tanpa merusak integritas relasi tabel.
+*   **Master Mata Pelajaran**: Manajemen mapel global dengan alias nama dan kontrol ketersediaan mapel per unit (SMP/SMA).
+*   **Tingkat Kelas & Fase**: Pengaturan tingkat kelas VII–IX (Fase D) dan X–XII (Fase E & F).
+*   **Rombongan Belajar (Rombel)**: Pengaturan kelas per periode akademik, wali kelas (homeroom teacher), kapasitas, dan ruang kelas.
+*   **Copy Rombel Antar Periode**: Memindahkan konfigurasi rombel dari semester ganjil ke genap secara instan dengan opsi penyalinan wali kelas.
+*   **Master Ruang Sekolah**: Pengelolaan ruang kelas, laboratorium, perpustakaan, kapel, lapangan, beserta kapasitas dan fasilitasnya.
+*   **Pipeline Impor Data Massal (Staging)**: Import data massal dari Excel/CSV dengan proses validasi pra-commit di halaman Review Batch sebelum dimasukkan ke database utama.
+*   **Ekspor Master Data**: Download instan data master ke dalam format Excel (.xlsx).
 
-Copy `env` to `.env` and tailor for your app, specifically the baseURL
-and any database settings.
+---
 
-## Important Change with index.php
+## 🛠️ Persyaratan Server & Instalasi
 
-`index.php` is no longer in the root of the project! It has been moved inside the *public* folder,
-for better security and separation of components.
+### Persyaratan Sistem
+*   **PHP**: Versi `8.2` (Lingkungan lokal) dengan kompatibilitas kode fallback hingga `7.4`.
+*   **Ekstensi PHP**: `intl`, `mbstring`, `mysqli`, `curl`, `json`.
+*   **Database**: MySQL atau MariaDB.
+*   **Composer**: Dependency Manager.
 
-This means that you should configure your web server to "point" to your project's *public* folder, and
-not to the project root. A better practice would be to configure a virtual host to point there. A poor practice would be to point your web server to the project root and expect to enter *public/...*, as the rest of your logic and the
-framework are exposed.
+### Instalasi Lokal
+1.  **Clone Repositori**:
+    ```bash
+    git clone https://github.com/AiWerek-Tech/akademia.git
+    cd akademia
+    ```
+2.  **Install Dependencies**:
+    ```bash
+    composer install
+    ```
+3.  **Konfigurasi Environment**:
+    Salin file `.env.example` menjadi `.env` lalu sesuaikan konfigurasi database Anda:
+    ```ini
+    CI_ENVIRONMENT = development
+    app.baseURL = 'http://localhost/akademia/public/'
+    
+    database.default.hostname = localhost
+    database.default.database = wmvaa_akademia
+    database.default.username = root
+    database.default.password = 
+    database.default.DBDriver = MySQLi
+    ```
+4.  **Jalankan Migrasi Database**:
+    Jalankan perintah berikut untuk membuat seluruh struktur tabel master:
+    ```bash
+    php spark migrate
+    ```
+5.  **Jalankan Seeder Awal**:
+    Masukkan data default unit sekolah, role, permission, grade tingkat, dan room type bawaan:
+    ```bash
+    php spark db:seed CoreSeeder
+    php spark db:seed Milestone2MasterSeeder
+    ```
+6.  **Buat Akun Administrator**:
+    Jalankan perintah interaktif CLI untuk membuat user Super Admin pertama Anda:
+    ```bash
+    php spark akademia:create-admin
+    ```
+    *Atau Anda dapat menggunakan akun admin default bawaan seeder:*
+    *   **Username**: `admin`
+    *   **Password**: `SuperAdminAkademia2026!`
 
-**Please** read the user guide for a better explanation of how CI4 works!
+7.  **Jalankan Aplikasi**:
+    ```bash
+    php spark serve
+    ```
+    Aplikasi dapat diakses melalui browser pada alamat `http://localhost:8080`.
 
-## Repository Management
+---
 
-We use GitHub issues, in our main repository, to track **BUGS** and to track approved **DEVELOPMENT** work packages.
-We use our [forum](http://forum.codeigniter.com) to provide SUPPORT and to discuss
-FEATURE REQUESTS.
+## 🧪 Pengujian & Penjaminan Mutu
 
-This repository is a "distribution" one, built by our release preparation script.
-Problems with it can be raised on our forum, or as issues in the main repository.
+Kami menyediakan suite pengujian terintegrasi menggunakan **PHPUnit** untuk memastikan stabilitas kode.
 
-## Server Requirements
+Untuk menjalankan seluruh rangkaian test:
+```bash
+vendor/bin/phpunit
+```
 
-PHP version 7.4 or higher is required, with the following extensions installed:
+Pengujian mencakup:
+- Keamanan & otentikasi role-based access.
+- Validasi rentang tanggal tahun pelajaran & periode akademik.
+- Deteksi duplikasi kemiripan string guru (*Levenshtein*).
+- Validasi data ruang dan rombel.
+- Fungsi penyalinan rombel (*copy classroom between periods*).
 
-- [intl](http://php.net/manual/en/intl.requirements.php)
-- [mbstring](http://php.net/manual/en/mbstring.installation.php)
+---
 
-> [!WARNING]
-> The end of life date for PHP 7.4 was November 28, 2022.
-> The end of life date for PHP 8.0 was November 26, 2023.
-> If you are still using PHP 7.4 or 8.0, you should upgrade immediately.
-> The end of life date for PHP 8.1 will be November 25, 2024.
-
-Additionally, make sure that the following extensions are enabled in your PHP:
-
-- json (enabled by default - don't turn it off)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) if you plan to use MySQL
-- [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
+## 📄 Lisensi
+Proyek ini dilisensikan di bawah lisensi MIT - lihat file [LICENSE](LICENSE) untuk detailnya.
