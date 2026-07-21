@@ -106,25 +106,69 @@ $userName = session()->get('username') ?? 'Guest';
                     <?php endif; ?>
                 <?php endif; ?>
 
-                <li class="menu-header">Kurikulum & Guru [M2-M3]</li>
-                <li class="menu-item disabled opacity-50">
-                    <a href="#" class="menu-link">
-                        <i data-lucide="users"></i>
-                        <span>Master Guru</span>
-                    </a>
-                </li>
-                <li class="menu-item disabled opacity-50">
-                    <a href="#" class="menu-link">
-                        <i data-lucide="book-open"></i>
-                        <span>Mata Pelajaran</span>
-                    </a>
-                </li>
-                <li class="menu-item disabled opacity-50">
-                    <a href="#" class="menu-link">
-                        <i data-lucide="layout-grid"></i>
-                        <span>Struktur Kurikulum</span>
-                    </a>
-                </li>
+                <li class="menu-header">Master Data Akademik</li>
+                <?php if (has_permission('teachers.view')): ?>
+                    <li class="menu-item <?= str_contains(current_url(true), 'teachers') ? 'active' : '' ?>">
+                        <a href="<?= base_url('teachers') ?>" class="menu-link">
+                            <i data-lucide="users"></i>
+                            <span>Master Guru</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+                <?php if (has_permission('duplicates.view')): ?>
+                    <li class="menu-item <?= str_contains(current_url(true), 'duplicates') ? 'active' : '' ?>">
+                        <a href="<?= base_url('duplicates') ?>" class="menu-link">
+                            <i data-lucide="copy-check"></i>
+                            <span>Review Duplikat</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+                <?php if (has_permission('subjects.view')): ?>
+                    <li class="menu-item <?= str_contains(current_url(true), 'subjects') ? 'active' : '' ?>">
+                        <a href="<?= base_url('subjects') ?>" class="menu-link">
+                            <i data-lucide="book-open"></i>
+                            <span>Mata Pelajaran</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+                <?php if (has_permission('grade_levels.view')): ?>
+                    <li class="menu-item <?= str_contains(current_url(true), 'grade-levels') ? 'active' : '' ?>">
+                        <a href="<?= base_url('grade-levels') ?>" class="menu-link">
+                            <i data-lucide="layers"></i>
+                            <span>Tingkat Kelas</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+                <?php if (has_permission('classrooms.view')): ?>
+                    <li class="menu-item <?= str_contains(current_url(true), 'classrooms') ? 'active' : '' ?>">
+                        <a href="<?= base_url('classrooms') ?>" class="menu-link">
+                            <i data-lucide="door-open"></i>
+                            <span>Kelas / Rombel</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+                <?php if (has_permission('rooms.view')): ?>
+                    <li class="menu-item <?= str_contains(current_url(true), 'rooms') ? 'active' : '' ?>">
+                        <a href="<?= base_url('rooms') ?>" class="menu-link">
+                            <i data-lucide="building-2"></i>
+                            <span>Ruang Sekolah</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+                <?php if (has_permission('teachers.import') || has_permission('subjects.import')): ?>
+                    <li class="menu-item <?= str_contains(current_url(true), 'imports/master') ? 'active' : '' ?>">
+                        <a href="<?= base_url('imports/master') ?>" class="menu-link">
+                            <i data-lucide="file-up"></i>
+                            <span>Import Master</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
 
                 <li class="menu-header">Penugasan & Jadwal [M4-M8]</li>
                 <li class="menu-item disabled opacity-50">

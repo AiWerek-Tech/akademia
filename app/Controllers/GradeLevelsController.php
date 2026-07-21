@@ -1,0 +1,75 @@
+<?php
+
+namespace App\Controllers;
+
+use App\Services\GradeLevelService;
+use App\Models\SchoolUnitModel;
+use App\Models\GradeLevelModel;
+
+class GradeLevelsController extends BaseController
+{
+    public function index()
+    {
+        if (!has_permission('grade_levels.view')) {
+            return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak akses.');
+        }
+
+        $activeUnitId = session()->get('active_unit_id');
+        $unitId = $this->request->getGet('unit_id') ?? $activeUnitId;
+
+        $gradeLevels = GradeLevelService::getGradeLevels($unitId ? (int)$unitId : null);
+        $unitModel = new SchoolUnitModel();
+        $units = $unitModel->where('is_active', 1)->findAll();
+
+        return view('grade_levels/index', [
+            'title'             => 'Tingkat Kelas & Fase Pendidikan',
+            'breadcrumb_active' => 'Tingkat Kelas',
+            'gradeLevels'       => $gradeLevels,
+            'units'             => $units,
+            'selectedUnitId'    => $unitId,
+        ]);
+    }
+
+    public function edit(string $uuid)
+    {
+        if (!has_permission('grade_levels.manage')) {
+            return redirect()->to('/grade-levels')->with('error', 'Anda tidak memiliki hak akses.');
+        }
+
+        $model = new GradeLevelModel();
+        $gradeLevel = $model->where('uuid', $uuid)->first();
+
+        if (!$gradeLevel) {
+            return redirect()->to('/grade-levels')->with('error', 'Tingkat kelas tidak ditemukan.');
+        }
+
+        return view('grade_levels/edit', [
+            'title'             => 'Edit Tingkat Kelas - ' . $gradeLevel['name'],
+            'breadcrumb_active' => 'Edit Tingkat',
+            'gradeLevel'        => $gradeLevel,
+        ]);
+    }
+
+    public function update(string $uuid)
+    {
+        if (!has_permission('grade_levels.manage')) {
+            return redirect()->to('/grade-levels')->with('error', 'Anda tidak memiliki hak akses.');
+        }
+
+        $rules = [
+            'name'  => 'required|min_length[2]|max_length[50]',
+            'phase' => 'required|max_length[10]',
+        ];
+
+        if (!$this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        try {
+            GradeLevelService::updateGradeLevel($uuid, $this->request->getPost());
+            return redirect()->to('/grade-levels')->with('success', 'Tingkat kelas berhasil diperbarui.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+}
