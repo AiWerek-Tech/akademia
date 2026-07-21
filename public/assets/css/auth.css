@@ -1,0 +1,533 @@
+/* ============================================================
+ * Smart SPMB Pro — Auth Page Styles (Split-Screen Layout)
+ * Depends on: foundation.css (must be loaded first)
+ * ============================================================
+ * Covers: Login, Register, Forgot Password, Reset Password
+ * Layout: Brand panel (left) + Form panel (right)
+ * On mobile: Single column, form only, brand collapses
+ * ============================================================ */
+
+/* ─────────────────────────────────────────────
+   1. AUTH WRAPPER — Split Screen
+   ───────────────────────────────────────────── */
+.auth-wrapper {
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--sp-body-bg);
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+}
+
+/* ─────────────────────────────────────────────
+   2. BRAND PANEL (Left Side)
+   ───────────────────────────────────────────── */
+.auth-brand-panel {
+    width: 45%;
+    background: linear-gradient(135deg, var(--sp-primary) 0%, var(--sp-accent) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-space-2xl);
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Decorative background pattern */
+.auth-brand-panel::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    right: -20%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.auth-brand-panel::after {
+    content: '';
+    position: absolute;
+    bottom: -20%;
+    left: -15%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.auth-brand-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    max-width: 380px;
+}
+
+.auth-brand-logo {
+    width: 64px;
+    height: 64px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--sp-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--sp-space-lg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.auth-brand-logo svg {
+    width: 32px;
+    height: 32px;
+    color: #fff;
+}
+
+/* Saat logo sekolah diupload — hilangkan background blur */
+.auth-brand-logo:has(.sp-brand-logo-img),
+.auth-brand-logo--logo {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.auth-brand-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #fff !important;
+    margin-bottom: var(--sp-space-xs);
+    letter-spacing: -0.03em;
+}
+
+.auth-brand-subtitle {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-weight: 400;
+    line-height: 1.6;
+    margin-bottom: var(--sp-space-xl);
+}
+
+/* Trust indicators */
+.auth-brand-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+}
+
+.auth-brand-features li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: var(--sp-space-sm);
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+}
+
+.auth-brand-features li svg {
+    width: 18px;
+    height: 18px;
+    color: rgba(255, 255, 255, 0.9);
+    flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────
+   3. FORM PANEL (Right Side)
+   ───────────────────────────────────────────── */
+.auth-form-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-space-xl);
+    background-color: var(--sp-body-bg);
+    position: relative;
+}
+
+.auth-theme-toggle {
+    position: absolute;
+    top: var(--sp-space-md);
+    right: var(--sp-space-md);
+    width: 40px;
+    height: 40px;
+    border-radius: var(--sp-radius-md);
+    border: 1px solid var(--sp-border-color);
+    background: var(--sp-card-bg);
+    color: var(--sp-text-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--sp-transition-fast);
+    z-index: 2;
+    box-shadow: var(--sp-shadow-xs);
+}
+
+.auth-theme-toggle:hover {
+    border-color: rgba(var(--sp-primary-rgb), 0.35);
+    color: var(--sp-primary);
+    background: rgba(var(--sp-primary-rgb), 0.06);
+}
+
+.auth-theme-toggle svg {
+    width: 18px;
+    height: 18px;
+}
+
+.auth-form-container {
+    width: 100%;
+    max-width: 420px;
+}
+
+/* Mobile brand header (shown only on small screens) */
+.auth-mobile-brand {
+    display: none;
+    text-align: center;
+    margin-bottom: var(--sp-space-xl);
+}
+
+.auth-mobile-brand-logo {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--sp-primary) 0%, var(--sp-accent) 100%);
+    border-radius: var(--sp-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--sp-space-sm);
+    box-shadow: 0 4px 12px rgba(var(--sp-primary-rgb), 0.2);
+    overflow: hidden;
+}
+
+.auth-mobile-brand-logo svg {
+    width: 24px;
+    height: 24px;
+    color: #fff;
+}
+
+/* Saat logo sekolah diupload — hilangkan background gradient */
+.auth-mobile-brand-logo:has(.sp-brand-logo-img),
+.auth-mobile-brand-logo--logo {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.auth-mobile-brand h3 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--sp-heading-color);
+    margin: 0;
+}
+
+/* ─────────────────────────────────────────────
+   4. AUTH CARD
+   ───────────────────────────────────────────── */
+.auth-card {
+    background: var(--sp-card-bg);
+    border-radius: var(--sp-radius-lg);
+    box-shadow: var(--sp-shadow-lg);
+    border: 1px solid var(--sp-card-border);
+    overflow: hidden;
+}
+
+.auth-card-header {
+    padding: var(--sp-space-xl) var(--sp-space-xl) var(--sp-space-md);
+    text-align: center;
+    border-bottom: none;
+    background: none;
+}
+
+.auth-card-header h2 {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--sp-heading-color);
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.auth-card-header h2 svg {
+    width: 24px;
+    height: 24px;
+    color: var(--sp-primary);
+}
+
+.auth-card-header p {
+    font-size: 0.85rem;
+    color: var(--sp-text-muted);
+    margin: 0;
+}
+
+.auth-card-body {
+    padding: var(--sp-space-md) var(--sp-space-xl) var(--sp-space-xl);
+}
+
+/* ─────────────────────────────────────────────
+   5. AUTH FORM ELEMENTS
+   ───────────────────────────────────────────── */
+.auth-form .form-group {
+    margin-bottom: var(--sp-space-md);
+}
+
+.auth-form .form-label {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--sp-heading-color);
+    margin-bottom: 6px;
+}
+
+.auth-form .form-control {
+    padding: 11px 14px;
+    font-size: 0.9rem;
+}
+
+.auth-form .btn-primary {
+    width: 100%;
+    padding: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Password toggle */
+.auth-password-wrapper {
+    position: relative;
+}
+
+.auth-password-wrapper .form-control {
+    padding-right: 44px;
+}
+
+.auth-password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--sp-text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--sp-transition-fast);
+}
+
+.auth-password-toggle:hover {
+    color: var(--sp-primary);
+}
+
+.auth-password-toggle svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Password strength meter */
+.auth-password-strength {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.auth-password-strength-bar {
+    flex: 1;
+    height: 3px;
+    border-radius: var(--sp-radius-full);
+    background-color: var(--sp-border-color);
+    transition: background-color var(--sp-transition-fast);
+}
+
+.auth-password-strength-bar.weak { background-color: var(--sp-danger); }
+.auth-password-strength-bar.fair { background-color: var(--sp-warning); }
+.auth-password-strength-bar.good { background-color: var(--sp-info); }
+.auth-password-strength-bar.strong { background-color: var(--sp-success); }
+
+.auth-password-strength-text {
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-top: 4px;
+    color: var(--sp-text-muted);
+}
+
+/* ─────────────────────────────────────────────
+   6. AUTH LINKS & DIVIDERS
+   ───────────────────────────────────────────── */
+.auth-divider {
+    position: relative;
+    text-align: center;
+    margin: var(--sp-space-lg) 0;
+}
+
+.auth-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--sp-border-color);
+}
+
+.auth-divider span {
+    position: relative;
+    padding: 0 var(--sp-space-md);
+    background: var(--sp-card-bg);
+    color: var(--sp-text-muted);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.auth-links {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--sp-text-muted);
+}
+
+.auth-links a {
+    color: var(--sp-primary);
+    font-weight: 600;
+}
+
+.auth-links a:hover {
+    color: var(--sp-primary-hover);
+    text-decoration: underline;
+}
+
+/* ─────────────────────────────────────────────
+   7. AUTH ALERTS
+   ───────────────────────────────────────────── */
+.auth-alert {
+    border-radius: var(--sp-radius-md);
+    padding: var(--sp-space-sm) var(--sp-space-md);
+    font-size: 0.85rem;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-space-xs);
+    margin-bottom: var(--sp-space-md);
+}
+
+.auth-alert svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.auth-alert-error {
+    background: rgba(var(--sp-danger-rgb), 0.08);
+    border: 1px solid rgba(var(--sp-danger-rgb), 0.15);
+    color: var(--sp-danger);
+}
+
+.auth-alert-success {
+    background: rgba(var(--sp-success-rgb), 0.08);
+    border: 1px solid rgba(var(--sp-success-rgb), 0.15);
+    color: var(--sp-success);
+}
+
+.auth-alert-info {
+    background: rgba(var(--sp-info-rgb), 0.08);
+    border: 1px solid rgba(var(--sp-info-rgb), 0.15);
+    color: var(--sp-info);
+}
+
+/* ─────────────────────────────────────────────
+   8. DARK MODE — Auth
+   ───────────────────────────────────────────── */
+body.dark-mode .auth-form-panel {
+    background-color: var(--sp-body-bg);
+}
+
+body.dark-mode .auth-theme-toggle {
+    background: var(--sp-card-bg);
+    border-color: var(--sp-card-border);
+    color: var(--sp-text-color);
+}
+
+body.dark-mode .auth-card {
+    background: var(--sp-card-bg);
+    border-color: var(--sp-card-border);
+    box-shadow: var(--sp-shadow-card);
+}
+
+body.dark-mode .auth-card-title,
+body.dark-mode .auth-form-label,
+body.dark-mode .auth-footer-text {
+    color: var(--sp-heading-color) !important;
+}
+
+body.dark-mode .auth-form .form-control {
+    background-color: #0f172a;
+    border-color: var(--sp-border-color);
+    color: #f8fafc;
+}
+
+body.dark-mode .auth-form .form-control:focus {
+    background-color: #0f172a;
+    border-color: var(--sp-primary);
+    color: #f8fafc;
+}
+
+body.dark-mode .auth-card-body a {
+    color: var(--sp-primary-light);
+    transition: color var(--sp-transition-fast);
+}
+
+body.dark-mode .auth-card-body a:hover {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+body.dark-mode .auth-divider span {
+    background: var(--sp-card-bg);
+    color: var(--sp-text-muted);
+}
+
+body.dark-mode .auth-mobile-brand h3 {
+    color: #fff;
+}
+
+/* ─────────────────────────────────────────────
+   9. RESPONSIVE — Auth
+   ───────────────────────────────────────────── */
+@media (max-width: 991.98px) {
+    .auth-brand-panel {
+        display: none;
+    }
+
+    .auth-form-panel {
+        width: 100%;
+        padding: var(--sp-space-lg) var(--sp-space-md);
+    }
+
+    .auth-mobile-brand {
+        display: block;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .auth-form-container {
+        max-width: 100%;
+    }
+
+    .auth-card-header {
+        padding: var(--sp-space-lg) var(--sp-space-md) var(--sp-space-sm);
+    }
+
+    .auth-card-body {
+        padding: var(--sp-space-sm) var(--sp-space-md) var(--sp-space-lg);
+    }
+}

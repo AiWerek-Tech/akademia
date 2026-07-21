@@ -1,0 +1,545 @@
+/* ============================================================
+ * SPMB WMVAA — Mobile-first polish layer
+ * Purpose: stabilize all dashboard/admin/operator/finance pages on phones.
+ * Loaded last so it can safely override older page-specific responsive rules.
+ * ============================================================ */
+
+:root {
+    --sp-mobile-bottom-nav-height: 78px;
+    --sp-mobile-page-gutter: clamp(12px, 4vw, 18px);
+}
+
+html,
+body {
+    max-width: 100%;
+    overflow-x: clip;
+}
+
+img,
+svg,
+video,
+canvas {
+    max-width: 100%;
+}
+
+.content-body,
+.admin-page-shell,
+.role-page-shell,
+.admin-command-center {
+    min-width: 0;
+}
+
+.card,
+.admin-panel,
+.role-summary-card,
+.admin-secondary-panel,
+.admin-filter-panel,
+.admin-hero-panel,
+.role-page-header {
+    max-width: 100%;
+}
+
+.btn,
+.form-control,
+.form-select,
+.input-group-text,
+.select2-container--bootstrap-5 .select2-selection {
+    min-height: 44px;
+}
+
+.btn {
+    white-space: normal;
+}
+
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.table-responsive > .table,
+.table-responsive table {
+    min-width: max-content;
+}
+
+@media (max-width: 991.98px) {
+    body {
+        padding-bottom: calc(var(--sp-mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    }
+
+    .main-container {
+        margin-left: 0 !important;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .content-body {
+        padding: 14px var(--sp-mobile-page-gutter) calc(var(--sp-mobile-bottom-nav-height) + 18px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .top-navbar {
+        height: auto;
+        min-height: 64px;
+        padding: calc(8px + env(safe-area-inset-top, 0px)) var(--sp-mobile-page-gutter) 8px;
+        background: rgba(var(--sp-body-bg-rgb, 248, 250, 252), 0.92);
+        border-bottom: 1px solid var(--sp-card-border);
+    }
+
+    .navbar-content {
+        height: 48px;
+        border-radius: 18px;
+        padding: 0 8px;
+        gap: 6px;
+    }
+
+    .menu-toggle-btn {
+        margin-right: 8px;
+        background: var(--sp-card-bg);
+        border: 1px solid var(--sp-card-border);
+        box-shadow: var(--sp-shadow-xs);
+    }
+
+    .search-box {
+        flex: 1 1 auto;
+        min-width: 0;
+        font-size: 0;
+        justify-content: center;
+        max-width: 48px;
+        padding: 0;
+    }
+
+    .search-box i,
+    .search-box svg {
+        margin: 0 !important;
+        width: 20px;
+        height: 20px;
+    }
+
+    .theme-toggle-btn {
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+    }
+
+    .user-dropdown .text-end {
+        display: none !important;
+    }
+
+    .avatar {
+        width: 38px;
+        height: 38px;
+    }
+
+    .sidebar {
+        left: 10px !important;
+        right: 10px !important;
+        width: auto !important;
+        max-width: none !important;
+        border-radius: 24px 24px 18px 18px;
+        border: 1px solid var(--sp-card-border);
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+        overflow: hidden;
+    }
+
+    .sidebar-brand {
+        height: 62px;
+        padding: 0 16px;
+    }
+
+    .brand-text {
+        font-size: 0.98rem;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .sidebar-menu {
+        padding: 10px;
+        overscroll-behavior: contain;
+    }
+
+    .menu-link {
+        min-height: 46px;
+        border-radius: 14px;
+        font-size: 0.88rem;
+    }
+
+    .submenu-list {
+        padding-left: 14px;
+    }
+
+    .submenu-link {
+        min-height: 40px;
+        font-size: 0.82rem;
+    }
+
+    .sidebar-overlay.show {
+        display: block;
+        opacity: 1;
+        background: rgba(15, 23, 42, 0.42);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+    }
+
+    .dashboard-mobile-bottom-nav {
+        left: 10px;
+        right: 10px;
+        bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        width: auto;
+        min-height: var(--sp-mobile-bottom-nav-height);
+        padding: 8px;
+        border-radius: 24px;
+        border: 1px solid rgba(var(--sp-primary-rgb), 0.12);
+        background: rgba(var(--sp-card-bg-rgb, 255, 255, 255), 0.94);
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        display: flex;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+    }
+
+    .dashboard-mobile-bottom-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .dashboard-bottom-item {
+        flex: 1 0 68px;
+        min-width: 68px;
+        min-height: 58px;
+        border-radius: 18px;
+        padding: 6px 4px;
+        gap: 3px;
+        scroll-snap-align: center;
+    }
+
+    .dashboard-bottom-icon svg,
+    .dashboard-bottom-icon i {
+        width: 20px;
+        height: 20px;
+    }
+
+    .dashboard-bottom-label {
+        max-width: 64px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.66rem;
+        line-height: 1.1;
+    }
+
+    .footer {
+        display: none;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .admin-page-shell,
+    .role-page-shell,
+    .admin-command-center {
+        gap: 14px;
+    }
+
+    .admin-hero-panel,
+    .role-page-header,
+    .admin-page-header {
+        border-radius: 22px;
+        padding: 16px;
+        margin-bottom: 14px;
+        overflow: hidden;
+    }
+
+    .role-page-header {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .role-page-header__title,
+    .admin-hero-panel h1,
+    .admin-page-header h1 {
+        font-size: clamp(1.25rem, 7vw, 1.72rem);
+        line-height: 1.18;
+        overflow-wrap: anywhere;
+    }
+
+    .role-page-header__subtitle,
+    .admin-page-subtitle,
+    .admin-hero-panel p {
+        font-size: 0.88rem;
+        line-height: 1.45;
+    }
+
+    .role-page-actions,
+    .admin-page-actions,
+    .admin-hero-panel__actions,
+    .role-filter-actions,
+    .registrant-filter-actions {
+        display: grid !important;
+        grid-template-columns: 1fr;
+        gap: 8px !important;
+        width: 100%;
+    }
+
+    .role-page-actions > *,
+    .admin-page-actions > *,
+    .admin-hero-panel__actions > *,
+    .role-filter-actions > *,
+    .registrant-filter-actions > * {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    .card {
+        border-radius: 18px;
+    }
+
+    .card-body,
+    .card-header,
+    .card-footer {
+        padding: 14px !important;
+    }
+
+    .row {
+        --bs-gutter-x: 0.85rem;
+        --bs-gutter-y: 0.85rem;
+    }
+
+    .form-label {
+        margin-bottom: 6px;
+        font-size: 0.82rem;
+    }
+
+    .input-group {
+        flex-wrap: nowrap;
+    }
+
+    .input-group > .form-control,
+    .input-group > .form-select {
+        min-width: 0;
+    }
+
+    .btn-group,
+    .btn-group-sm {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+        gap: 8px;
+    }
+
+    .btn-group > .btn,
+    .btn-group-sm > .btn {
+        border-radius: 14px !important;
+        width: 100%;
+    }
+
+    .table-responsive {
+        margin: 0;
+        border-radius: 16px;
+        overflow-x: auto !important;
+        overflow-y: hidden;
+        border: 1px solid var(--sp-card-border);
+        background:
+            linear-gradient(90deg, var(--sp-card-bg) 30%, rgba(255, 255, 255, 0)),
+            linear-gradient(90deg, rgba(255, 255, 255, 0), var(--sp-card-bg) 70%) 100% 0,
+            linear-gradient(90deg, rgba(15, 23, 42, 0.10), rgba(15, 23, 42, 0)),
+            linear-gradient(90deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.10)) 100% 0;
+        background-repeat: no-repeat;
+        background-size: 32px 100%, 32px 100%, 12px 100%, 12px 100%;
+        background-attachment: local, local, scroll, scroll;
+    }
+
+    /*
+     * Disable the old global table-to-card conversion.
+     * Native mobile card lists remain active where views explicitly provide them.
+     */
+    table thead {
+        display: table-header-group !important;
+    }
+
+    table tbody tr {
+        display: table-row !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        border-left: 0 !important;
+        border-right: 0 !important;
+        background: transparent;
+    }
+
+    table tbody td,
+    table thead th {
+        display: table-cell !important;
+        white-space: nowrap;
+        vertical-align: middle;
+        padding: 10px 12px !important;
+        min-height: 0 !important;
+    }
+
+    table tbody td::before {
+        content: none !important;
+    }
+
+    .role-table-actions,
+    .d-flex.justify-content-end.gap-2,
+    .d-flex.flex-column.align-items-end {
+        gap: 8px !important;
+    }
+
+    .role-table-actions {
+        display: grid !important;
+        grid-template-columns: 1fr;
+        min-width: 138px;
+    }
+
+    .role-table-actions .btn,
+    .role-table-actions form,
+    .role-table-actions form .btn {
+        width: 100%;
+    }
+
+    .registrant-mobile-list,
+    .admin-mobile-record-list,
+    .role-mobile-list {
+        gap: 12px;
+    }
+
+    .registrant-mobile-card,
+    .role-mobile-card,
+    .admin-mobile-record-card,
+    .admin-command-card,
+    .dashboard-kpi-card {
+        border-radius: 18px !important;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    .registrant-mobile-actions {
+        grid-template-columns: 1fr !important;
+    }
+
+    .admin-summary-grid {
+        margin-left: calc(-1 * var(--sp-mobile-page-gutter));
+        margin-right: calc(-1 * var(--sp-mobile-page-gutter));
+        padding-left: var(--sp-mobile-page-gutter);
+        padding-right: var(--sp-mobile-page-gutter);
+    }
+
+    .admin-panel,
+    .dashboard-panel {
+        border-radius: 18px;
+        padding: 14px;
+    }
+
+    .admin-panel__header,
+    .dashboard-panel__header {
+        gap: 8px;
+    }
+
+    .admin-queue-card,
+    .admin-activity-item,
+    .admin-task-item,
+    .task-item {
+        border-radius: 16px;
+    }
+
+    .offcanvas {
+        max-width: calc(100vw - 18px);
+        border-top-left-radius: 22px;
+        border-bottom-left-radius: 22px;
+    }
+
+    .modal-dialog {
+        margin: 10px;
+    }
+
+    .modal-content {
+        border-radius: 22px;
+    }
+
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .dropdown-menu {
+        max-width: calc(100vw - 24px);
+        border-radius: 16px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .content-body {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .navbar-content {
+        border-radius: 16px;
+    }
+
+    .theme-toggle-btn[title="Ganti Warna Tema"],
+    #themeColorSwitcher {
+        display: none;
+    }
+
+    .role-summary-card .row,
+    .role-summary-card [class*="col-"] {
+        text-align: left !important;
+    }
+
+    .role-summary-card .col-auto {
+        width: 100%;
+    }
+
+    .role-summary-card img.rounded {
+        width: 64px;
+        height: 64px;
+    }
+
+    .badge,
+    .sp-status-pill {
+        white-space: normal;
+        text-align: left;
+        line-height: 1.25;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
+    }
+
+    .page-link {
+        border-radius: 12px !important;
+        min-width: 40px;
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+body.dark-mode .dashboard-mobile-bottom-nav {
+    background: rgba(15, 23, 42, 0.94);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .table-responsive {
+    background:
+        linear-gradient(90deg, var(--sp-card-bg) 30%, rgba(15, 23, 42, 0)),
+        linear-gradient(90deg, rgba(15, 23, 42, 0), var(--sp-card-bg) 70%) 100% 0,
+        linear-gradient(90deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+        linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.12)) 100% 0;
+    background-repeat: no-repeat;
+    background-size: 32px 100%, 32px 100%, 12px 100%, 12px 100%;
+    background-attachment: local, local, scroll, scroll;
+}
+
+@supports not (overflow: clip) {
+    html,
+    body,
+    .layout-wrapper {
+        overflow-x: hidden;
+    }
+}

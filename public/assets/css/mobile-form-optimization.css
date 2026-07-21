@@ -1,0 +1,374 @@
+/* ============================================================
+ * Smart SPMB Pro — Mobile Form Optimization CSS
+ * Phase 1: Mobile Experience - Responsive Form Layout
+ * Version: 1.0
+ * ============================================================
+ * Purpose: Optimize form layout for mobile devices
+ * Loaded in: wizard_layout.php
+ * ============================================================ */
+
+/* ─────────────────────────────────────────────
+   1. MOBILE FORM LAYOUT PRINCIPLES
+   ─────────────────────────────────────────────
+   Desktop: col-md-6 (2 columns)
+   Mobile:  col-12 (1 column, full width)
+   ───────────────────────────────────────────── */
+
+/* Base form improvements */
+.form-group {
+    margin-bottom: calc(var(--sp-space-md) * 1.2); /* Slightly increased */
+}
+
+.form-label {
+    font-weight: 500;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+    display: block; /* Ensure label above input */
+    color: var(--sp-text-primary);
+}
+
+.form-label.required-field::after {
+    content: '\00a0*';
+    color: var(--sp-danger);
+    font-weight: 700;
+}
+
+/* Form controls: Full width, larger touch target */
+.form-control,
+.form-select {
+    min-height: 44px; /* Minimum touch target */
+    padding: 12px 14px;
+    font-size: 16px; /* Prevent zoom on iOS */
+    border: 1px solid var(--sp-input-border);
+    border-radius: var(--sp-radius-md);
+    transition: all var(--sp-transition);
+}
+
+.form-control:focus,
+.form-select:focus {
+    outline: none;
+    border-color: var(--sp-primary);
+    box-shadow: 0 0 0 3px rgba(var(--sp-primary-rgb), 0.1);
+}
+
+/* Radio & checkbox: Larger touch targets */
+.form-check {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.form-check-input {
+    width: 20px;
+    height: 20px;
+    margin-top: 0;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.form-check-label {
+    margin-bottom: 0;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+/* ─────────────────────────────────────────────
+   2. MOBILE FIRST: DESKTOP LAYOUT RESETS
+   ─────────────────────────────────────────────
+   On mobile, force single column.
+   Desktop layout handled by Bootstrap col-md
+   ───────────────────────────────────────────── */
+
+@media (max-width: 767.98px) {
+    /* Single column layout on mobile */
+    .row {
+        gap: 0; /* Remove gutters on mobile */
+    }
+
+    [class*='col-'] {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    /* Form groups full width */
+    .form-group {
+        width: 100%;
+        margin-bottom: 16px;
+    }
+
+    /* Labels always above input */
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+
+    /* Form controls full width */
+    .form-control,
+    .form-select {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* Radio buttons: Stack vertically */
+    .form-check-inline {
+        display: block;
+        margin-bottom: 10px;
+        margin-right: 0;
+    }
+
+    /* Text input: Increase font to prevent zoom */
+    input[type='text'],
+    input[type='email'],
+    input[type='tel'],
+    input[type='number'],
+    input[type='password'],
+    textarea {
+        font-size: 16px; /* Prevents auto-zoom on iOS */
+    }
+
+    /* Datepicker full width */
+    .datepicker {
+        width: 100%;
+    }
+
+    /* Select2 container */
+    .select2-container--bootstrap-5 {
+        width: 100% !important;
+    }
+
+    /* Textarea: Full width */
+    textarea {
+        width: 100%;
+        resize: vertical;
+        min-height: 100px;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   3. MOBILE BUTTONS: FULL WIDTH, LARGER
+   ─────────────────────────────────────────────
+   Navigation buttons should be easy to tap
+   ───────────────────────────────────────────── */
+
+@media (max-width: 767.98px) {
+    .wizard-footer {
+        display: flex;
+        flex-direction: column-reverse; /* Save / Next should be last */
+        gap: 10px;
+        padding: 16px 20px;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .wizard-nav-btn {
+        display: flex;
+        width: 100%;
+    }
+
+    .wizard-nav-btn button,
+    .btn {
+        width: 100%;
+        min-height: 48px;
+        font-size: 1rem;
+        font-weight: 600;
+        padding: 14px 16px;
+    }
+
+    .btn-primary,
+    .btn-success {
+        width: 100%;
+    }
+
+    .btn-secondary,
+    .btn-outline-secondary {
+        width: 100%;
+    }
+
+    /* Icon buttons should still be 44x44 */
+    .btn-icon,
+    .btn-sm {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   4. HELP TEXT & ERROR MESSAGES
+   ─────────────────────────────────────────────
+   Clear, readable guidance
+   ───────────────────────────────────────────── */
+
+.help-text,
+.form-text {
+    font-size: 0.85rem;
+    color: var(--sp-text-muted);
+    margin-top: 6px;
+    display: block;
+}
+
+.invalid-feedback {
+    font-size: 0.85rem;
+    color: var(--sp-danger);
+    margin-top: 6px;
+    display: block;
+}
+
+.valid-feedback {
+    font-size: 0.85rem;
+    color: var(--sp-success);
+    margin-top: 6px;
+    display: block;
+}
+
+/* ─────────────────────────────────────────────
+   5. FILE UPLOAD AREA MOBILE
+   ─────────────────────────────────────────────
+   Make upload area mobile-friendly
+   ───────────────────────────────────────────── */
+
+@media (max-width: 767.98px) {
+    .file-upload-area {
+        padding: 30px 20px;
+        border-radius: var(--sp-radius-md);
+    }
+
+    .file-upload-area i,
+    .file-upload-area svg {
+        width: 28px;
+        height: 28px;
+        margin-bottom: 10px;
+    }
+
+    .file-upload-area p {
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+
+    /* File input - make clickable area larger */
+    input[type='file'] {
+        display: none;
+    }
+
+    .file-upload-label {
+        display: block;
+        cursor: pointer;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   6. FOCUS STATES FOR KEYBOARD NAVIGATION
+   ─────────────────────────────────────────────
+   Essential for accessibility
+   ───────────────────────────────────────────── */
+
+.form-control:focus-visible,
+.form-select:focus-visible,
+.btn:focus-visible {
+    outline: 2px solid var(--sp-primary);
+    outline-offset: 2px;
+}
+
+/* ─────────────────────────────────────────────
+   7. DARK MODE ADJUSTMENTS
+   ─────────────────────────────────────────────
+   ───────────────────────────────────────────── */
+
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+    background-color: var(--sp-input-bg-dark, #1e293b);
+    color: var(--sp-text-primary);
+    border-color: var(--sp-input-border-dark, #334155);
+}
+
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+    background-color: var(--sp-input-bg-dark, #1e293b);
+    border-color: var(--sp-primary);
+}
+
+/* ─────────────────────────────────────────────
+   8. LANDSCAPE MODE (OPTIONAL)
+   ─────────────────────────────────────────────
+   For iPad landscape, allow 2-col layout
+   ───────────────────────────────────────────── */
+
+@media (min-width: 768px) and (max-height: 600px) and (orientation: landscape) {
+    .form-group {
+        margin-bottom: 12px;
+    }
+
+    .wizard-footer {
+        flex-direction: row;
+        gap: 12px;
+    }
+
+    .wizard-footer .btn {
+        flex: 1;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   9. SAFE AREA INSETS (iPhone X+)
+   ─────────────────────────────────────────────
+   Account for notch and home indicator
+   ───────────────────────────────────────────── */
+
+@supports (padding: max(0px)) {
+    .wizard-container {
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+    }
+
+    .wizard-footer {
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+}
+
+/* ─────────────────────────────────────────────
+   10. FORM GROUP HELPER: ROW-LIKE FOR MOBILE
+   ─────────────────────────────────────────────
+   Allow optional 2-column on tablets
+   ───────────────────────────────────────────── */
+
+@media (min-width: 640px) and (max-width: 991.98px) {
+    /* Tablets: allow optional 2-column grid */
+    .form-group-row-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .form-group-row-2 .form-group {
+        margin-bottom: 0;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   11. COMPACT MODE (SAVE SPACE ON MOBILE)
+   ─────────────────────────────────────────────
+   Optional: Use on Step 8 upload to save space
+   ───────────────────────────────────────────── */
+
+.form-compact {
+    --space-compact: 8px;
+}
+
+.form-compact .form-group {
+    margin-bottom: var(--space-compact);
+}
+
+.form-compact .form-label {
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
+
+.form-compact .form-control,
+.form-compact .form-select {
+    padding: 8px 10px;
+    font-size: 15px;
+    min-height: 40px;
+}

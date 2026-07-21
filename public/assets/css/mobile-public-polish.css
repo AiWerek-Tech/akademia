@@ -1,0 +1,277 @@
+/* ============================================================
+ * SPMB WMVAA — Mobile-first polish for public/auth pages
+ * Loaded after public.css/auth.css. Keep this file intentionally
+ * lightweight so it improves mobile behavior without replacing
+ * each page's own visual identity.
+ * ============================================================ */
+
+:root {
+    --sp-mobile-gutter: clamp(16px, 4.5vw, 24px);
+    --sp-mobile-touch-target: 44px;
+}
+
+html,
+body {
+    max-width: 100%;
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+}
+
+img,
+svg,
+video,
+canvas,
+iframe {
+    max-width: 100%;
+}
+
+button,
+.btn,
+.form-control,
+.form-select,
+.nav-link,
+.dropdown-item,
+a[role="button"] {
+    min-height: var(--sp-mobile-touch-target);
+}
+
+.form-control,
+.form-select,
+textarea.form-control {
+    font-size: 16px;
+}
+
+.table-responsive {
+    border-radius: 16px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive > .table,
+.table-responsive table {
+    min-width: max-content;
+}
+
+@media (max-width: 991.98px) {
+    .container,
+    .container-fluid,
+    .container-lg,
+    .container-md,
+    .container-sm,
+    .container-xl,
+    .container-xxl {
+        padding-left: var(--sp-mobile-gutter);
+        padding-right: var(--sp-mobile-gutter);
+    }
+
+    .sp-public-navbar {
+        min-height: 68px;
+        padding-top: max(10px, env(safe-area-inset-top, 0px));
+    }
+
+    .sp-public-navbar .navbar-brand {
+        min-width: 0;
+    }
+
+    .sp-public-navbar .brand-text,
+    .sp-public-navbar .navbar-brand span,
+    .sp-public-navbar .navbar-brand strong {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .sp-mobile-drawer,
+    .offcanvas {
+        max-width: min(92vw, 390px);
+    }
+
+    .sp-section-header {
+        margin-bottom: 28px;
+    }
+
+    .sp-section-title,
+    .sp-hero-title,
+    h1 {
+        text-wrap: balance;
+    }
+
+    .sp-hero-banner,
+    .sp-hero-card,
+    .sp-primary-card,
+    .jalur-card,
+    .sp-news-card,
+    .sp-faq-item,
+    .card {
+        border-radius: 20px;
+    }
+
+    .sp-hero-actions,
+    .sp-navbar-actions,
+    .auth-actions,
+    .form-actions,
+    .modal-footer {
+        gap: 10px;
+    }
+
+    .sp-hero-actions .btn,
+    .sp-navbar-actions .btn,
+    .auth-form .btn,
+    .form-actions .btn,
+    .modal-footer .btn {
+        min-height: 48px;
+        border-radius: 14px;
+    }
+}
+
+@media (max-width: 767.98px) {
+    body {
+        touch-action: manipulation;
+    }
+
+    .sp-section,
+    section {
+        scroll-margin-top: 82px;
+    }
+
+    .sp-hero-banner,
+    .sp-hero-card {
+        padding-left: var(--sp-mobile-gutter);
+        padding-right: var(--sp-mobile-gutter);
+    }
+
+    .sp-hero-actions,
+    .sp-navbar-actions,
+    .modal-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .sp-hero-actions .btn,
+    .sp-navbar-actions .btn,
+    .modal-footer .btn,
+    .auth-form .btn-primary {
+        width: 100%;
+    }
+
+    .sp-hero-trust-badges {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .sp-public-footer {
+        text-align: left;
+        padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .modal-dialog {
+        margin: 12px;
+    }
+
+    .modal-content {
+        border-radius: 22px;
+    }
+
+    .auth-wrapper {
+        min-height: 100svh;
+        background:
+            radial-gradient(circle at top left, rgba(var(--sp-primary-rgb, 59, 130, 246), 0.16), transparent 34%),
+            var(--sp-body-bg);
+    }
+
+    .auth-brand-panel {
+        display: none !important;
+    }
+
+    .auth-form-panel {
+        width: 100% !important;
+        min-height: 100svh;
+        padding: max(18px, env(safe-area-inset-top, 0px)) var(--sp-mobile-gutter) max(18px, env(safe-area-inset-bottom, 0px));
+        align-items: stretch;
+        justify-content: center;
+    }
+
+    .auth-form-container {
+        width: 100%;
+        max-width: 460px;
+        margin: 0 auto;
+    }
+
+    .auth-card {
+        border-radius: 24px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.10);
+    }
+
+    .auth-card-header {
+        padding: 24px 22px 12px;
+        text-align: left;
+    }
+
+    .auth-card-body {
+        padding: 20px 22px 24px;
+    }
+
+    .auth-card-header h2 {
+        font-size: clamp(1.35rem, 7vw, 1.85rem);
+        line-height: 1.15;
+    }
+
+    .auth-card-header p {
+        font-size: 0.94rem;
+    }
+
+    .auth-form .form-group {
+        margin-bottom: 16px;
+    }
+
+    .auth-form .form-control,
+    .auth-form .form-select {
+        min-height: 50px;
+        border-radius: 14px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .container,
+    .container-fluid {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .sp-public-navbar {
+        min-height: 64px;
+    }
+
+    .sp-section-title,
+    .sp-hero-title,
+    h1 {
+        font-size: clamp(1.75rem, 10vw, 2.45rem);
+        line-height: 1.08;
+    }
+
+    .sp-section-subtitle,
+    .sp-hero-subtitle {
+        font-size: 0.98rem;
+    }
+
+    .sp-primary-card,
+    .jalur-card,
+    .sp-news-card,
+    .sp-faq-item,
+    .card {
+        border-radius: 18px;
+    }
+
+    .auth-card {
+        border-radius: 22px;
+    }
+}
+
+@supports not (overflow: clip) {
+    html,
+    body {
+        overflow-x: hidden;
+    }
+}
+

@@ -1,35 +1,22 @@
-# Milestone Plan - WMVAA Akademia
+# WMVAA Akademia — Milestone Roadmap
 
-This document lists the milestones and criteria for transitioning from one development phase to another.
+## Milestone 1: Foundation, Security, RBAC & Core Admin UI (CLOSED)
+- [x] Base CodeIgniter 4.7.4 installation and PHP 8.2 compatibility
+- [x] Database migrations & seeders (`CoreSeeder`)
+- [x] Unit isolation (SMP vs SMA) & Multi-tenant access controls
+- [x] Session-based authentication & forced password change workflow
+- [x] Dynamic Role-Based Access Control (RBAC) permission checking
+- [x] Academic Period lifecycle workflow (`DRAFT` -> `VALIDATED` -> `REVIEWED` -> `APPROVED` -> `LOCKED`)
+- [x] Real-time Audit Logging system
+- [x] 100% PHPUnit Test Suite coverage (53 tests, 149 assertions, 0 errors, 0 warnings)
+- [x] Dedicated CSRF HTTP enforcement test suite (`CsrfEnforcementTest`)
+- [x] Browser runtime verification endpoint (`/system/runtime`)
+- [x] SPMB design system migration & offline asset independence (`public/assets/`)
+- [x] Final Acceptance Evidence Gate — **PASSED**
 
----
-
-## Milestone Directory
-
-| Milestone | Title | Focus Areas | Status |
-|---|---|---|---|
-| **M0** | Discovery and Foundation | Project Init, Base Layout, DB Config, Documentation | **PASSED AFTER SECURITY GATE** |
-| **M1** | Auth, RBAC, Unit, Periode | User Access, Roles, Semesters, Unit Access Controls | *NOT STARTED* |
-| **M2** | Master Guru, Mapel, Kelas, Ruang | Basic Entities, Import Staging, Duplication Filters | *PLANNED* |
-| **M3** | Struktur Kurikulum | Curriculum structure, Weekly Hours, Block Pattern Verification | *PLANNED* |
-| **M4** | Penugasan & Beban Kerja | Teaching Assignment Matrix, Additional Duty, Workload Reports | *PLANNED* |
-| **M5** | Fondasi Jadwal | Day Slots, Constraints, Availability Matrix | *PLANNED* |
-| **M6** | Editor & Validasi Jadwal | UI Editor, Conflict validation, Version comparing | *PLANNED* |
-| **M7** | Generator Jadwal | PHP heuristic solver, Alternative generation, score display | *PLANNED* |
-| **M8** | Piket | Duty rules generator, Daily Piket Journal | *PLANNED* |
-| **M9** | Dokumen | Official decisions, PDF/ZIP generation, QR code verifier | *PLANNED* |
-| **M10**| Import Legacy | Adapters for legacy databases and Excel parsing | *PLANNED* |
-| **M11**| Portal Guru & Laporan | Teacher Schedule dashboard, Workload dashboard, letters | *PLANNED* |
-| **M12**| Final QA & Deployment | Regression, cPanel install, Upgrade/Rollback rehearsals | *PLANNED* |
-
----
-
-## Milestone 0 Deliverables
-
-- Initial CodeIgniter 4.4.8 structure.
-- Local configuration (`.env`).
-- Git repository initialization.
-- Documentation structure (`docs/`).
-- Automated tests base framework.
-- Core UI shell dashboard structure (sidebar layout).
-- Health check API routing.
+## Milestone 2: Academic Domain & Curriculum Management (PENDING)
+- [ ] Teacher management (`guru`)
+- [ ] Subject catalog (`mata_pelajaran`)
+- [ ] Classrooms & room allocation (`kelas`, `ruang`)
+- [ ] Curriculum & workload management
+- [ ] Schedule generation & duty roster

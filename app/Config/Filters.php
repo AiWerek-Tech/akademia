@@ -19,11 +19,17 @@ class Filters extends BaseConfig
      *                                                     or [filter_name => [classname1, classname2, ...]]
      */
     public array $aliases = [
-        'csrf'          => CSRF::class,
-        'toolbar'       => DebugToolbar::class,
-        'honeypot'      => Honeypot::class,
-        'invalidchars'  => InvalidChars::class,
-        'secureheaders' => SecureHeaders::class,
+        'csrf'                    => CSRF::class,
+        'toolbar'                 => DebugToolbar::class,
+        'honeypot'                => Honeypot::class,
+        'invalidchars'            => InvalidChars::class,
+        'secureheaders'           => SecureHeaders::class,
+        'auth'                    => \App\Filters\AuthFilter::class,
+        'guest'                   => \App\Filters\GuestFilter::class,
+        'permission'              => \App\Filters\PermissionFilter::class,
+        'unit_access'             => \App\Filters\UnitAccessFilter::class,
+        'password_change_required'=> \App\Filters\PasswordChangeRequiredFilter::class,
+        'dev_only'                => \App\Filters\DevelopmentOnlyFilter::class,
     ];
 
     /**
@@ -35,15 +41,26 @@ class Filters extends BaseConfig
     public array $globals = [
         'before' => [
             // 'honeypot',
-            // 'csrf',
+            'csrf',
             // 'invalidchars',
         ],
         'after' => [
             'toolbar',
             // 'honeypot',
-            // 'secureheaders',
+            'secureheaders',
         ],
     ];
+
+    public function __construct()
+    {
+        parent::__construct();
+        if (ENVIRONMENT === 'testing' && empty($GLOBALS['enable_csrf_testing'])) {
+            if (($key = array_search('csrf', $this->globals['before'], true)) !== false) {
+                unset($this->globals['before'][$key]);
+                $this->globals['before'] = array_values($this->globals['before']);
+            }
+        }
+    }
 
     /**
      * List of filter aliases that works on a
@@ -69,5 +86,66 @@ class Filters extends BaseConfig
      *
      * @var array<string, array<string, list<string>>>
      */
-    public array $filters = [];
+    public array $filters = [
+        'auth' => [
+            'before' => [
+                '/',
+                'dashboard',
+                'dashboard/*',
+                'settings',
+                'settings/*',
+                'academic-years',
+                'academic-years/*',
+                'academic-periods',
+                'academic-periods/*',
+                'users',
+                'users/*',
+                'roles',
+                'roles/*',
+                'audit',
+                'audit/*',
+                'context/*',
+            ]
+        ],
+        'unit_access' => [
+            'before' => [
+                '/',
+                'dashboard',
+                'dashboard/*',
+                'settings',
+                'settings/*',
+                'academic-years',
+                'academic-years/*',
+                'academic-periods',
+                'academic-periods/*',
+                'users',
+                'users/*',
+                'roles',
+                'roles/*',
+                'audit',
+                'audit/*',
+                'context/*',
+            ]
+        ],
+        'password_change_required' => [
+            'before' => [
+                '/',
+                'dashboard',
+                'dashboard/*',
+                'settings',
+                'settings/*',
+                'academic-years',
+                'academic-years/*',
+                'academic-periods',
+                'academic-periods/*',
+                'users',
+                'users/*',
+                'roles',
+                'roles/*',
+                'audit',
+                'audit/*',
+                'context/*',
+            ]
+        ]
+    ];
 }

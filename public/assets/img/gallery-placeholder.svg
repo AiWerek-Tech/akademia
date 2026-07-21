@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-label="Gambar tidak tersedia">
+  <rect width="800" height="600" fill="#eef2ff"/>
+  <rect x="280" y="180" width="240" height="180" rx="12" fill="#c7d2fe"/>
+  <circle cx="340" cy="240" r="24" fill="#6366f1"/>
+  <path d="M300 330 L380 260 L460 330 Z" fill="#6366f1"/>
+  <text x="400" y="420" text-anchor="middle" fill="#475569" font-family="Arial, sans-serif" font-size="22">Gambar tidak tersedia</text>
+</svg>

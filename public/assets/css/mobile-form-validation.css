@@ -1,0 +1,639 @@
+/* ============================================================
+ * Smart SPMB Pro — Mobile Form Validation Polish
+ * Phase 1: Mobile Experience - Task #7
+ * Version: 1.0
+ * ============================================================
+ * Purpose: Enhanced validation feedback for mobile users
+ * Features: Real-time validation, clear error messages, success states
+ * ============================================================ */
+
+/* ─────────────────────────────────────────────
+   FORM VALIDATION STATES
+   ───────────────────────────────────────────── */
+
+/* Valid State */
+.form-control.is-valid,
+.form-check-input.is-valid {
+    border-color: var(--sp-success);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2322c55e' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+    padding-right: calc(1.5em + 0.75rem);
+}
+
+.form-control.is-valid:focus,
+.form-check-input.is-valid:focus {
+    border-color: var(--sp-success);
+    box-shadow: 0 0 0 0.2rem rgba(34, 197, 94, 0.25);
+}
+
+.form-control.is-valid::placeholder {
+    color: rgba(34, 197, 94, 0.7);
+}
+
+/* Invalid State */
+.form-control.is-invalid,
+.form-check-input.is-invalid {
+    border-color: var(--sp-danger);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23ef4444' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5h-.5Z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23ef4444' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+    padding-right: calc(1.5em + 0.75rem);
+}
+
+.form-control.is-invalid:focus,
+.form-check-input.is-invalid:focus {
+    border-color: var(--sp-danger);
+    box-shadow: 0 0 0 0.2rem rgba(239, 68, 68, 0.25);
+}
+
+/* ─────────────────────────────────────────────
+   VALIDATION FEEDBACK MESSAGES
+   ───────────────────────────────────────────── */
+
+.valid-feedback,
+.invalid-feedback {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--sp-text-muted);
+    gap: 8px;
+}
+
+.valid-feedback {
+    color: var(--sp-success);
+}
+
+.invalid-feedback {
+    color: var(--sp-danger);
+}
+
+.valid-feedback::before,
+.invalid-feedback::before {
+    content: '';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+}
+
+.valid-feedback::before {
+    content: '✓';
+    font-weight: 700;
+    color: var(--sp-success);
+}
+
+.invalid-feedback::before {
+    content: '⚠';
+    font-weight: 700;
+    color: var(--sp-danger);
+}
+
+/* ─────────────────────────────────────────────
+   FORM GROUP SPACING - MOBILE OPTIMIZED
+   ───────────────────────────────────────────── */
+
+.form-group,
+.mb-3 {
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 767.98px) {
+    .form-group,
+    .mb-3 {
+        margin-bottom: 1.25rem;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   FORM LABELS - MOBILE
+   ───────────────────────────────────────────── */
+
+label,
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--sp-heading-color);
+}
+
+label small,
+.form-label small {
+    font-weight: 400;
+    font-size: 0.8rem;
+    color: var(--sp-text-muted);
+}
+
+.required::after {
+    content: ' *';
+    color: var(--sp-danger);
+    font-weight: 700;
+}
+
+@media (max-width: 767.98px) {
+    label,
+    .form-label {
+        font-size: 0.9rem;
+        margin-bottom: 0.6rem;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   FORM INPUTS - MOBILE
+   ───────────────────────────────────────────── */
+
+.form-control,
+.form-select,
+textarea.form-control {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 16px;
+    font-family: inherit;
+    line-height: 1.5;
+    color: var(--sp-text-color);
+    background-color: var(--sp-input-bg);
+    border: 2px solid var(--sp-input-border);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    min-height: 44px;
+}
+
+.form-control:focus,
+.form-select:focus,
+textarea.form-control:focus {
+    outline: none;
+    border-color: var(--sp-primary);
+    background-color: var(--sp-input-bg);
+    box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.15);
+}
+
+.form-control::placeholder {
+    color: var(--sp-input-placeholder);
+    opacity: 0.8;
+}
+
+@media (max-width: 767.98px) {
+    .form-control,
+    .form-select,
+    textarea.form-control {
+        font-size: 16px;
+        padding: 0.875rem;
+        min-height: 48px;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   INLINE HELP TEXT - MOBILE
+   ───────────────────────────────────────────── */
+
+.form-text,
+.help-text {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.8rem;
+    color: var(--sp-text-muted);
+    line-height: 1.4;
+}
+
+.form-text.invalid-help {
+    color: var(--sp-danger);
+    display: none;
+}
+
+.form-text.invalid-help.show {
+    display: block;
+}
+
+.form-text.valid-help {
+    color: var(--sp-success);
+    display: none;
+}
+
+.form-text.valid-help.show {
+    display: block;
+}
+
+/* ─────────────────────────────────────────────
+   INPUT GROUPS - MOBILE
+   ───────────────────────────────────────────── */
+
+.input-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    width: 100%;
+    gap: 0;
+}
+
+.input-group > .form-control,
+.input-group > .form-select {
+    flex: 1 1 auto;
+    width: 1%;
+}
+
+.input-group-text {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--sp-text-muted);
+    background: var(--sp-input-bg);
+    border: 2px solid var(--sp-input-border);
+    border-radius: 8px;
+}
+
+@media (max-width: 767.98px) {
+    .input-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .input-group > .form-control,
+    .input-group > .form-select,
+    .input-group-text {
+        width: 100%;
+        flex: 1 1 100%;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   VALIDATION SPINNER - LOADING STATE
+   ───────────────────────────────────────────── */
+
+.validating {
+    position: relative;
+}
+
+.validating::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(99, 102, 241, 0.2);
+    border-top-color: var(--sp-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* ─────────────────────────────────────────────
+   FORM SECTION - MOBILE HEADERS
+   ───────────────────────────────────────────── */
+
+.form-section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0 16px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--sp-input-border);
+}
+
+.form-section-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--sp-heading-color);
+}
+
+.form-section-header .section-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--sp-primary);
+    color: white;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 767.98px) {
+    .form-section-header {
+        margin: 20px 0 14px 0;
+    }
+
+    .form-section-header h3 {
+        font-size: 1rem;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   BUTTON VALIDATION STATES
+   ───────────────────────────────────────────── */
+
+.btn[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 12px 24px;
+    transition: all 0.3s ease;
+}
+
+.btn[type="submit"]:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn[type="submit"].validating::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@media (max-width: 767.98px) {
+    .btn[type="submit"] {
+        width: 100%;
+        padding: 14px 20px;
+        font-size: 0.95rem;
+        min-height: 48px;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   VALIDATION TOOLTIP - MOBILE FRIENDLY
+   ───────────────────────────────────────────── */
+
+.tooltip-inner {
+    max-width: 280px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: left;
+    border-radius: 6px;
+    background: var(--sp-danger);
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tooltip-inner.success {
+    background: var(--sp-success);
+}
+
+.tooltip-inner.warning {
+    background: var(--sp-warning);
+}
+
+@media (max-width: 767.98px) {
+    .tooltip-inner {
+        max-width: calc(100vw - 32px);
+        font-size: 0.8rem;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   FORM FOOTER - ACTION BUTTONS
+   ───────────────────────────────────────────── */
+
+.form-footer {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid var(--sp-input-border);
+}
+
+.form-footer button {
+    flex: 1;
+    min-height: 48px;
+    font-size: 0.95rem;
+}
+
+@media (max-width: 767.98px) {
+    .form-footer {
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 24px;
+        padding-top: 16px;
+    }
+
+    .form-footer button {
+        width: 100%;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   FIELD ERROR SUMMARY - BEFORE SUBMIT
+   ───────────────────────────────────────────── */
+
+.form-error-summary {
+    display: none;
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 4px solid var(--sp-danger);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.form-error-summary.show {
+    display: block;
+}
+
+.form-error-summary h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--sp-danger);
+    margin: 0 0 8px 0;
+}
+
+.form-error-summary ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.form-error-summary li {
+    font-size: 0.85rem;
+    color: var(--sp-text-muted);
+    padding: 4px 0;
+}
+
+.form-error-summary a {
+    color: var(--sp-danger);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.form-error-summary a:hover {
+    text-decoration: underline;
+}
+
+/* ─────────────────────────────────────────────
+   SUCCESS MESSAGE - AFTER VALIDATION
+   ───────────────────────────────────────────── */
+
+.form-success-message {
+    display: none;
+    background: rgba(34, 197, 94, 0.1);
+    border-left: 4px solid var(--sp-success);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    color: var(--sp-success);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.form-success-message.show {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.form-success-message::before {
+    content: '✓';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    background: var(--sp-success);
+    color: white;
+    border-radius: 50%;
+    font-weight: 700;
+}
+
+/* ─────────────────────────────────────────────
+   DARK MODE
+   ───────────────────────────────────────────── */
+
+body.dark-mode .form-control,
+body.dark-mode .form-select,
+body.dark-mode textarea.form-control {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+}
+
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+    background-color: #1e293b;
+    border-color: var(--sp-primary);
+}
+
+body.dark-mode .input-group-text {
+    background: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+}
+
+body.dark-mode .form-section-header {
+    border-bottom-color: #374151;
+}
+
+body.dark-mode .form-footer {
+    border-top-color: #374151;
+}
+
+/* ─────────────────────────────────────────────
+   ACCESSIBILITY - FOCUS STATES
+   ───────────────────────────────────────────── */
+
+.form-control:focus-visible,
+.form-select:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--sp-primary);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .form-control,
+    .form-select,
+    button,
+    .validating::after {
+        transition: none;
+        animation: none;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE CHECKBOX / RADIO - MOBILE
+   ───────────────────────────────────────────── */
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    min-height: 44px;
+}
+
+.form-check-input {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.form-check-label {
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+@media (max-width: 767.98px) {
+    .form-check {
+        gap: 14px;
+        min-height: 48px;
+    }
+
+    .form-check-input {
+        width: 22px;
+        height: 22px;
+    }
+
+    .form-check-label {
+        font-size: 0.9rem;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   CHARACTER COUNTER - FOR TEXT AREAS
+   ───────────────────────────────────────────── */
+
+.char-counter {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: var(--sp-text-muted);
+}
+
+.char-counter.warning {
+    color: var(--sp-warning);
+    font-weight: 600;
+}
+
+.char-counter.error {
+    color: var(--sp-danger);
+    font-weight: 600;
+}

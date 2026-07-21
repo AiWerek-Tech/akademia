@@ -1,0 +1,367 @@
+/* ============================================================
+ * Smart SPMB Pro — Mobile Progress Bar Prominent Enhancement
+ * Phase 1: Mobile Experience - Task #2
+ * Version: 1.0
+ * ============================================================
+ * Purpose: Make progress bar more visible and prominent on mobile
+ * Enhancement: Sticky positioning, animations, better styling
+ * ============================================================ */
+
+/* ─────────────────────────────────────────────
+   MOBILE PROGRESS BAR - STICKY & PROMINENT
+   ───────────────────────────────────────────── */
+
+/* Only on mobile: make progress bar sticky at top */
+@media (max-width: 767.98px) {
+    #mobileProgressBar {
+        position: sticky;
+        top: 0;
+        z-index: 500;
+        background: var(--sp-card-bg);
+        padding: 16px 16px 12px 16px;
+        margin: 0 -16px 16px -16px; /* Negative margin to extend to edges */
+        border-bottom: 2px solid var(--sp-primary);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}
+
+/* ─────────────────────────────────────────────
+   PROGRESS HEADER - LARGE & BOLD
+   ───────────────────────────────────────────── */
+
+#mobileProgressBar > div:first-child {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    margin-bottom: 12px !important;
+}
+
+/* Step indicator - make it larger and more prominent */
+#mobileProgressBar .step-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+#mobileProgressBar .step-label {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--sp-primary);
+    letter-spacing: 0.3px;
+}
+
+#mobileProgressBar .step-label span {
+    font-weight: 800;
+    font-size: 1.25rem;
+}
+
+#mobileProgressBar .step-label .of-text {
+    font-weight: 500;
+    color: var(--sp-text-secondary);
+    font-size: 0.95rem;
+}
+
+#mobileProgressBar .step-total {
+    font-weight: 700;
+    color: var(--sp-text-secondary);
+}
+
+/* Percentage badge - prominent */
+#mobileProgressBar .progress-percentage {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 52px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--sp-primary) 0%, var(--sp-accent) 100%);
+    color: white;
+    border-radius: 16px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    animation: pulse 0.5s ease-out;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* ─────────────────────────────────────────────
+   PROGRESS BAR - ENHANCED VISUAL
+   ───────────────────────────────────────────── */
+
+#mobileProgressBar .progress-track {
+    width: 100%;
+    height: 8px;
+    background: var(--sp-input-border);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+#mobileProgressBar .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--sp-primary) 0%, var(--sp-accent) 100%);
+    transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: 4px;
+    position: relative;
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+}
+
+/* Animated stripe effect on progress bar */
+#mobileProgressBar .progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.3) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    animation: shimmer 2s infinite;
+    border-radius: 4px;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* ─────────────────────────────────────────────
+   STEP MILESTONE INDICATORS
+   ───────────────────────────────────────────── */
+
+.step-milestone {
+    display: inline-block;
+    margin: 0 2px;
+    padding: 2px 4px;
+    background: var(--sp-input-border);
+    border-radius: 2px;
+    height: 4px;
+    width: 3px;
+    transition: all 0.3s ease;
+}
+
+.step-milestone.completed {
+    background: var(--sp-success);
+}
+
+.step-milestone.current {
+    background: var(--sp-primary);
+    transform: scale(1.4);
+}
+
+/* ─────────────────────────────────────────────
+   STATUS MESSAGE - UNDER PROGRESS BAR
+   ───────────────────────────────────────────── */
+
+.progress-status-message {
+    font-size: 0.85rem;
+    color: var(--sp-text-muted);
+    font-weight: 500;
+    margin-top: 6px;
+    padding-left: 2px;
+}
+
+.progress-status-message i {
+    margin-right: 4px;
+    font-size: 0.75rem;
+}
+
+/* ─────────────────────────────────────────────
+   DEVICE RESPONSIVENESS
+   ───────────────────────────────────────────── */
+
+/* Small phones (< 360px) */
+@media (max-width: 359px) {
+    #mobileProgressBar {
+        padding: 12px 12px 10px 12px;
+    }
+
+    #mobileProgressBar .step-label {
+        font-size: 0.95rem;
+    }
+
+    #mobileProgressBar .progress-percentage {
+        min-width: 48px;
+        height: 28px;
+        font-size: 0.85rem;
+    }
+}
+
+/* Large phones (> 480px) */
+@media (min-width: 480px) and (max-width: 767.98px) {
+    #mobileProgressBar {
+        padding: 18px 18px 14px 18px;
+    }
+
+    #mobileProgressBar .step-label {
+        font-size: 1.15rem;
+    }
+
+    #mobileProgressBar .progress-percentage {
+        min-width: 56px;
+        height: 36px;
+        font-size: 0.95rem;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   DARK MODE SUPPORT
+   ───────────────────────────────────────────── */
+
+body.dark-mode #mobileProgressBar {
+    background: var(--sp-card-bg);
+    border-bottom-color: var(--sp-primary);
+}
+
+body.dark-mode #mobileProgressBar .progress-track {
+    background: var(--sp-input-border);
+}
+
+body.dark-mode #mobileProgressBar .progress-percentage {
+    background: linear-gradient(135deg, var(--sp-primary) 0%, var(--sp-accent) 100%);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+}
+
+body.dark-mode #mobileProgressBar .progress-fill {
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.6);
+}
+
+/* ─────────────────────────────────────────────
+   TRANSITION TO NEXT STEP - CELEBRATION EFFECT
+   ───────────────────────────────────────────── */
+
+#mobileProgressBar.step-transition-active {
+    animation: stepTransition 0.6s ease-out;
+}
+
+@keyframes stepTransition {
+    0% {
+        background-color: var(--sp-card-bg);
+    }
+    50% {
+        background-color: rgba(34, 197, 94, 0.1);
+    }
+    100% {
+        background-color: var(--sp-card-bg);
+    }
+}
+
+/* ─────────────────────────────────────────────
+   ACCESSIBILITY ENHANCEMENTS
+   ───────────────────────────────────────────── */
+
+#mobileProgressBar {
+    /* Screen reader only progress description */
+    position: relative;
+}
+
+#mobileProgressBar .sr-only-progress {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Focus visible for keyboard navigation */
+#mobileProgressBar .progress-percentage:focus-visible {
+    outline: 2px solid var(--sp-primary);
+    outline-offset: 4px;
+}
+
+/* ─────────────────────────────────────────────
+   ANIMATION DELAYS FOR STAGGERED EFFECT
+   ───────────────────────────────────────────── */
+
+#mobileProgressBar {
+    animation: slideDown 0.3s ease-out;
+}
+
+#mobileProgressBar .step-label {
+    animation: fadeInUp 0.4s ease-out 0.1s both;
+}
+
+#mobileProgressBar .progress-percentage {
+    animation: fadeInScale 0.5s ease-out 0.2s both;
+}
+
+#mobileProgressBar .progress-track {
+    animation: fadeInUp 0.4s ease-out 0.3s both;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ─────────────────────────────────────────────
+   MOBILE LANDSCAPE ORIENTATION
+   ───────────────────────────────────────────── */
+
+@media (max-height: 600px) and (orientation: landscape) {
+    #mobileProgressBar {
+        padding: 10px 16px 8px 16px;
+    }
+
+    #mobileProgressBar .step-label {
+        font-size: 0.95rem;
+    }
+
+    #mobileProgressBar .progress-track {
+        height: 6px;
+    }
+}

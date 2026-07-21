@@ -1,508 +1,372 @@
+<?php
+$globalThemeColor = 'purple';
+$schoolName = 'WMVAA Akademia';
+$appInfo = (object) [
+    'name' => 'WMVAA Akademia',
+    'version' => '1.0.0',
+    'developer' => 'Google DeepMind Team & WMVAA'
+];
+
+$userAvatarUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100&h=100';
+$userId = session()->get('user_id');
+$userRole = session()->get('role_code') ?? 'guest';
+$userName = session()->get('username') ?? 'Guest';
+?>
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme-color="<?= esc($globalThemeColor) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $title ?? 'WMVAA Akademia' ?> | Integrated Academic Planning System</title>
-    
-    <!-- Google Fonts: Plus Jakarta Sans -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <meta name="description" content="<?= esc($appInfo->name) ?> v<?= esc($appInfo->version) ?> - Dashboard Panel">
+    <meta name="author" content="<?= esc($appInfo->developer) ?>">
+    <meta name="application-name" content="<?= esc($appInfo->name) ?>">
+    <meta name="version" content="<?= esc($appInfo->version) ?>">
+    <title><?= $title ?? 'Dashboard' ?> - <?= esc($appInfo->name) ?></title>
+
+    <link rel="icon" type="image/svg+xml" href="<?= base_url('assets/img/favicon.svg') ?>">
+
+    <script src="<?= base_url('assets/js/theme-sync.js?v=1.0.1') ?>"></script>
+    <script>
+        SpTheme.init({ serverTheme: 'purple', scope: 'dashboard' });
+    </script>
+
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    
-    <!-- Custom Sleek Styling -->
-    <style>
-        :root {
-            --font-primary: 'Plus Jakarta Sans', sans-serif;
-            --sidebar-width: 280px;
-            --bg-sidebar: #0f172a; /* Slate 900 */
-            --bg-sidebar-hover: #1e293b; /* Slate 800 */
-            --sidebar-active-accent: #3b82f6; /* Blue 500 */
-            --bg-body: #f8fafc; /* Slate 50 */
-            --text-main: #334155; /* Slate 700 */
-            --text-muted: #64748b; /* Slate 500 */
-            --card-border-radius: 16px;
-        }
+    <!-- Google Fonts: Poppins, Inter & Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- SweetAlert2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <!-- Mobile Dashboard Optimization CSS -->
+    <link href="<?= base_url('assets/css/dashboard-mobile.css?v=1.0.1') ?>" rel="stylesheet">
 
-        body {
-            font-family: var(--font-primary);
-            background-color: var(--bg-body);
-            color: var(--text-main);
-            overflow-x: hidden;
-            display: flex;
-            min-height: 100vh;
-        }
+    <!-- Design System + Dashboard Layout -->
+    <link href="<?= base_url('assets/css/foundation.css?v=1.0.1') ?>" rel="stylesheet">
+    <link href="<?= base_url('assets/css/dashboard.css?v=1.0.1') ?>" rel="stylesheet">
+    <link href="<?= base_url('assets/css/admin-dashboard.css?v=1.0.1') ?>" rel="stylesheet">
+    <link href="<?= base_url('assets/css/mobile-first-polish.css?v=1.0.0') ?>" rel="stylesheet">
 
-        /* Sidebar Styling */
-        .sidebar {
-            width: var(--sidebar-width);
-            background-color: var(--bg-sidebar);
-            color: #f1f5f9;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1030;
-            box-shadow: 4px 0 24px rgba(15, 23, 42, 0.15);
+    <!-- Lucide Icons CDN with local fallback -->
+    <script src="https://unpkg.com/lucide@0.309.0/dist/umd/lucide.min.js"></script>
+    <script>
+        if (typeof lucide === 'undefined') {
+            document.write('<script src="<?= base_url('assets/js/lucide.min.js?v=1.0.1') ?>"><\/script>');
         }
+    </script>
 
-        .sidebar-brand {
-            padding: 1.5rem 1.75rem;
-            border-bottom: 1px solid #1e293b;
-        }
-
-        .brand-logo {
-            font-weight: 700;
-            font-size: 1.25rem;
-            letter-spacing: -0.5px;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .brand-subtitle {
-            font-size: 0.7rem;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-            margin-top: 2px;
-        }
-
-        .sidebar-menu {
-            list-style: none;
-            padding: 1.5rem 1rem;
-            margin: 0;
-            flex-grow: 1;
-            overflow-y: auto;
-        }
-
-        .menu-section {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: #475569;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin: 1.5rem 0.75rem 0.5rem;
-        }
-
-        .menu-section:first-child {
-            margin-top: 0;
-        }
-
-        .sidebar-menu a {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 0.75rem 1rem;
-            color: #94a3b8;
-            text-decoration: none;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            margin-bottom: 4px;
-        }
-
-        .sidebar-menu a:hover {
-            color: #fff;
-            background-color: var(--bg-sidebar-hover);
-        }
-
-        .sidebar-menu li.active a {
-            color: #fff;
-            background-color: var(--sidebar-active-accent);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        }
-
-        .sidebar-menu a i {
-            font-size: 1.1rem;
-        }
-
-        /* Main Content Styling */
-        .wrapper {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-        }
-
-        /* Topbar Styling */
-        .topbar {
-            height: 70px;
-            background-color: #fff;
-            border-bottom: 1px solid #e2e8f0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 2rem;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-        }
-
-        .topbar-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .sidebar-toggler {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            color: var(--text-main);
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.2s;
-        }
-
-        .sidebar-toggler:hover {
-            background-color: #f1f5f9;
-        }
-
-        .topbar-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .filter-select {
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
-            padding: 0.4rem 2.2rem 0.4rem 1rem;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-main);
-            background-color: #fff;
-            transition: all 0.2s;
-            cursor: pointer;
-        }
-
-        .filter-select:focus {
-            outline: none;
-            border-color: var(--sidebar-active-accent);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-        }
-
-        .notification-btn {
-            position: relative;
-            background: none;
-            border: none;
-            font-size: 1.25rem;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 6px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.2s;
-        }
-
-        .notification-btn:hover {
-            background-color: #f1f5f9;
-            color: var(--text-main);
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            width: 8px;
-            height: 8px;
-            background-color: #ef4444;
-            border-radius: 50%;
-            border: 2px solid #fff;
-        }
-
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            color: var(--text-main);
-            cursor: pointer;
-        }
-
-        .user-avatar {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid #e2e8f0;
-        }
-
-        .user-info {
-            display: none;
-        }
-
-        @media (min-width: 768px) {
-            .user-info {
-                display: block;
-                line-height: 1.2;
-            }
-            .user-name {
-                font-weight: 600;
-                font-size: 0.85rem;
-                display: block;
-            }
-            .user-role {
-                font-size: 0.75rem;
-                color: var(--text-muted);
-            }
-        }
-
-        /* Content Container */
-        .content {
-            padding: 2rem;
-            flex-grow: 1;
-            overflow-y: auto;
-        }
-
-        /* Glassmorphism Panel styles */
-        .panel-glass {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(226, 232, 240, 0.8);
-            border-radius: var(--card-border-radius);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .panel-glass:hover {
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-        }
-
-        /* Breadcrumbs */
-        .breadcrumb-item a {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.85rem;
-        }
-        .breadcrumb-item.active {
-            color: var(--text-main);
-            font-weight: 600;
-            font-size: 0.85rem;
-        }
-
-        /* Mobile Adjustments */
-        @media (max-width: 991.98px) {
-            .sidebar {
-                margin-left: calc(-1 * var(--sidebar-width));
-                position: fixed;
-                height: 100vh;
-            }
-            .sidebar.active {
-                margin-left: 0;
-            }
-        }
-    </style>
+    <?= $this->renderSection('additional_css') ?>
 </head>
-<body>
+<body data-user-role="<?= esc($userRole) ?>">
+    <script>SpTheme.initDarkMode();</script>
 
-    <!-- Sidebar Navigation -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-brand">
-            <div class="brand-logo">
-                <i class="bi bi-mortarboard-fill text-primary"></i>
-                WMVAA Akademia
-            </div>
-            <div class="brand-subtitle">Academic Planning</div>
-        </div>
-        
-        <ul class="sidebar-menu">
-            <li class="<?= current_url(true) === '/' ? 'active' : '' ?>">
-                <a href="<?= base_url() ?>">
-                    <i class="bi bi-grid-1x2-fill"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            
-            <div class="menu-section">Organisasi</div>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-building"></i>
-                    <span>Unit Sekolah</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-calendar-event"></i>
-                    <span>Tahun & Semester</span>
-                </a>
-            </li>
-            
-            <div class="menu-section">Kurikulum & Guru</div>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-people"></i>
-                    <span>Master Guru</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-journal-bookmark"></i>
-                    <span>Mata Pelajaran</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-columns-gap"></i>
-                    <span>Struktur Kurikulum</span>
-                </a>
-            </li>
-            
-            <div class="menu-section">Penugasan & Jadwal</div>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-person-workspace"></i>
-                    <span>Penugasan Mengajar</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-speedometer2"></i>
-                    <span>Beban Kerja Guru</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-calendar-week"></i>
-                    <span>Jadwal Pelajaran</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-shield-check"></i>
-                    <span>Jadwal Piket</span>
-                </a>
-            </li>
-            
-            <div class="menu-section">Dokumentasi</div>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-file-earmark-pdf"></i>
-                    <span>SK Pembagian Tugas</span>
-                </a>
-            </li>
-            
-            <div class="menu-section">Sistem</div>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-database-fill-down"></i>
-                    <span>Import Adapter</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-shield-lock"></i>
-                    <span>User Management</span>
-                </a>
-            </li>
-            <li>
-                <a href="#" class="opacity-50 pointer-events-none">
-                    <i class="bi bi-journal-text"></i>
-                    <span>Audit Log</span>
-                </a>
-            </li>
-        </ul>
-    </aside>
+    <!-- Skip Navigation -->
+    <a href="#main-content" class="sp-skip-link">Lewati ke konten utama</a>
 
-    <!-- Wrapper content -->
-    <div class="wrapper">
-        
-        <!-- Topbar Navigation -->
-        <header class="topbar">
-            <div class="topbar-left">
-                <button class="sidebar-toggler" id="sidebarToggler">
-                    <i class="bi bi-list"></i>
-                </button>
-                <nav aria-label="breadcrumb" class="d-none d-sm-block m-0">
-                    <ol class="breadcrumb m-0">
-                        <li class="breadcrumb-item"><a href="#">Home</a></li>
-                        <li class="breadcrumb-item active" aria-current="page"><?= $breadcrumb_active ?? 'Dashboard' ?></li>
-                    </ol>
-                </nav>
+    <div class="layout-wrapper" id="layoutWrapper">
+        <!-- Sidebar Backdrop for Mobile -->
+        <div class="sidebar-overlay" id="sidebar-overlay" role="presentation"></div>
+
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Menu navigasi utama">
+            <div class="sidebar-brand">
+                <div class="brand-logo">
+                    <i data-lucide="graduation-cap"></i>
+                </div>
+                <h5 class="brand-text"><?= esc($schoolName) ?></h5>
             </div>
-            
-            <div class="topbar-right">
-                <!-- Unit Selector Filter -->
-                <select class="form-select filter-select d-none d-md-block" id="topbarUnitSelector">
-                    <option value="ALL">Semua Unit (SMP & SMA)</option>
-                    <option value="SMP">Unit SMP</option>
-                    <option value="SMA">Unit SMA</option>
-                </select>
+
+            <ul class="sidebar-menu">
+                <li class="menu-header">Menu Utama</li>
                 
-                <!-- Period Selector Filter -->
-                <select class="form-select filter-select d-none d-md-block" id="topbarPeriodSelector">
-                    <option value="1">T.A 2026/2027 - Ganjil</option>
-                    <option value="2">T.A 2026/2027 - Genap</option>
-                </select>
-                
-                <!-- Notification -->
-                <button class="notification-btn">
-                    <i class="bi bi-bell"></i>
-                    <span class="notification-badge"></span>
-                </button>
-                
-                <!-- Profile -->
-                <div class="dropdown">
-                    <div class="user-profile dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100&h=100" alt="Avatar" class="user-avatar">
-                        <div class="user-info">
-                            <span class="user-name">Super Admin</span>
-                            <span class="user-role">Administrator</span>
+                <li class="menu-item <?= current_url(true) === '/' || str_contains(current_url(true), 'dashboard') ? 'active' : '' ?>">
+                    <a href="<?= base_url('dashboard') ?>" class="menu-link">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <?php if (has_permission('units.view') || has_permission('academic_years.view') || has_permission('academic_periods.view')): ?>
+                    <li class="menu-header">Organisasi</li>
+                    
+                    <?php if (has_permission('units.view')): ?>
+                        <li class="menu-item <?= str_contains(current_url(true), 'settings/units') ? 'active' : '' ?>">
+                            <a href="<?= base_url('settings/units') ?>" class="menu-link">
+                                <i data-lucide="building"></i>
+                                <span>Unit Sekolah</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
+                    <?php if (has_permission('academic_years.view') || has_permission('academic_periods.view')): ?>
+                        <li class="menu-item <?= str_contains(current_url(true), 'academic-years') || str_contains(current_url(true), 'academic-periods') ? 'active' : '' ?>">
+                            <a href="<?= base_url('academic-periods') ?>" class="menu-link">
+                                <i data-lucide="calendar"></i>
+                                <span>Tahun & Periode</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+                <li class="menu-header">Kurikulum & Guru [M2-M3]</li>
+                <li class="menu-item disabled opacity-50">
+                    <a href="#" class="menu-link">
+                        <i data-lucide="users"></i>
+                        <span>Master Guru</span>
+                    </a>
+                </li>
+                <li class="menu-item disabled opacity-50">
+                    <a href="#" class="menu-link">
+                        <i data-lucide="book-open"></i>
+                        <span>Mata Pelajaran</span>
+                    </a>
+                </li>
+                <li class="menu-item disabled opacity-50">
+                    <a href="#" class="menu-link">
+                        <i data-lucide="layout-grid"></i>
+                        <span>Struktur Kurikulum</span>
+                    </a>
+                </li>
+
+                <li class="menu-header">Penugasan & Jadwal [M4-M8]</li>
+                <li class="menu-item disabled opacity-50">
+                    <a href="#" class="menu-link">
+                        <i data-lucide="briefcase"></i>
+                        <span>Penugasan Mengajar</span>
+                    </a>
+                </li>
+                <li class="menu-item disabled opacity-50">
+                    <a href="#" class="menu-link">
+                        <i data-lucide="bar-chart-2"></i>
+                        <span>Beban Kerja Guru</span>
+                    </a>
+                </li>
+                <li class="menu-item disabled opacity-50">
+                    <a href="#" class="menu-link">
+                        <i data-lucide="calendar-days"></i>
+                        <span>Jadwal Pelajaran</span>
+                    </a>
+                </li>
+
+                <?php if (has_permission('users.view') || has_permission('roles.view') || has_permission('audit.view') || has_permission('settings.view')): ?>
+                    <li class="menu-header">Sistem</li>
+                    
+                    <?php if (has_permission('users.view')): ?>
+                        <li class="menu-item <?= str_contains(current_url(true), 'users') ? 'active' : '' ?>">
+                            <a href="<?= base_url('users') ?>" class="menu-link">
+                                <i data-lucide="shield-alert"></i>
+                                <span>User Management</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
+                    <?php if (has_permission('roles.view')): ?>
+                        <li class="menu-item <?= str_contains(current_url(true), 'roles') ? 'active' : '' ?>">
+                            <a href="<?= base_url('roles') ?>" class="menu-link">
+                                <i data-lucide="shield-check"></i>
+                                <span>Role & Permission</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
+                    <?php if (has_permission('audit.view')): ?>
+                        <li class="menu-item <?= str_contains(current_url(true), 'audit') ? 'active' : '' ?>">
+                            <a href="<?= base_url('audit') ?>" class="menu-link">
+                                <i data-lucide="history"></i>
+                                <span>Audit Log</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
+                    <?php if (has_permission('settings.view')): ?>
+                        <li class="menu-item <?= str_contains(current_url(true), 'settings/application') ? 'active' : '' ?>">
+                            <a href="<?= base_url('settings/application') ?>" class="menu-link">
+                                <i data-lucide="settings"></i>
+                                <span>Pengaturan Aplikasi</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </ul>
+        </aside>
+
+        <!-- Main Container -->
+        <div class="main-container">
+            <!-- Navbar -->
+            <header class="navbar navbar-expand navbar-light bg-white px-4 border-bottom sticky-top" style="height: var(--sp-navbar-height);">
+                <div class="container-fluid d-flex align-items-center justify-content-between p-0">
+                    <div class="d-flex align-items-center gap-3">
+                        <button type="button" class="btn btn-icon p-1" id="btnToggleSidebar" aria-label="Toggle navigasi">
+                            <i data-lucide="menu"></i>
+                        </button>
+                        <nav aria-label="breadcrumb" class="d-none d-md-block">
+                            <ol class="breadcrumb mb-0">
+                                <li class="breadcrumb-item"><a href="<?= base_url('dashboard') ?>">Home</a></li>
+                                <li class="breadcrumb-item active" aria-current="page"><?= esc($breadcrumb_active ?? 'Dashboard') ?></li>
+                            </ol>
+                        </nav>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-3">
+                        <!-- Unit Selector -->
+                        <form action="<?= base_url('context/unit') ?>" method="POST" class="d-none d-md-block" id="unitContextForm">
+                            <?= csrf_field() ?>
+                            <select class="form-select border-0 bg-light rounded-pill px-3 py-2" style="font-size: 0.85rem;" name="unit_id" onchange="document.getElementById('unitContextForm').submit()">
+                                <?php 
+                                $userUnits = get_user_units();
+                                $activeUnit = get_active_unit();
+                                $activeUnitId = $activeUnit ? $activeUnit['id'] : null;
+                                foreach ($userUnits as $uu): 
+                                ?>
+                                    <option value="<?= $uu['id'] ?>" <?= (int)$uu['id'] === (int)$activeUnitId ? 'selected' : '' ?>>
+                                        <?= esc($uu['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </form>
+                        
+                        <!-- Period Selector -->
+                        <form action="<?= base_url('context/period') ?>" method="POST" class="d-none d-md-block" id="periodContextForm">
+                            <?= csrf_field() ?>
+                            <select class="form-select border-0 bg-light rounded-pill px-3 py-2" style="font-size: 0.85rem;" name="period_id" onchange="document.getElementById('periodContextForm').submit()">
+                                <?php 
+                                $periods = get_academic_periods();
+                                $activePeriod = get_active_period();
+                                $activePeriodId = $activePeriod ? $activePeriod['id'] : null;
+                                if (empty($periods)):
+                                ?>
+                                    <option value="">Belum ada periode aktif</option>
+                                <?php else: ?>
+                                    <?php foreach ($periods as $ap): ?>
+                                        <option value="<?= $ap['id'] ?>" <?= (int)$ap['id'] === (int)$activePeriodId ? 'selected' : '' ?>>
+                                            T.A <?= esc($ap['year_name']) ?> - <?= (int)$ap['semester_number'] === 1 ? 'Ganjil' : 'Genap' ?> (<?= esc($ap['workflow_status']) ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+                        </form>
+
+                        <!-- Dark Mode Toggle Button -->
+                        <button type="button" class="btn btn-icon rounded-circle p-2" id="btnToggleTheme" aria-label="Toggle tema gelap/terang">
+                            <i data-lucide="moon" id="themeToggleIcon"></i>
+                        </button>
+
+                        <!-- User Profile Dropdown -->
+                        <div class="dropdown">
+                            <button type="button" class="btn border-0 d-flex align-items-center gap-2 px-2 py-1 rounded-pill bg-light" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img src="<?= esc($userAvatarUrl) ?>" alt="Avatar" class="rounded-circle border" width="36" height="36">
+                                <div class="text-start d-none d-md-block me-1">
+                                    <span class="d-block fw-semibold" style="font-size: 0.82rem; line-height: 1.1;"><?= esc(active_user_name()) ?></span>
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;"><?= esc(active_user_role()) ?></span>
+                                </div>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg mt-2 p-2 rounded-3">
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center gap-2 py-2 px-3 rounded-2" href="<?= base_url('change-password') ?>">
+                                        <i data-lucide="key-round" style="width: 16px; height: 16px;"></i>
+                                        <span>Ganti Password</span>
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <form action="<?= base_url('logout') ?>" method="POST" id="logoutForm">
+                                        <?= csrf_field() ?>
+                                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2 px-3 text-danger rounded-2 border-0 bg-transparent w-100 text-start">
+                                            <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+                                            <span>Keluar</span>
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
                         </div>
                     </div>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2" style="border-radius: 10px;">
-                        <li><a class="dropdown-item py-2" href="#"><i class="bi bi-person me-2 text-muted"></i> Profil Saya</a></li>
-                        <li><a class="dropdown-item py-2" href="#"><i class="bi bi-gear me-2 text-muted"></i> Pengaturan</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item py-2 text-danger" href="#"><i class="bi bi-box-arrow-right me-2"></i> Log Out</a></li>
-                    </ul>
                 </div>
-            </div>
-        </header>
+            </header>
 
-        <!-- Dynamic Main Content -->
-        <main class="content">
-            <?= $this->renderSection('main_content') ?>
-        </main>
-        
+            <!-- Content Body -->
+            <main class="content-body" id="main-content">
+                <?= $this->renderSection('main_content') ?>
+            </main>
+
+            <!-- Footer -->
+            <footer class="footer bg-white border-top py-3 px-4 mt-auto">
+                <div class="container-fluid d-flex align-items-center justify-content-between text-muted" style="font-size: 0.8rem;">
+                    <span>&copy; <?= date('Y') ?> <?= esc($appInfo->name) ?>. All rights reserved.</span>
+                    <span>v<?= esc($appInfo->version) ?></span>
+                </div>
+            </footer>
+        </div>
     </div>
 
     <!-- Bootstrap 5 Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Sidebar Toggle Script -->
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Sidebar Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const toggler = document.getElementById('sidebarToggler');
+            const btnToggleSidebar = document.getElementById('btnToggleSidebar');
+            const layoutWrapper = document.getElementById('layoutWrapper');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
             const sidebar = document.getElementById('sidebar');
-            
-            toggler.addEventListener('click', function(e) {
-                e.stopPropagation();
-                sidebar.classList.toggle('active');
-            });
-            
-            document.addEventListener('click', function(e) {
-                if (window.innerWidth < 992 && !sidebar.contains(e.target) && sidebar.classList.contains('active')) {
-                    sidebar.classList.remove('active');
+
+            // Responsive Sidebar Toggle
+            btnToggleSidebar.addEventListener('click', function() {
+                if (window.innerWidth >= 992) {
+                    layoutWrapper.classList.toggle('sidebar-collapsed');
+                } else {
+                    sidebar.classList.toggle('active');
+                    sidebarOverlay.classList.toggle('active');
                 }
             });
+
+            // Dismiss Mobile Sidebar on backdrop click
+            sidebarOverlay.addEventListener('click', function() {
+                sidebar.classList.remove('active');
+                sidebarOverlay.classList.remove('active');
+            });
+
+            // Bind Dark Mode Button
+            const btnToggleTheme = document.getElementById('btnToggleTheme');
+            const themeToggleIcon = document.getElementById('themeToggleIcon');
+            if (btnToggleTheme && themeToggleIcon) {
+                SpTheme.bindDarkModeToggle(btnToggleTheme, themeToggleIcon);
+            }
+
+            // Re-draw Lucide icons
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
+    </script>
+
+    <!-- Flash Message handler with premium SweetAlert2 styling -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const swalTheme = SpTheme.getSwalTheme();
+            
+            <?php if (session()->getFlashdata('error')): ?>
+                Swal.fire(SpTheme.mergeSwalOptions({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: '<?= esc(session()->getFlashdata('error'), 'js') ?>'
+                }));
+            <?php endif; ?>
+
+            <?php if (session()->getFlashdata('success')): ?>
+                Swal.fire(SpTheme.mergeSwalOptions({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: '<?= esc(session()->getFlashdata('success'), 'js') ?>'
+                }));
+            <?php endif; ?>
+
+            <?php if (session()->getFlashdata('warning')): ?>
+                Swal.fire(SpTheme.mergeSwalOptions({
+                    icon: 'warning',
+                    title: 'Peringatan',
+                    text: '<?= esc(session()->getFlashdata('warning'), 'js') ?>'
+                }));
+            <?php endif; ?>
         });
     </script>
 </body>

@@ -1,0 +1,582 @@
+/* ============================================================
+ * Smart SPMB Pro — Mobile Dashboard Optimization
+ * Phase 1: Mobile Experience - Task #5
+ * Version: 1.0
+ * ============================================================
+ * Purpose: Convert dashboards to mobile-first responsive design
+ * Features: Table→Card conversion, responsive stat cards, mobile nav
+ * ============================================================ */
+
+/* ─────────────────────────────────────────────
+   DASHBOARD RESPONSIVE GRID
+   ───────────────────────────────────────────── */
+
+.admin-dashboard-grid,
+.role-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+@media (max-width: 767.98px) {
+    .admin-dashboard-grid,
+    .role-dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   STAT CARDS - RESPONSIVE
+   ───────────────────────────────────────────── */
+
+.stat-card {
+    border-radius: 12px;
+    border: 1px solid var(--sp-card-border);
+    background: var(--sp-card-bg);
+    padding: 20px;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    border-color: var(--sp-primary);
+}
+
+.stat-card-primary {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%);
+    border-left: 4px solid var(--sp-primary);
+}
+
+.stat-card-success {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, rgba(34, 197, 94, 0.02) 100%);
+    border-left: 4px solid var(--sp-success);
+}
+
+.stat-card-warning {
+    background: linear-gradient(135deg, rgba(234, 179, 8, 0.05) 0%, rgba(234, 179, 8, 0.02) 100%);
+    border-left: 4px solid var(--sp-warning);
+}
+
+.stat-card-danger {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.02) 100%);
+    border-left: 4px solid var(--sp-danger);
+}
+
+.stat-card-info {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.05) 0%, rgba(6, 182, 212, 0.02) 100%);
+    border-left: 4px solid var(--sp-info);
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--sp-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin: 12px 0;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 1.5rem;
+}
+
+.stat-icon-primary {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--sp-primary);
+}
+
+.stat-icon-success {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--sp-success);
+}
+
+.stat-icon-warning {
+    background: rgba(234, 179, 8, 0.1);
+    color: var(--sp-warning);
+}
+
+.stat-icon-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--sp-danger);
+}
+
+.stat-icon-info {
+    background: rgba(6, 182, 212, 0.1);
+    color: var(--sp-info);
+}
+
+/* ─────────────────────────────────────────────
+   TABLE → CARD CONVERSION (Mobile)
+   ───────────────────────────────────────────── */
+
+@media (max-width: 767.98px) {
+    /* Hide table header on mobile */
+    table thead {
+        display: none;
+    }
+
+    /* Convert table rows to cards */
+    table tbody tr {
+        display: block;
+        border: 1px solid var(--sp-input-border);
+        border-radius: 8px;
+        margin-bottom: 12px;
+        background: var(--sp-card-bg);
+        overflow: hidden;
+        padding: 0;
+    }
+
+    /* Style table cells as card content */
+    table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--sp-input-border);
+        min-height: 44px;
+    }
+
+    table tbody td:last-child {
+        border-bottom: none;
+    }
+
+    /* Add label before cell content */
+    table tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--sp-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-right: 12px;
+        min-width: 100px;
+    }
+
+    /* Action buttons on separate row */
+    table tbody .action-cell {
+        display: flex;
+        gap: 8px;
+        flex-direction: row;
+        justify-content: flex-start;
+    }
+
+    table tbody .action-cell > * {
+        flex: 1;
+        min-width: auto;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   DASHBOARD HEADER - RESPONSIVE
+   ───────────────────────────────────────────── */
+
+.admin-hero-panel,
+.role-page-header {
+    margin-bottom: 24px;
+    padding: 24px;
+    background: linear-gradient(135deg, var(--sp-primary) 0%, var(--sp-accent) 100%);
+    color: white;
+    border-radius: 12px;
+}
+
+@media (max-width: 767.98px) {
+    .admin-hero-panel,
+    .role-page-header {
+        padding: 20px 16px;
+        margin-bottom: 20px;
+    }
+
+    .admin-hero-panel h1,
+    .role-page-header__title {
+        font-size: 1.5rem;
+        margin: 8px 0 12px 0;
+    }
+
+    .admin-hero-panel p,
+    .role-page-header__subtitle {
+        font-size: 0.9rem;
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .admin-hero-panel__actions,
+    .role-page-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+    }
+
+    .admin-hero-panel__actions button,
+    .admin-hero-panel__actions a,
+    .role-page-actions button,
+    .role-page-actions a {
+        flex: 1;
+        min-width: 120px;
+        min-height: 40px;
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   DASHBOARD PANELS - MOBILE
+   ───────────────────────────────────────────── */
+
+.admin-panel,
+.dashboard-panel {
+    background: var(--sp-card-bg);
+    border: 1px solid var(--sp-card-border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 767.98px) {
+    .admin-panel,
+    .dashboard-panel {
+        padding: 16px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+    }
+
+    .admin-panel__header,
+    .dashboard-panel__header {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .admin-panel__header h2,
+    .dashboard-panel__header h2 {
+        font-size: 1.1rem;
+        margin: 0;
+    }
+
+    .admin-panel__link,
+    .dashboard-panel__link {
+        align-self: flex-start;
+        font-size: 0.9rem;
+        padding: 8px 12px;
+        min-height: 40px;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   TASK LIST - MOBILE CARD
+   ───────────────────────────────────────────── */
+
+.admin-task-list,
+.task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-task-item,
+.task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--sp-input-bg);
+    border: 1px solid var(--sp-input-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 56px;
+}
+
+.admin-task-item:hover,
+.task-item:hover {
+    background: var(--sp-input-border);
+    transform: translateX(4px);
+}
+
+.admin-task-item__icon,
+.task-item__icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.admin-task-item__content,
+.task-item__content {
+    flex: 1;
+}
+
+.admin-task-item__title,
+.task-item__title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin: 0 0 4px 0;
+}
+
+.admin-task-item__meta,
+.task-item__meta {
+    font-size: 0.8rem;
+    color: var(--sp-text-muted);
+    margin: 0;
+}
+
+/* ─────────────────────────────────────────────
+   DASHBOARD LIST - TWO COLUMN → ONE COLUMN
+   ───────────────────────────────────────────── */
+
+.stat-cards-grid,
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 767.98px) {
+    .stat-cards-grid,
+    .dashboard-stats {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .stat-cards-grid .stat-card,
+    .dashboard-stats .stat-card {
+        min-height: 140px;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   DASHBOARD SUMMARY CARDS
+   ───────────────────────────────────────────── */
+
+.summary-grid,
+.admin-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 767.98px) {
+    .summary-grid,
+    .admin-summary-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   OPERATOR TASK CARDS - MOBILE
+   ───────────────────────────────────────────── */
+
+.operator-task-card {
+    background: var(--sp-card-bg);
+    border: 2px solid var(--sp-input-border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.operator-task-card:hover {
+    border-color: var(--sp-primary);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.02) 0%, rgba(99, 102, 241, 0.05) 100%);
+    transform: translateY(-2px);
+}
+
+.operator-task-card__icon {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+}
+
+.operator-task-card__title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin: 8px 0;
+}
+
+.operator-task-card__value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--sp-primary);
+    margin: 8px 0;
+}
+
+.operator-task-card__subtitle {
+    font-size: 0.85rem;
+    color: var(--sp-text-muted);
+}
+
+/* ─────────────────────────────────────────────
+   MOBILE NAVIGATION DRAWER
+   ───────────────────────────────────────────── */
+
+@media (max-width: 767.98px) {
+    .dashboard-sidenav,
+    .dashboard-sidebar {
+        position: fixed;
+        top: 0;
+        left: -300px;
+        width: 280px;
+        height: 100vh;
+        background: var(--sp-card-bg);
+        border-right: 1px solid var(--sp-card-border);
+        z-index: 999;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+        padding: 16px;
+    }
+
+    .dashboard-sidenav.active,
+    .dashboard-sidebar.active {
+        left: 0;
+    }
+
+    .dashboard-sidenav__close,
+    .dashboard-sidebar__close {
+        display: block;
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   MOBILE TOGGLE BUTTON
+   ───────────────────────────────────────────── */
+
+.dashboard-nav-toggle {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--sp-primary) 0%, var(--sp-accent) 100%);
+    color: white;
+    border: none;
+    cursor: pointer;
+    z-index: 1000;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+@media (max-width: 767.98px) {
+    .dashboard-nav-toggle {
+        display: flex;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   DARK MODE SUPPORT
+   ───────────────────────────────────────────── */
+
+body.dark-mode .stat-card {
+    background: var(--sp-card-bg);
+}
+
+body.dark-mode .admin-hero-panel,
+body.dark-mode .role-page-header {
+    background: linear-gradient(135deg, var(--sp-primary) 0%, var(--sp-accent) 100%);
+}
+
+body.dark-mode .operator-task-card:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.15) 100%);
+}
+
+/* ─────────────────────────────────────────────
+   ACCESSIBILITY
+   ───────────────────────────────────────────── */
+
+.stat-card:focus-visible,
+.admin-task-item:focus-visible,
+.operator-task-card:focus-visible {
+    outline: 2px solid var(--sp-primary);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stat-card,
+    .admin-task-item,
+    .operator-task-card,
+    .dashboard-sidenav {
+        transition: none;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   EMPTY STATES
+   ───────────────────────────────────────────── */
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--sp-text-muted);
+}
+
+@media (max-width: 767.98px) {
+    .empty-state {
+        padding: 30px 16px;
+    }
+
+    .empty-state i {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+        opacity: 0.5;
+    }
+
+    .empty-state p {
+        font-size: 0.9rem;
+        margin: 8px 0;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   SCROLLABLE TABLES (Desktop) / CARDS (Mobile)
+   ───────────────────────────────────────────── */
+
+.table-responsive-mobile {
+    overflow-x: auto;
+}
+
+@media (max-width: 767.98px) {
+    .table-responsive-mobile {
+        overflow-x: visible;
+    }
+
+    .table-responsive-mobile table {
+        width: 100%;
+    }
+}

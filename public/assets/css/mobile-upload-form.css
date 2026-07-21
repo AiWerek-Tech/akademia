@@ -1,0 +1,540 @@
+/* ============================================================
+ * Smart SPMB Pro — Mobile Document Upload Optimization
+ * Phase 1: Mobile Experience - Task #4
+ * Version: 1.0
+ * ============================================================
+ * Purpose: Optimize document upload UI for mobile devices
+ * Features: Camera integration, touch-friendly buttons, preview
+ * ============================================================ */
+
+/* ─────────────────────────────────────────────
+   MOBILE DOCUMENT UPLOAD CONTAINER
+   ───────────────────────────────────────────── */
+
+.mobile-upload-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+/* ─────────────────────────────────────────────
+   UPLOAD BUTTONS - TOUCH FRIENDLY (44×44px min)
+   ───────────────────────────────────────────── */
+
+.upload-button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.btn-camera,
+.btn-file-upload {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 150px;
+}
+
+.btn-camera {
+    background: linear-gradient(135deg, var(--sp-primary) 0%, var(--sp-accent) 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.btn-camera:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+}
+
+.btn-camera:active {
+    transform: translateY(0);
+}
+
+.btn-file-upload {
+    background: var(--sp-input-bg);
+    color: var(--sp-text-primary);
+    border-color: var(--sp-primary);
+    border: 2px solid var(--sp-primary);
+}
+
+.btn-file-upload:hover {
+    background: var(--sp-primary);
+    color: white;
+}
+
+/* ─────────────────────────────────────────────
+   MOBILE RESPONSIVE BUTTON LAYOUT
+   ───────────────────────────────────────────── */
+
+@media (max-width: 767.98px) {
+    .upload-button-group {
+        flex-direction: column;
+    }
+
+    .btn-camera,
+    .btn-file-upload {
+        width: 100%;
+        min-width: unset;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   IMAGE PREVIEW SECTION
+   ───────────────────────────────────────────── */
+
+.image-preview-container {
+    position: relative;
+    border: 2px dashed var(--sp-primary);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--sp-input-bg);
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.image-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: white;
+}
+
+.preview-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--sp-text-muted);
+    gap: 8px;
+}
+
+.preview-empty i {
+    font-size: 3rem;
+    opacity: 0.5;
+}
+
+.preview-empty-text {
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* ─────────────────────────────────────────────
+   IMAGE INFO & SIZE DISPLAY
+   ───────────────────────────────────────────── */
+
+.image-info-bar {
+    background: var(--sp-input-border);
+    padding: 12px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+}
+
+.image-info-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.image-filename {
+    font-weight: 600;
+    color: var(--sp-text-primary);
+    word-break: break-word;
+}
+
+.image-size {
+    color: var(--sp-text-muted);
+    font-size: 0.8rem;
+}
+
+.image-compression-status {
+    padding: 4px 8px;
+    background: var(--sp-info);
+    color: white;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 0.75rem;
+}
+
+.image-compression-status.success {
+    background: var(--sp-success);
+}
+
+.image-compression-status.warning {
+    background: var(--sp-warning);
+}
+
+.image-compression-status.error {
+    background: var(--sp-danger);
+}
+
+/* ─────────────────────────────────────────────
+   UPLOAD PROGRESS BAR
+   ───────────────────────────────────────────── */
+
+.upload-progress-container {
+    width: 100%;
+    margin-top: 12px;
+}
+
+.upload-progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--sp-text-muted);
+    margin-bottom: 8px;
+}
+
+.upload-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--sp-input-border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.upload-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--sp-primary) 0%, var(--sp-accent) 100%);
+    transition: width 0.3s ease;
+    border-radius: 3px;
+}
+
+/* ─────────────────────────────────────────────
+   COMPRESSION INDICATOR
+   ───────────────────────────────────────────── */
+
+.compression-info {
+    padding: 12px;
+    background: var(--sp-info);
+    background-opacity: 0.1;
+    border-left: 4px solid var(--sp-info);
+    border-radius: 4px;
+    margin-top: 12px;
+    font-size: 0.85rem;
+}
+
+.compression-info.success {
+    background: rgba(34, 197, 94, 0.1);
+    border-left-color: var(--sp-success);
+}
+
+.compression-info.warning {
+    background: rgba(234, 179, 8, 0.1);
+    border-left-color: var(--sp-warning);
+}
+
+.compression-info.error {
+    background: rgba(239, 68, 68, 0.1);
+    border-left-color: var(--sp-danger);
+}
+
+.compression-info-text {
+    margin: 0;
+    color: var(--sp-text-primary);
+}
+
+.compression-info small {
+    color: var(--sp-text-muted);
+    display: block;
+    margin-top: 4px;
+}
+
+/* ─────────────────────────────────────────────
+   CLEAR/DELETE BUTTON
+   ───────────────────────────────────────────── */
+
+.btn-clear-preview {
+    background: var(--sp-danger);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 12px;
+}
+
+.btn-clear-preview:hover {
+    background: var(--sp-danger);
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+/* ─────────────────────────────────────────────
+   CAMERA PERMISSION ERROR
+   ───────────────────────────────────────────── */
+
+.camera-permission-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--sp-danger);
+    border-radius: 8px;
+    padding: 16px;
+    color: var(--sp-danger);
+    margin-top: 12px;
+}
+
+.camera-permission-error strong {
+    display: block;
+    margin-bottom: 8px;
+}
+
+/* ─────────────────────────────────────────────
+   LOADING STATE
+   ───────────────────────────────────────────── */
+
+.upload-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    color: var(--sp-text-muted);
+    font-size: 0.9rem;
+}
+
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--sp-input-border);
+    border-top-color: var(--sp-primary);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ─────────────────────────────────────────────
+   SUCCESS STATE
+   ───────────────────────────────────────────── */
+
+.upload-success-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--sp-success);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.upload-success-badge i {
+    width: 16px;
+    height: 16px;
+}
+
+/* ─────────────────────────────────────────────
+   ERROR STATE
+   ───────────────────────────────────────────── */
+
+.upload-error-message {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--sp-danger);
+    border: 1px solid var(--sp-danger);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 12px;
+    font-size: 0.85rem;
+}
+
+/* ─────────────────────────────────────────────
+   HIDDEN FILE INPUT
+   ───────────────────────────────────────────── */
+
+#cameraInput,
+#fileUploadInput {
+    display: none;
+}
+
+/* ─────────────────────────────────────────────
+   VIDEO CAMERA PREVIEW (for camera capture)
+   ───────────────────────────────────────────── */
+
+#cameraVideoPreview {
+    width: 100%;
+    border-radius: 8px;
+}
+
+.camera-controls {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.btn-capture,
+.btn-cancel-camera,
+.btn-retake {
+    flex: 1;
+    min-width: 120px;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-capture {
+    background: var(--sp-success);
+    color: white;
+}
+
+.btn-capture:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+.btn-cancel-camera,
+.btn-retake {
+    background: var(--sp-input-bg);
+    color: var(--sp-text-primary);
+    border: 1px solid var(--sp-input-border);
+}
+
+.btn-cancel-camera:hover,
+.btn-retake:hover {
+    background: var(--sp-input-border);
+}
+
+/* ─────────────────────────────────────────────
+   DARK MODE SUPPORT
+   ───────────────────────────────────────────── */
+
+body.dark-mode .image-preview-container {
+    background: var(--sp-input-bg);
+    border-color: rgba(99, 102, 241, 0.5);
+}
+
+body.dark-mode .image-info-bar {
+    background: var(--sp-input-border);
+}
+
+body.dark-mode .btn-file-upload {
+    background: var(--sp-input-bg);
+    color: var(--sp-text-primary);
+    border-color: var(--sp-primary);
+}
+
+/* ─────────────────────────────────────────────
+   TOUCH OPTIMIZATION
+   ───────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+    .btn-camera,
+    .btn-file-upload,
+    .btn-capture,
+    .btn-cancel-camera,
+    .btn-retake {
+        min-height: 48px;
+        padding: 14px 24px;
+        font-size: 1rem;
+    }
+
+    .image-preview-container {
+        border-width: 3px;
+        min-height: 240px;
+    }
+
+    .upload-button-group {
+        gap: 12px;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   LANDSCAPE ORIENTATION
+   ───────────────────────────────────────────── */
+
+@media (max-height: 600px) and (orientation: landscape) {
+    .image-preview-container {
+        aspect-ratio: auto;
+        min-height: 200px;
+    }
+
+    .btn-camera,
+    .btn-file-upload {
+        min-height: 40px;
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+
+    .upload-button-group {
+        gap: 8px;
+    }
+}
+
+/* ─────────────────────────────────────────────
+   ACCESSIBILITY
+   ───────────────────────────────────────────── */
+
+.btn-camera:focus-visible,
+.btn-file-upload:focus-visible,
+.btn-capture:focus-visible,
+.btn-cancel-camera:focus-visible,
+.btn-retake:focus-visible {
+    outline: 2px solid var(--sp-primary);
+    outline-offset: 2px;
+}
+
+.upload-button-group:has(button:focus-visible) .btn-camera,
+.upload-button-group:has(button:focus-visible) .btn-file-upload {
+    box-shadow: none;
+}
+
+/* ─────────────────────────────────────────────
+   ANIMATION: FILE DRAG & DROP (future feature)
+   ───────────────────────────────────────────── */
+
+.upload-container.drag-over .image-preview-container {
+    border-color: var(--sp-primary);
+    background: rgba(99, 102, 241, 0.05);
+}
+
+/* ─────────────────────────────────────────────
+   TABLET RESPONSIVE
+   ───────────────────────────────────────────── */
+
+@media (min-width: 768px) {
+    .upload-button-group {
+        flex-direction: row;
+    }
+
+    .btn-camera,
+    .btn-file-upload {
+        flex: 1;
+        min-width: 160px;
+    }
+}

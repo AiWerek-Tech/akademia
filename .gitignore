@@ -135,4 +135,5 @@ exports/*
 !exports/.gitkeep
 backups/*
 !backups/.gitkeep
-
+.phpunit.cache/
+phpunit.xml.dist.bak
