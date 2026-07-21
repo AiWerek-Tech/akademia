@@ -60,6 +60,9 @@ writable/session/*
 writable/uploads/*
 !writable/uploads/index.html
 
+writable/imports/*
+!writable/imports/index.html
+
 writable/debugbar/*
 !writable/debugbar/.gitkeep
 
@@ -137,3 +140,8 @@ backups/*
 !backups/.gitkeep
 .phpunit.cache/
 phpunit.xml.dist.bak
+
+# Database Dumps & Backups
+*.sql
+backups/
+docs/dev-docs/*.sql

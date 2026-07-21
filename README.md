@@ -89,9 +89,9 @@ Ekosistem WMVAA HUB berjalan dengan arsitektur terpadu:
     ```bash
     php spark akademia:create-admin
     ```
-    *Atau Anda dapat menggunakan akun admin default bawaan seeder:*
-    *   **Username**: `admin`
-    *   **Password**: `SuperAdminAkademia2026!`
+    Seeder tidak membuat kredensial administrator bersama. Buat akun awal
+    menggunakan command interaktif di atas dan simpan password melalui secret
+    manager yang sesuai dengan lingkungan deployment.
 
 7.  **Jalankan Aplikasi**:
     ```bash

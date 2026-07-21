@@ -43,10 +43,19 @@ class UserModel extends Model
     {
         $db = $this->db;
         $builder = $db->table('user_roles ur')
+            ->distinct()
             ->select('p.code')
             ->join('role_permissions rp', 'rp.role_id = ur.role_id')
             ->join('permissions p', 'p.id = rp.permission_id')
-            ->where('ur.user_id', $userId);
+            ->where('ur.user_id', $userId)
+            ->groupStart()
+                ->where('ur.valid_from IS NULL')
+                ->orWhere('ur.valid_from <=', date('Y-m-d'))
+            ->groupEnd()
+            ->groupStart()
+                ->where('ur.valid_until IS NULL')
+                ->orWhere('ur.valid_until >=', date('Y-m-d'))
+            ->groupEnd();
 
         if ($unitId !== null) {
             $builder->groupStart()

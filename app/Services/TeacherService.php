@@ -216,11 +216,21 @@ class TeacherService
                 }
             }
 
-            $teacherModel->update($existing['id'], $data);
+            $db->table('teachers')
+                ->where('id', $existing['id'])
+                ->where('revision_number', $existing['revision_number'])
+                ->update($data);
+            if ($db->affectedRows() !== 1) {
+                throw new \RuntimeException('Data guru telah diubah oleh pengguna lain. Silakan muat ulang halaman.');
+            }
 
             // Sync unit assignments
             $assignmentModel = new TeacherUnitAssignmentModel();
-            $assignmentModel->where('teacher_id', $existing['id'])->delete();
+            $assignmentModel->where('teacher_id', $existing['id']);
+            if (session()->get('logged_in')) {
+                $assignmentModel->whereIn('unit_id', UnitScopeService::accessibleUnitIds());
+            }
+            $assignmentModel->delete();
 
             if (!empty($data['primary_unit_id'])) {
                 $assignmentModel->insert([

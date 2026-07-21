@@ -170,6 +170,22 @@ $userName = session()->get('username') ?? 'Guest';
                     </li>
                 <?php endif; ?>
 
+                <?php if (has_permission('curriculum.view')): ?>
+                    <li class="menu-header">PERENCANAAN</li>
+                    <li class="menu-item <?= str_contains(current_url(true), 'curriculum') && !str_contains(current_url(true), 'curriculum/imports') ? 'active' : '' ?>">
+                        <a href="<?= base_url('curriculum') ?>" class="menu-link">
+                            <i data-lucide="grid"></i>
+                            <span>Struktur Kurikulum</span>
+                        </a>
+                    </li>
+                    <li class="menu-item <?= str_contains(current_url(true), 'curriculum/imports') ? 'active' : '' ?>">
+                        <a href="<?= base_url('curriculum/imports') ?>" class="menu-link">
+                            <i data-lucide="file-spreadsheets"></i>
+                            <span>Import Kurikulum</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+
                 <li class="menu-header">Penugasan & Jadwal [M4-M8]</li>
                 <li class="menu-item disabled opacity-50">
                     <a href="#" class="menu-link">

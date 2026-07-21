@@ -155,7 +155,13 @@ class RoomService
             $data['revision_number']      = ((int)$existing['revision_number']) + 1;
             $data['updated_by']           = session()->get('user_id');
 
-            $model->update($existing['id'], $data);
+            $db->table('rooms')
+                ->where('id', $existing['id'])
+                ->where('revision_number', $existing['revision_number'])
+                ->update($data);
+            if ($db->affectedRows() !== 1) {
+                throw new \RuntimeException('Data ruang telah diubah oleh pengguna lain. Silakan muat ulang halaman.');
+            }
             $updated = $model->find($existing['id']);
 
             AuditService::log('rooms', 'UPDATE', 'Room', $existing['id'], $existing, $updated, 'Update room master data');

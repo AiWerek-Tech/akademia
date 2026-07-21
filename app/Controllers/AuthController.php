@@ -341,6 +341,8 @@ class AuthController extends BaseController
 
         // Update session state
         $session->set('must_change_password', false);
+        $session->set('auth_timestamp', time());
+        $session->regenerate(true);
 
         return redirect()->to('/dashboard')->with('success', 'Password Anda berhasil diperbarui.');
     }

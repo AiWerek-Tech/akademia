@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Services\RoomService;
 use App\Services\MasterExportService;
+use App\Services\UnitScopeService;
 use App\Models\SchoolUnitModel;
 use App\Models\RoomTypeModel;
 use App\Models\RoomModel;
@@ -16,9 +17,13 @@ class RoomsController extends BaseController
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $activeUnitId = session()->get('active_unit_id');
+        try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
+        } catch (\Throwable $e) {
+            return redirect()->to('/dashboard')->with('error', $e->getMessage());
+        }
         $filters = [
-            'unit_id'      => $this->request->getGet('unit_id') ?? $activeUnitId,
+            'unit_id'      => $unitId,
             'room_type_id' => $this->request->getGet('room_type_id'),
             'is_active'    => $this->request->getGet('is_active'),
             'search'       => $this->request->getGet('search'),
@@ -26,8 +31,7 @@ class RoomsController extends BaseController
 
         $result = RoomService::getRooms($filters);
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         $typeModel = new RoomTypeModel();
         $roomTypes = $typeModel->where('is_active', 1)->findAll();
@@ -49,8 +53,7 @@ class RoomsController extends BaseController
             return redirect()->to('/rooms')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         $typeModel = new RoomTypeModel();
         $roomTypes = $typeModel->where('is_active', 1)->findAll();
@@ -80,7 +83,13 @@ class RoomsController extends BaseController
         }
 
         try {
-            RoomService::createRoom($this->request->getPost());
+            $data = $this->request->getPost();
+            if (empty($data['shared_between_units'])) {
+                $data['unit_id'] = UnitScopeService::resolveUnit($data['unit_id'] ?? null);
+            } elseif (!empty($data['unit_id'])) {
+                UnitScopeService::assertUnit((int) $data['unit_id']);
+            }
+            RoomService::createRoom($data);
             return redirect()->to('/rooms')->with('success', 'Ruang sekolah berhasil ditambahkan.');
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
@@ -99,9 +108,13 @@ class RoomsController extends BaseController
         if (!$room) {
             return redirect()->to('/rooms')->with('error', 'Data ruang tidak ditemukan.');
         }
+        try {
+            UnitScopeService::assertRoom((int) $room['id']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/rooms')->with('error', $e->getMessage());
+        }
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         $typeModel = new RoomTypeModel();
         $roomTypes = $typeModel->where('is_active', 1)->findAll();
@@ -133,7 +146,18 @@ class RoomsController extends BaseController
         }
 
         try {
-            RoomService::updateRoom($uuid, $this->request->getPost());
+            $room = (new RoomModel())->where('uuid', $uuid)->where('deleted_at IS NULL')->first();
+            if (!$room) {
+                throw new \RuntimeException('Data ruang tidak ditemukan.');
+            }
+            UnitScopeService::assertRoom((int) $room['id']);
+            $data = $this->request->getPost();
+            if (empty($data['shared_between_units'])) {
+                $data['unit_id'] = UnitScopeService::resolveUnit($data['unit_id'] ?? $room['unit_id']);
+            } elseif (!empty($data['unit_id'])) {
+                UnitScopeService::assertUnit((int) $data['unit_id']);
+            }
+            RoomService::updateRoom($uuid, $data);
             return redirect()->to('/rooms')->with('success', 'Ruang sekolah berhasil diperbarui.');
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
@@ -147,8 +171,9 @@ class RoomsController extends BaseController
         }
 
         try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
             $filePath = MasterExportService::exportExcel('ROOMS', [
-                'unit_id' => $this->request->getGet('unit_id') ?? session()->get('active_unit_id'),
+                'unit_id' => $unitId,
             ]);
 
             return $this->response->download($filePath, null);

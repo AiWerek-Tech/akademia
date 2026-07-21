@@ -8,7 +8,7 @@ use CodeIgniter\Router\RouteCollection;
 $routes->get('/', 'Home::index');
 $routes->get('dashboard', 'Home::index');
 $routes->get('health', 'Health::index');
-$routes->get('system/runtime', 'SystemController::runtime');
+$routes->get('system/runtime', 'SystemController::runtime', ['filter' => 'dev_only']);
 
 // Auth Routes
 $routes->get('login', 'AuthController::login');
@@ -113,4 +113,19 @@ $routes->get('imports/master/template/(:segment)', 'MasterImportController::down
 $routes->post('imports/master/upload', 'MasterImportController::upload');
 $routes->get('imports/master/(:segment)', 'MasterImportController::showBatch/$1');
 $routes->post('imports/master/(:segment)/apply', 'MasterImportController::apply/$1');
+
+// Curriculum Versions & Structures (Milestone 3)
+$routes->get('curriculum', 'CurriculumController::index');
+$routes->get('curriculum/create', 'CurriculumController::create');
+$routes->post('curriculum', 'CurriculumController::store');
+$routes->get('curriculum/imports', 'CurriculumImportController::index');
+$routes->get('curriculum/imports/template', 'CurriculumImportController::template');
+$routes->post('curriculum/imports/upload', 'CurriculumImportController::upload');
+$routes->get('curriculum/imports/(:segment)', 'CurriculumImportController::showBatch/$1');
+$routes->post('curriculum/imports/(:segment)/apply', 'CurriculumImportController::apply/$1');
+$routes->get('curriculum/(:segment)', 'CurriculumController::show/$1');
+$routes->post('curriculum/(:segment)/structures', 'CurriculumController::storeStructure/$1');
+$routes->get('curriculum/(:segment)/reconciliation', 'CurriculumController::reconciliation/$1');
+$routes->get('curriculum/(:segment)/export', 'CurriculumController::export/$1');
+$routes->post('curriculum/(:segment)/workflow/(:segment)', 'CurriculumController::workflowAction/$1/$2');
 

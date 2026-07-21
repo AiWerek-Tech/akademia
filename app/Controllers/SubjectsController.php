@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Services\SubjectService;
 use App\Services\MasterExportService;
+use App\Services\UnitScopeService;
 use App\Models\SchoolUnitModel;
 use App\Models\SubjectModel;
 use App\Models\SubjectAliasModel;
@@ -17,17 +18,20 @@ class SubjectsController extends BaseController
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $activeUnitId = session()->get('active_unit_id');
+        try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
+        } catch (\Throwable $e) {
+            return redirect()->to('/dashboard')->with('error', $e->getMessage());
+        }
         $filters = [
-            'unit_id'   => $this->request->getGet('unit_id') ?? $activeUnitId,
+            'unit_id'   => $unitId,
             'category'  => $this->request->getGet('category'),
             'is_active' => $this->request->getGet('is_active'),
             'search'    => $this->request->getGet('search'),
         ];
 
         $result = SubjectService::getSubjects($filters);
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         return view('subjects/index', [
             'title'             => 'Master Mata Pelajaran Global',
@@ -46,8 +50,7 @@ class SubjectsController extends BaseController
             return redirect()->to('/subjects')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         return view('subjects/create', [
             'title'             => 'Tambah Mata Pelajaran',
@@ -77,6 +80,7 @@ class SubjectsController extends BaseController
         try {
             $data = $this->request->getPost();
             $unitIds = (array)($this->request->getPost('unit_ids') ?? []);
+            $unitIds = UnitScopeService::assertUnits($unitIds);
             $aliases = array_filter(explode(',', (string)$this->request->getPost('aliases')));
 
             SubjectService::createSubject($data, $unitIds, $aliases);
@@ -99,9 +103,13 @@ class SubjectsController extends BaseController
         if (!$subject) {
             return redirect()->to('/subjects')->with('error', 'Data mata pelajaran tidak ditemukan.');
         }
+        try {
+            UnitScopeService::assertSubject((int) $subject['id']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/subjects')->with('error', $e->getMessage());
+        }
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         $availModel = new SubjectUnitAvailabilityModel();
         $assignedUnitIds = array_column($availModel->where('subject_id', $subject['id'])->findAll(), 'unit_id');
@@ -140,7 +148,14 @@ class SubjectsController extends BaseController
         try {
             $data = $this->request->getPost();
             $unitIds = (array)($this->request->getPost('unit_ids') ?? []);
+            $unitIds = UnitScopeService::assertUnits($unitIds);
             $aliases = array_filter(explode(',', (string)$this->request->getPost('aliases')));
+
+            $subject = (new SubjectModel())->where('uuid', $uuid)->where('deleted_at IS NULL')->first();
+            if (!$subject) {
+                throw new \RuntimeException('Data mata pelajaran tidak ditemukan.');
+            }
+            UnitScopeService::assertSubject((int) $subject['id']);
 
             SubjectService::updateSubject($uuid, $data, $unitIds, $aliases);
 
@@ -157,8 +172,9 @@ class SubjectsController extends BaseController
         }
 
         try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
             $filePath = MasterExportService::exportExcel('SUBJECTS', [
-                'unit_id' => $this->request->getGet('unit_id') ?? session()->get('active_unit_id'),
+                'unit_id' => $unitId,
             ]);
 
             return $this->response->download($filePath, null);

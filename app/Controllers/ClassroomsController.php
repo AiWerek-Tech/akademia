@@ -7,6 +7,7 @@ use App\Services\GradeLevelService;
 use App\Services\RoomService;
 use App\Services\TeacherService;
 use App\Services\MasterExportService;
+use App\Services\UnitScopeService;
 use App\Models\SchoolUnitModel;
 use App\Models\AcademicPeriodModel;
 use App\Models\ClassroomModel;
@@ -19,11 +20,16 @@ class ClassroomsController extends BaseController
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $activeUnitId   = session()->get('active_unit_id');
         $activePeriodId = session()->get('active_period_id');
 
+        try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
+        } catch (\Throwable $e) {
+            return redirect()->to('/dashboard')->with('error', $e->getMessage());
+        }
+
         $filters = [
-            'unit_id'            => $this->request->getGet('unit_id') ?? $activeUnitId,
+            'unit_id'            => $unitId,
             'academic_period_id' => $this->request->getGet('academic_period_id') ?? $activePeriodId,
             'grade_level_id'     => $this->request->getGet('grade_level_id'),
             'is_active'          => $this->request->getGet('is_active'),
@@ -32,8 +38,7 @@ class ClassroomsController extends BaseController
 
         $result = ClassroomService::getClassrooms($filters);
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         $periodModel = new AcademicPeriodModel();
         $periods = $periodModel->orderBy('id', 'DESC')->findAll();
@@ -58,11 +63,10 @@ class ClassroomsController extends BaseController
             return redirect()->to('/classrooms')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $activeUnitId   = session()->get('active_unit_id');
+        $activeUnitId   = UnitScopeService::resolveUnit();
         $activePeriodId = session()->get('active_period_id');
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         $periodModel = new AcademicPeriodModel();
         $periods = $periodModel->orderBy('id', 'DESC')->findAll();
@@ -103,7 +107,9 @@ class ClassroomsController extends BaseController
         }
 
         try {
-            ClassroomService::createClassroom($this->request->getPost());
+            $data = $this->request->getPost();
+            $data['unit_id'] = UnitScopeService::resolveUnit($data['unit_id'] ?? null);
+            ClassroomService::createClassroom($data);
             return redirect()->to('/classrooms')->with('success', 'Kelas/Rombel berhasil dibuat.');
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
@@ -122,9 +128,13 @@ class ClassroomsController extends BaseController
         if (!$classroom) {
             return redirect()->to('/classrooms')->with('error', 'Kelas/Rombel tidak ditemukan.');
         }
+        try {
+            UnitScopeService::assertClassroom((int) $classroom['id']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/classrooms')->with('error', $e->getMessage());
+        }
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         $periodModel = new AcademicPeriodModel();
         $periods = $periodModel->orderBy('id', 'DESC')->findAll();
@@ -162,7 +172,16 @@ class ClassroomsController extends BaseController
         }
 
         try {
-            ClassroomService::updateClassroom($uuid, $this->request->getPost());
+            $classroom = (new ClassroomModel())->where('uuid', $uuid)->where('deleted_at IS NULL')->first();
+            if (!$classroom) {
+                throw new \RuntimeException('Kelas/Rombel tidak ditemukan.');
+            }
+            UnitScopeService::assertClassroom((int) $classroom['id']);
+            $data = $this->request->getPost();
+            if (isset($data['unit_id'])) {
+                $data['unit_id'] = UnitScopeService::resolveUnit($data['unit_id']);
+            }
+            ClassroomService::updateClassroom($uuid, $data);
             return redirect()->to('/classrooms')->with('success', 'Kelas/Rombel berhasil diperbarui.');
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
@@ -175,18 +194,21 @@ class ClassroomsController extends BaseController
             return redirect()->to('/classrooms')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $activeUnitId   = session()->get('active_unit_id');
+        $activeUnitId   = UnitScopeService::resolveUnit();
         $activePeriodId = session()->get('active_period_id');
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         $periodModel = new AcademicPeriodModel();
         $periods = $periodModel->orderBy('id', 'DESC')->findAll();
 
         $sourcePeriodId = (int)($this->request->getGet('source_period_id') ?? 0);
         $targetPeriodId = (int)($this->request->getGet('target_period_id') ?? $activePeriodId);
-        $unitId         = (int)($this->request->getGet('unit_id') ?? $activeUnitId);
+        try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id') ?? $activeUnitId);
+        } catch (\Throwable $e) {
+            return redirect()->to('/classrooms')->with('error', $e->getMessage());
+        }
 
         $preview = [];
         if ($sourcePeriodId > 0 && $targetPeriodId > 0 && $unitId > 0) {
@@ -213,7 +235,11 @@ class ClassroomsController extends BaseController
 
         $sourcePeriodId = (int)$this->request->getPost('source_period_id');
         $targetPeriodId = (int)$this->request->getPost('target_period_id');
-        $unitId         = (int)$this->request->getPost('unit_id');
+        try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getPost('unit_id'));
+        } catch (\Throwable $e) {
+            return redirect()->to('/classrooms/copy-period')->with('error', $e->getMessage());
+        }
         $copyHomeroom   = (bool)$this->request->getPost('copy_homeroom');
 
         if ($sourcePeriodId === $targetPeriodId) {
@@ -236,8 +262,9 @@ class ClassroomsController extends BaseController
         }
 
         try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
             $filePath = MasterExportService::exportExcel('CLASSROOMS', [
-                'unit_id'            => $this->request->getGet('unit_id') ?? session()->get('active_unit_id'),
+                'unit_id'            => $unitId,
                 'academic_period_id' => $this->request->getGet('academic_period_id') ?? session()->get('active_period_id'),
             ]);
 

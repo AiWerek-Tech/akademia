@@ -43,7 +43,7 @@
                         </div>
                         
                         <div class="d-grid">
-                            <?php if ($role['code'] === 'superadmin'): ?>
+                            <?php if (in_array($role['code'], ['superadmin', 'super_admin'], true)): ?>
                                 <button class="btn btn-sm btn-light rounded-3 opacity-75 d-inline-flex align-items-center justify-content-center gap-2" disabled>
                                     <i data-lucide="shield-off" style="width: 16px; height: 16px;"></i> Hak Akses Mutlak
                                 </button>

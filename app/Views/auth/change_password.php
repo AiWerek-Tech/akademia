@@ -213,7 +213,7 @@
             Swal.fire({
                 icon: 'error',
                 title: 'Gagal',
-                text: '<?= session()->getFlashdata('error') ?>',
+                text: <?= json_encode((string) session()->getFlashdata('error'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
                 confirmButtonColor: '#3b82f6',
                 background: '#1e293b',
                 color: '#fff'
@@ -222,12 +222,12 @@
 
         <?php if (session()->getFlashdata('errors')): ?>
             <?php 
-                $errStr = implode('\n', session()->getFlashdata('errors'));
+                $errStr = implode("\n", session()->getFlashdata('errors'));
             ?>
             Swal.fire({
                 icon: 'error',
                 title: 'Gagal Validasi',
-                text: '<?= $errStr ?>',
+                text: <?= json_encode($errStr, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
                 confirmButtonColor: '#3b82f6',
                 background: '#1e293b',
                 color: '#fff'

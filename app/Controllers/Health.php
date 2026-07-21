@@ -29,7 +29,8 @@ class Health extends BaseController
             $health['checks']['database'] = 'OK';
         } catch (Exception $e) {
             $health['status'] = 'ERROR';
-            $health['checks']['database'] = 'FAIL (' . $e->getMessage() . ')';
+            $health['checks']['database'] = 'FAIL';
+            log_message('error', 'Health check database failure: {message}', ['message' => $e->getMessage()]);
         }
 
         // 2. Writable Folder Write Permission Check

@@ -11,7 +11,16 @@ if (!function_exists('has_permission')) {
             return false;
         }
         
-        $permissions = $session->get('permissions') ?? [];
+        static $permissionCache = [];
+        $userId = (int) $session->get('user_id');
+        $unitId = $session->get('active_unit_id');
+        $cacheKey = $userId . ':' . (string) $unitId;
+        if (!array_key_exists($cacheKey, $permissionCache)) {
+            $permissionCache[$cacheKey] = (new \App\Models\UserModel())
+                ->getPermissions($userId, $unitId ? (int) $unitId : null);
+            $session->set('permissions', $permissionCache[$cacheKey]);
+        }
+        $permissions = $permissionCache[$cacheKey];
         return in_array($code, $permissions, true);
     }
 }

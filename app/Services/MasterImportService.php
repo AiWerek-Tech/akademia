@@ -8,6 +8,11 @@ use App\Models\TeacherModel;
 use App\Models\SubjectModel;
 use App\Models\ClassroomModel;
 use App\Models\RoomModel;
+use App\Models\SchoolUnitModel;
+use App\Models\GradeLevelModel;
+use App\Models\AcademicYearModel;
+use App\Models\AcademicPeriodModel;
+use App\Models\RoomTypeModel;
 use Config\Database;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -146,6 +151,10 @@ class MasterImportService
             throw new \InvalidArgumentException('File upload tidak valid: ' . $file->getErrorString());
         }
 
+        if ($file->getSize() <= 0 || $file->getSize() > 10 * 1024 * 1024) {
+            throw new \InvalidArgumentException('Ukuran file import harus lebih dari 0 dan maksimal 10 MB.');
+        }
+
         $ext = strtolower($file->getClientExtension());
         if (!in_array($ext, ['xlsx', 'xls', 'csv'], true)) {
             throw new \InvalidArgumentException('Ekstensi file harus berupa .xlsx, .xls, atau .csv');
@@ -166,8 +175,13 @@ class MasterImportService
         $sourceMime = $file->getClientMimeType();
 
         // Parse Spreadsheet safely
-        $spreadsheet = IOFactory::load($filePath);
+        $reader = IOFactory::createReaderForFile($filePath);
+        $reader->setReadDataOnly(true);
+        $spreadsheet = $reader->load($filePath);
         $worksheet = $spreadsheet->getActiveSheet();
+        if ($worksheet->getHighestDataRow() > 10000 || $worksheet->getHighestDataColumn() > 'AZ') {
+            throw new \InvalidArgumentException('File import melebihi batas 10.000 baris atau 52 kolom.');
+        }
         $rowsData = $worksheet->toArray(null, true, true, true);
 
         if (count($rowsData) < 2) {
@@ -282,6 +296,25 @@ class MasterImportService
                     $status = 'ERROR';
                 }
 
+                $primaryUnit = self::resolveUnitCode($row['primary_unit'] ?? '');
+                if ($primaryUnit === null) {
+                    $messages[] = 'Unit utama (primary_unit) tidak ditemukan atau tidak dapat diakses.';
+                    $status = 'ERROR';
+                } else {
+                    $normData['primary_unit_id'] = (int) $primaryUnit['id'];
+                    $normData['unit_ids'] = [(int) $primaryUnit['id']];
+                    foreach (self::splitCodes($row['additional_units'] ?? '') as $code) {
+                        $additionalUnit = self::resolveUnitCode($code);
+                        if ($additionalUnit === null) {
+                            $messages[] = "Unit tambahan '{$code}' tidak ditemukan atau tidak dapat diakses.";
+                            $status = 'ERROR';
+                            continue;
+                        }
+                        $normData['unit_ids'][] = (int) $additionalUnit['id'];
+                    }
+                    $normData['unit_ids'] = array_values(array_unique($normData['unit_ids']));
+                }
+
                 // Duplicate check against database
                 if (!empty($row['full_name'])) {
                     $matches = TeacherDuplicateDetectionService::scanForDuplicates($row);
@@ -320,6 +353,20 @@ class MasterImportService
                     $messages[] = 'Nama mata pelajaran (name) wajib diisi';
                     $status = 'ERROR';
                 }
+                $normData['unit_ids'] = [];
+                foreach (self::splitCodes($row['units'] ?? '') as $code) {
+                    $unit = self::resolveUnitCode($code);
+                    if ($unit === null) {
+                        $messages[] = "Unit '{$code}' tidak ditemukan atau tidak dapat diakses.";
+                        $status = 'ERROR';
+                        continue;
+                    }
+                    $normData['unit_ids'][] = (int) $unit['id'];
+                }
+                if ($normData['unit_ids'] === []) {
+                    $messages[] = 'Minimal satu unit yang dapat diakses wajib diisi pada kolom units.';
+                    $status = 'ERROR';
+                }
                 break;
 
             case 'CLASSROOMS':
@@ -330,6 +377,23 @@ class MasterImportService
                 if (empty($row['name'])) {
                     $messages[] = 'Nama kelas (name) wajib diisi';
                     $status = 'ERROR';
+                }
+                $unit = self::resolveUnitCode($row['unit'] ?? '');
+                $year = (new AcademicYearModel())->where('name', trim($row['academic_year'] ?? ''))->first();
+                $semester = (int) ($row['semester'] ?? 0);
+                $period = $year && $semester > 0
+                    ? (new AcademicPeriodModel())->where('academic_year_id', $year['id'])->where('semester_number', $semester)->first()
+                    : null;
+                $grade = $unit
+                    ? (new GradeLevelModel())->where('unit_id', $unit['id'])->where('code', trim($row['grade'] ?? ''))->first()
+                    : null;
+                if (!$unit || !$period || !$grade) {
+                    $messages[] = 'Kombinasi tahun ajaran, semester, unit, atau tingkat kelas tidak valid/tidak dapat diakses.';
+                    $status = 'ERROR';
+                } else {
+                    $normData['unit_id'] = (int) $unit['id'];
+                    $normData['academic_period_id'] = (int) $period['id'];
+                    $normData['grade_level_id'] = (int) $grade['id'];
                 }
                 break;
 
@@ -354,6 +418,20 @@ class MasterImportService
                     $messages[] = 'Nama ruang (name) wajib diisi';
                     $status = 'ERROR';
                 }
+                $isShared = !empty($row['shared_between_units']) ? 1 : 0;
+                $unit = !empty($row['unit']) ? self::resolveUnitCode($row['unit']) : null;
+                $roomType = (new RoomTypeModel())->where('code', strtoupper(trim($row['room_type'] ?? '')))->first();
+                if (!$isShared && !$unit) {
+                    $messages[] = 'Ruang non-shared wajib memiliki unit yang dapat diakses.';
+                    $status = 'ERROR';
+                }
+                if (!$roomType) {
+                    $messages[] = 'Kode jenis ruang tidak ditemukan.';
+                    $status = 'ERROR';
+                }
+                $normData['shared_between_units'] = $isShared;
+                $normData['unit_id'] = $unit ? (int) $unit['id'] : null;
+                $normData['room_type_id'] = $roomType ? (int) $roomType['id'] : null;
                 break;
         }
 
@@ -364,6 +442,50 @@ class MasterImportService
             'target_entity_id' => $targetEntityId,
             'normalized_data'  => $normData,
         ];
+    }
+
+    private static function splitCodes(string $value): array
+    {
+        return array_values(array_filter(array_map(
+            static fn ($code) => strtoupper(trim($code)),
+            preg_split('/[,;]+/', $value) ?: []
+        )));
+    }
+
+    private static function resolveUnitCode(string $code): ?array
+    {
+        $code = strtoupper(trim($code));
+        if ($code === '') {
+            return null;
+        }
+
+        $unit = (new SchoolUnitModel())->where('code', $code)->where('is_active', 1)->first();
+        if (!$unit) {
+            return null;
+        }
+
+        if (session()->get('logged_in')) {
+            try {
+                UnitScopeService::assertUnit((int) $unit['id']);
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+
+        return $unit;
+    }
+
+    private static function authorizedUnitIds(array $unitIds): array
+    {
+        $normalized = array_values(array_unique(array_filter(array_map('intval', $unitIds))));
+        if (session()->get('logged_in')) {
+            return UnitScopeService::assertUnits($normalized);
+        }
+        if ($normalized === []) {
+            throw new \RuntimeException('Data import tidak memiliki unit sekolah yang valid.');
+        }
+
+        return $normalized;
     }
 
     /**
@@ -397,6 +519,7 @@ class MasterImportService
                 switch ($batch['import_type']) {
                     case 'TEACHERS':
                         if ($action === 'INSERT') {
+                            $unitIds = self::authorizedUnitIds((array) ($normData['unit_ids'] ?? []));
                             TeacherService::createTeacher([
                                 'full_name'         => $normData['full_name'] ?? '',
                                 'nip'               => $normData['nip'] ?? null,
@@ -408,9 +531,10 @@ class MasterImportService
                                 'email'             => $normData['email'] ?? null,
                                 'address'           => $normData['address'] ?? null,
                                 'employment_status' => $normData['employment_status'] ?? 'GURU_TETAP',
+                                'primary_unit_id'    => $normData['primary_unit_id'] ?? null,
                                 'notes'             => $normData['notes'] ?? null,
                                 'is_active'         => 1,
-                            ]);
+                            ], $unitIds);
                             $appliedCount++;
                         }
                         break;
@@ -422,12 +546,18 @@ class MasterImportService
                             $existing = $subjectModel->where('code', $code)->where('deleted_at IS NULL')->first();
 
                             if ($existing) {
+                                $unitIds = self::authorizedUnitIds((array) ($normData['unit_ids'] ?? []));
+                                if (session()->get('logged_in')) {
+                                    UnitScopeService::assertSubject((int) $existing['id']);
+                                }
                                 SubjectService::updateSubject($existing['uuid'], [
                                     'name'       => $normData['name'] ?? $existing['name'],
                                     'category'   => $normData['category'] ?? $existing['category'],
                                     'short_name' => $normData['short_name'] ?? $existing['short_name'],
-                                ]);
+                                    'revision_number' => $existing['revision_number'],
+                                ], $unitIds);
                             } else {
+                                $unitIds = self::authorizedUnitIds((array) ($normData['unit_ids'] ?? []));
                                 SubjectService::createSubject([
                                     'code'                    => $code,
                                     'name'                    => $normData['name'] ?? '',
@@ -435,7 +565,7 @@ class MasterImportService
                                     'category'                => $normData['category'] ?? 'WAJIB',
                                     'counts_in_report'        => 1,
                                     'counts_as_teaching_load' => 1,
-                                ]);
+                                ], $unitIds);
                             }
                             $appliedCount++;
                         }
@@ -448,16 +578,55 @@ class MasterImportService
                             $existing = $roomModel->where('code', $code)->where('deleted_at IS NULL')->first();
 
                             if (!$existing) {
+                                if (!empty($normData['unit_id'])) {
+                                    if (session()->get('logged_in')) {
+                                        UnitScopeService::assertUnit((int) $normData['unit_id']);
+                                    }
+                                }
                                 RoomService::createRoom([
                                     'code'                 => $code,
                                     'name'                 => $normData['name'] ?? '',
-                                    'room_type_id'         => 1, // Default CLASSROOM
+                                    'room_type_id'         => $normData['room_type_id'],
+                                    'unit_id'              => $normData['unit_id'],
                                     'shared_between_units' => !empty($normData['shared_between_units']) ? 1 : 0,
                                     'capacity'             => !empty($normData['capacity']) ? (int)$normData['capacity'] : 30,
                                     'is_active'            => 1,
                                 ]);
                                 $appliedCount++;
+                            } else {
+                                if (session()->get('logged_in')) {
+                                    UnitScopeService::assertRoom((int) $existing['id']);
+                                }
+                                RoomService::updateRoom($existing['uuid'], [
+                                    'name'                 => $normData['name'] ?? $existing['name'],
+                                    'room_type_id'         => $normData['room_type_id'] ?? $existing['room_type_id'],
+                                    'unit_id'              => $normData['unit_id'] ?? $existing['unit_id'],
+                                    'shared_between_units' => $normData['shared_between_units'] ?? $existing['shared_between_units'],
+                                    'capacity'             => !empty($normData['capacity']) ? (int) $normData['capacity'] : $existing['capacity'],
+                                    'revision_number'      => $existing['revision_number'],
+                                ]);
+                                $appliedCount++;
                             }
+                        }
+                        break;
+
+                    case 'CLASSROOMS':
+                        if ($action === 'INSERT') {
+                            if (session()->get('logged_in')) {
+                                UnitScopeService::assertUnit((int) ($normData['unit_id'] ?? 0));
+                            }
+                            ClassroomService::createClassroom([
+                                'academic_period_id' => $normData['academic_period_id'] ?? null,
+                                'unit_id'            => $normData['unit_id'] ?? null,
+                                'grade_level_id'     => $normData['grade_level_id'] ?? null,
+                                'code'               => $normData['code'] ?? '',
+                                'name'               => $normData['name'] ?? '',
+                                'major'              => $normData['major'] ?? null,
+                                'specialization'     => $normData['specialization'] ?? null,
+                                'capacity'           => !empty($normData['capacity']) ? (int) $normData['capacity'] : null,
+                                'is_active'          => isset($normData['active']) ? (int) $normData['active'] : 1,
+                            ]);
+                            $appliedCount++;
                         }
                         break;
                 }

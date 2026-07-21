@@ -1139,6 +1139,8 @@ class CreateMilestone2MasterTables extends Migration
 
     public function down()
     {
+        $this->db->disableForeignKeyChecks();
+
         $this->forge->dropTable('duplicate_review_members', true);
         $this->forge->dropTable('duplicate_review_groups', true);
         $this->forge->dropTable('master_import_rows', true);
@@ -1154,5 +1156,7 @@ class CreateMilestone2MasterTables extends Migration
         $this->forge->dropTable('teacher_identifiers', true);
         $this->forge->dropTable('teacher_unit_assignments', true);
         $this->forge->dropTable('teachers', true);
+
+        $this->db->enableForeignKeyChecks();
     }
 }

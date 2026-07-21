@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Services\GradeLevelService;
+use App\Services\UnitScopeService;
 use App\Models\SchoolUnitModel;
 use App\Models\GradeLevelModel;
 
@@ -14,12 +15,14 @@ class GradeLevelsController extends BaseController
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $activeUnitId = session()->get('active_unit_id');
-        $unitId = $this->request->getGet('unit_id') ?? $activeUnitId;
+        try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
+        } catch (\Throwable $e) {
+            return redirect()->to('/dashboard')->with('error', $e->getMessage());
+        }
 
         $gradeLevels = GradeLevelService::getGradeLevels($unitId ? (int)$unitId : null);
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         return view('grade_levels/index', [
             'title'             => 'Tingkat Kelas & Fase Pendidikan',
@@ -41,6 +44,11 @@ class GradeLevelsController extends BaseController
 
         if (!$gradeLevel) {
             return redirect()->to('/grade-levels')->with('error', 'Tingkat kelas tidak ditemukan.');
+        }
+        try {
+            UnitScopeService::assertUnit((int) $gradeLevel['unit_id']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/grade-levels')->with('error', $e->getMessage());
         }
 
         return view('grade_levels/edit', [
@@ -66,6 +74,11 @@ class GradeLevelsController extends BaseController
         }
 
         try {
+            $gradeLevel = (new GradeLevelModel())->where('uuid', $uuid)->first();
+            if (!$gradeLevel) {
+                throw new \RuntimeException('Tingkat kelas tidak ditemukan.');
+            }
+            UnitScopeService::assertUnit((int) $gradeLevel['unit_id']);
             GradeLevelService::updateGradeLevel($uuid, $this->request->getPost());
             return redirect()->to('/grade-levels')->with('success', 'Tingkat kelas berhasil diperbarui.');
         } catch (\Throwable $e) {

@@ -7,6 +7,7 @@ use App\Models\RoleModel;
 use App\Models\SchoolUnitModel;
 use App\Services\AuditService;
 use App\Services\UuidService;
+use App\Services\UnitScopeService;
 use Config\Database;
 
 class UserController extends BaseController
@@ -17,8 +18,21 @@ class UserController extends BaseController
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
+        $unitIds = UnitScopeService::accessibleUnitIds();
         $userModel = new UserModel();
-        $users = $userModel->orderBy('full_name', 'ASC')->findAll();
+        $users = $unitIds === [] ? [] : $userModel
+            ->select('users.*')
+            ->join('user_unit_access uua', 'uua.user_id = users.id')
+            ->whereIn('uua.unit_id', $unitIds)
+            ->groupBy('users.id')
+            ->orderBy('users.full_name', 'ASC')
+            ->findAll();
+        if (!$this->actorIsSuperAdmin()) {
+            $superUserIds = array_map('intval', array_column(Database::connect()->table('user_roles ur')
+                ->select('ur.user_id')->join('roles r', 'r.id = ur.role_id')
+                ->whereIn('r.code', ['superadmin', 'super_admin'])->get()->getResultArray(), 'user_id'));
+            $users = array_values(array_filter($users, static fn ($user) => !in_array((int) $user['id'], $superUserIds, true)));
+        }
 
         return view('users/index', [
             'title'             => 'Manajemen Pengguna',
@@ -35,9 +49,11 @@ class UserController extends BaseController
 
         $roleModel = new RoleModel();
         $roles = $roleModel->findAll();
+        if (!$this->actorIsSuperAdmin()) {
+            $roles = array_values(array_filter($roles, static fn ($role) => !in_array($role['code'], ['superadmin', 'super_admin'], true)));
+        }
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         return view('users/create', [
             'title'             => 'Tambah Pengguna Baru',
@@ -96,8 +112,11 @@ class UserController extends BaseController
             $userModel->insert($userData);
             $newUserId = $userModel->insertID();
 
+            $unitIds = UnitScopeService::assertUnits((array) $this->request->getPost('units'));
+
             // Insert roles
             $roleIds = (array)$this->request->getPost('roles');
+            $this->assertRoleAssignments($roleIds);
             foreach ($roleIds as $rId) {
                 $db->table('user_roles')->insert([
                     'user_id' => $newUserId,
@@ -106,7 +125,6 @@ class UserController extends BaseController
             }
 
             // Insert units
-            $unitIds = (array)$this->request->getPost('units');
             foreach ($unitIds as $uId) {
                 $db->table('user_unit_access')->insert([
                     'user_id'    => $newUserId,
@@ -155,12 +173,19 @@ class UserController extends BaseController
         if (!$user) {
             return redirect()->to('/users')->with('error', 'Pengguna tidak ditemukan.');
         }
+        try {
+            $this->assertCanManageUser((int) $user['id']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/users')->with('error', $e->getMessage());
+        }
 
         $roleModel = new RoleModel();
         $roles = $roleModel->findAll();
+        if (!$this->actorIsSuperAdmin()) {
+            $roles = array_values(array_filter($roles, static fn ($role) => !in_array($role['code'], ['superadmin', 'super_admin'], true)));
+        }
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         $db = Database::connect();
         $userRoles = array_column($db->table('user_roles')->where('user_id', $user['id'])->get()->getResultArray(), 'role_id');
@@ -188,6 +213,11 @@ class UserController extends BaseController
 
         if (!$user) {
             return redirect()->to('/users')->with('error', 'Pengguna tidak ditemukan.');
+        }
+        try {
+            $this->assertCanManageUser((int) $user['id']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/users')->with('error', $e->getMessage());
         }
 
         $rules = [
@@ -240,6 +270,7 @@ class UserController extends BaseController
             // Sync Roles
             $db->table('user_roles')->where('user_id', $user['id'])->delete();
             $roleIds = (array)$this->request->getPost('roles');
+            $this->assertRoleAssignments($roleIds);
             foreach ($roleIds as $rId) {
                 $db->table('user_roles')->insert([
                     'user_id' => $user['id'],
@@ -248,8 +279,8 @@ class UserController extends BaseController
             }
 
             // Sync Units
+            $unitIds = UnitScopeService::assertUnits((array) $this->request->getPost('units'));
             $db->table('user_unit_access')->where('user_id', $user['id'])->delete();
-            $unitIds = (array)$this->request->getPost('units');
             foreach ($unitIds as $uId) {
                 $db->table('user_unit_access')->insert([
                     'user_id'    => $user['id'],
@@ -297,20 +328,31 @@ class UserController extends BaseController
         if (!$user) {
             return redirect()->to('/users')->with('error', 'Pengguna tidak ditemukan.');
         }
+        try {
+            $this->assertCanManageUser((int) $user['id']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/users')->with('error', $e->getMessage());
+        }
 
         // Generate strong random password
         $symbols = '@#$!%*?&';
-        $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' . $symbols;
-        $length = 14;
-        
-        // Guarantee requirements
-        $newPassword = 'P1!' . substr(str_shuffle($chars), 0, $length - 3);
+        $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' . $symbols;
+        $passwordChars = ['A', 'a', '1', '!'];
+        while (count($passwordChars) < 16) {
+            $passwordChars[] = $characters[random_int(0, strlen($characters) - 1)];
+        }
+        for ($i = count($passwordChars) - 1; $i > 0; $i--) {
+            $j = random_int(0, $i);
+            [$passwordChars[$i], $passwordChars[$j]] = [$passwordChars[$j], $passwordChars[$i]];
+        }
+        $newPassword = implode('', $passwordChars);
 
         $hashed = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
 
         $userModel->update($user['id'], [
             'password_hash'        => $hashed,
             'must_change_password' => 1,
+            'password_changed_at'  => date('Y-m-d H:i:s'),
             'updated_at'           => date('Y-m-d H:i:s')
         ]);
 
@@ -326,5 +368,51 @@ class UserController extends BaseController
         );
 
         return redirect()->to('/users')->with('success', "Kata sandi untuk {$user['username']} berhasil direset ke: {$newPassword}. Harap catat sandi ini sebelum menutup halaman.");
+    }
+
+    private function actorIsSuperAdmin(): bool
+    {
+        $userId = (int) session()->get('user_id');
+        if ($userId <= 0) {
+            return false;
+        }
+
+        return Database::connect()->table('user_roles ur')
+            ->join('roles r', 'r.id = ur.role_id')
+            ->where('ur.user_id', $userId)
+            ->whereIn('r.code', ['superadmin', 'super_admin'])
+            ->countAllResults() > 0;
+    }
+
+    private function assertRoleAssignments(array $roleIds): void
+    {
+        $roleIds = array_values(array_unique(array_filter(array_map('intval', $roleIds))));
+        if ($roleIds === []) {
+            throw new \RuntimeException('Minimal satu peran wajib dipilih.');
+        }
+
+        $roles = Database::connect()->table('roles')->whereIn('id', $roleIds)->get()->getResultArray();
+        if (count($roles) !== count($roleIds)) {
+            throw new \RuntimeException('Salah satu peran yang dipilih tidak valid.');
+        }
+
+        foreach ($roles as $role) {
+            if (in_array($role['code'], ['superadmin', 'super_admin'], true) && !$this->actorIsSuperAdmin()) {
+                throw new \RuntimeException('Hanya Super Admin yang dapat memberikan peran Super Admin.');
+            }
+        }
+    }
+
+    private function assertCanManageUser(int $targetUserId): void
+    {
+        UnitScopeService::assertUser($targetUserId);
+        $isTargetSuperAdmin = Database::connect()->table('user_roles ur')
+            ->join('roles r', 'r.id = ur.role_id')
+            ->where('ur.user_id', $targetUserId)
+            ->whereIn('r.code', ['superadmin', 'super_admin'])
+            ->countAllResults() > 0;
+        if ($isTargetSuperAdmin && !$this->actorIsSuperAdmin()) {
+            throw new \RuntimeException('Hanya Super Admin yang dapat mengelola akun Super Admin.');
+        }
     }
 }

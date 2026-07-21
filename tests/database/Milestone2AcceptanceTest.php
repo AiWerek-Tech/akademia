@@ -837,7 +837,7 @@ final class Milestone2AcceptanceTest extends CIUnitTestCase
     public function testM01_NoSessionRedirectsToLogin(): void
     {
         $result = $this->withSession([])->get('/teachers');
-        $result->assertRedirectTo('/dashboard');
+        $result->assertRedirectTo('/login');
     }
 
     /** M.2 POST without CSRF token → rejected */
@@ -854,5 +854,16 @@ final class Milestone2AcceptanceTest extends CIUnitTestCase
             in_array($result->response()->getStatusCode(), [302, 403]),
             'POST without CSRF should be rejected'
         );
+    }
+
+    /** M.3 Prove controller method is not executed for guest */
+    public function testM03_TeachersGuestControllerNotExecuted(): void
+    {
+        $result = $this->withSession([])->get('/teachers');
+        $result->assertRedirectTo('/login');
+        
+        // Assert that the session does not contain any logged in attributes or unit redirects
+        $result->assertSessionMissing('active_unit_id');
+        $result->assertSessionMissing('logged_in');
     }
 }

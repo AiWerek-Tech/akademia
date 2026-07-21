@@ -79,7 +79,7 @@ class RoleController extends BaseController
         }
 
         // Prevent modification of Super Admin permissions to avoid lockout
-        if ($role['code'] === 'superadmin') {
+        if (in_array($role['code'], ['superadmin', 'super_admin'], true)) {
             return redirect()->to('/roles')->with('error', 'Wewenang peran Super Admin bersifat mutlak dan tidak dapat diubah.');
         }
 

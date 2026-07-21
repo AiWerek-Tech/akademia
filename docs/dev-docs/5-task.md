@@ -1,0 +1,23 @@
+# Tasks — Milestone 3 Final Acceptance & Hardening
+
+- [x] Route Security Repair
+  - [x] Update `app/Config/Filters.php` to include admin routes under `auth`, `unit_access`, and `password_change_required`.
+  - [x] Modify `tests/database/Milestone2AcceptanceTest.php` to update guest redirect assertions to `/login`.
+  - [x] Add guest controller execution prevention tests to `Milestone2AcceptanceTest.php`.
+- [x] Database Concurrency Hardening
+  - [x] Add generated columns and unique indexes to `20260721100000_CreateMilestone3Tables.php`.
+  - [x] Verify seeder idempotency in `Milestone3CurriculumSeeder.php`.
+  - [x] Test migration rollback/reapply on the test database.
+- [x] Effective Hours Logic Hardening
+  - [x] Add test cases to `Milestone3AcceptanceTest.php` for `EFFECTIVE` source rejection, invalid/empty source rejection, and client effective JP tampering prevention.
+- [x] Test Discovery Audit
+  - [x] Save the list of all 133 tests to `docs/testing/milestone-3-test-discovery.md`.
+  - [x] Perform full test suite execution using PHP CLI.
+  - [x] Perform test suite execution using PHP Winget.
+- [x] Documentation
+  - [x] Generate runtime matrix, route security, and test discovery docs.
+  - [x] Write curriculum effective hours, validation codes, and reconciliation docs.
+- [x] Final Checks & Git Commit
+  - [x] Composer validate + audit.
+  - [x] Full lint validation.
+  - [x] Git commit.

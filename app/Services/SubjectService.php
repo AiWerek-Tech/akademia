@@ -182,11 +182,21 @@ class SubjectService
             $data['revision_number'] = ((int)$existing['revision_number']) + 1;
             $data['updated_by']      = session()->get('user_id');
 
-            $subjectModel->update($existing['id'], $data);
+            $db->table('subjects')
+                ->where('id', $existing['id'])
+                ->where('revision_number', $existing['revision_number'])
+                ->update($data);
+            if ($db->affectedRows() !== 1) {
+                throw new \RuntimeException('Data mata pelajaran telah diubah oleh pengguna lain. Silakan muat ulang halaman.');
+            }
 
             // Sync availability
             $availModel = new SubjectUnitAvailabilityModel();
-            $availModel->where('subject_id', $existing['id'])->delete();
+            $availModel->where('subject_id', $existing['id']);
+            if (session()->get('logged_in')) {
+                $availModel->whereIn('unit_id', UnitScopeService::accessibleUnitIds());
+            }
+            $availModel->delete();
             foreach ($unitIds as $uId) {
                 $availModel->insert([
                     'subject_id'   => $existing['id'],

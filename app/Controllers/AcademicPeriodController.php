@@ -223,7 +223,14 @@ class AcademicPeriodController extends BaseController
             'updated_at'      => date('Y-m-d H:i:s')
         ];
 
-        $periodModel->update($period['id'], $after);
+        $db = Database::connect();
+        $db->table('academic_periods')
+            ->where('id', $period['id'])
+            ->where('revision_number', $revision)
+            ->update($after);
+        if ($db->affectedRows() !== 1) {
+            return redirect()->back()->withInput()->with('error', 'Data telah diperbarui oleh pengguna lain. Silakan muat ulang halaman.');
+        }
 
         // Audit log
         AuditService::log(

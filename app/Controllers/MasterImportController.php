@@ -15,6 +15,9 @@ class MasterImportController extends BaseController
         }
 
         $batchModel = new MasterImportBatchModel();
+        if (!in_array(session()->get('role_code'), ['superadmin', 'super_admin'], true)) {
+            $batchModel->where('created_by', session()->get('user_id'));
+        }
         $batches = $batchModel->orderBy('id', 'DESC')->paginate(20);
 
         return view('imports/index', [
@@ -53,7 +56,7 @@ class MasterImportController extends BaseController
 
         $rules = [
             'import_type' => 'required|in_list[TEACHERS,SUBJECTS,CLASSROOMS,ROOMS]',
-            'file'        => 'uploaded[file]|max_size[file,10240]|ext_in[file,xlsx,xls,csv]',
+            'file'        => 'uploaded[file]|max_size[file,10240]|ext_in[file,xlsx,xls,csv]|mime_in[file,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,text/plain,application/csv]',
         ];
 
         if (!$this->validate($rules)) {
@@ -79,6 +82,10 @@ class MasterImportController extends BaseController
         if (!$batch) {
             return redirect()->to('/imports/master')->with('error', 'Batch import tidak ditemukan.');
         }
+        if (!in_array(session()->get('role_code'), ['superadmin', 'super_admin'], true)
+            && (int) $batch['created_by'] !== (int) session()->get('user_id')) {
+            return redirect()->to('/imports/master')->with('error', 'Anda tidak memiliki akses ke batch import tersebut.');
+        }
 
         $rowModel = new MasterImportRowModel();
         $rows = $rowModel->where('batch_id', $batch['id'])->orderBy('row_number', 'ASC')->paginate(50);
@@ -95,6 +102,14 @@ class MasterImportController extends BaseController
     public function apply(string $uuid)
     {
         try {
+            $batch = (new MasterImportBatchModel())->where('uuid', $uuid)->first();
+            if (!$batch) {
+                throw new \RuntimeException('Batch import tidak ditemukan.');
+            }
+            if (!in_array(session()->get('role_code'), ['superadmin', 'super_admin'], true)
+                && (int) $batch['created_by'] !== (int) session()->get('user_id')) {
+                throw new \RuntimeException('Anda tidak memiliki akses ke batch import tersebut.');
+            }
             $res = MasterImportService::applyBatch($uuid);
             return redirect()->to('/imports/master/' . $uuid)
                 ->with('success', 'Batch import berhasil diterapkan! Total ' . $res['applied_rows'] . ' data berhasil masuk ke database.');

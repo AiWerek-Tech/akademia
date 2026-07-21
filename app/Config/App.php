@@ -204,9 +204,14 @@ class App extends BaseConfig
     {
         parent::__construct();
 
-        // Dynamically detect base URL in web environment to support arbitrary hostnames/subdirectories
-        if (isset($_SERVER['HTTP_HOST'])) {
-            $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https' ? 'https' : 'http';
+        // Development convenience only. Production must use the configured
+        // baseURL and allowedHostnames instead of trusting request headers.
+        if (ENVIRONMENT === 'development' && isset($_SERVER['HTTP_HOST'])) {
+            $host = strtolower(preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST']));
+            if (!in_array($host, ['localhost', '127.0.0.1', 'app.wmvaa.local'], true)) {
+                return;
+            }
+            $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $scriptPath = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/\\');
             if (basename($scriptPath) === 'public') {
                 $scriptPath = dirname($scriptPath);

@@ -6,6 +6,7 @@ use App\Services\TeacherService;
 use App\Services\TeacherDuplicateDetectionService;
 use App\Services\TeacherMergeService;
 use App\Services\MasterExportService;
+use App\Services\UnitScopeService;
 use App\Models\SchoolUnitModel;
 use App\Models\TeacherModel;
 use App\Models\TeacherUnitAssignmentModel;
@@ -19,17 +20,21 @@ class TeachersController extends BaseController
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $activeUnitId = session()->get('active_unit_id');
+        try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
+        } catch (\Throwable $e) {
+            return redirect()->to('/dashboard')->with('error', $e->getMessage());
+        }
+
         $filters = [
-            'unit_id'        => $this->request->getGet('unit_id') ?? $activeUnitId,
+            'unit_id'        => $unitId,
             'is_active'      => $this->request->getGet('is_active'),
             'profile_status' => $this->request->getGet('profile_status'),
             'search'         => $this->request->getGet('search'),
         ];
 
         $result = TeacherService::getTeachers($filters);
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         return view('teachers/index', [
             'title'             => 'Master Guru Global',
@@ -47,8 +52,7 @@ class TeachersController extends BaseController
             return redirect()->to('/teachers')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         return view('teachers/create', [
             'title'             => 'Tambah Data Guru',
@@ -80,6 +84,7 @@ class TeachersController extends BaseController
                 $unitIds[] = (int)$data['primary_unit_id'];
             }
             $unitIds = array_values(array_unique(array_filter($unitIds)));
+            $unitIds = UnitScopeService::assertUnits($unitIds);
 
             $res = TeacherService::createTeacher($data, $unitIds);
 
@@ -105,6 +110,11 @@ class TeachersController extends BaseController
 
         if (!$teacher) {
             return redirect()->to('/teachers')->with('error', 'Data guru tidak ditemukan.');
+        }
+        try {
+            UnitScopeService::assertTeacher((int) $teacher['id']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/teachers')->with('error', $e->getMessage());
         }
 
         $assignmentModel = new TeacherUnitAssignmentModel();
@@ -140,9 +150,13 @@ class TeachersController extends BaseController
         if (!$teacher) {
             return redirect()->to('/teachers')->with('error', 'Data guru tidak ditemukan.');
         }
+        try {
+            UnitScopeService::assertTeacherManage((int) $teacher['id']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/teachers')->with('error', $e->getMessage());
+        }
 
-        $unitModel = new SchoolUnitModel();
-        $units = $unitModel->where('is_active', 1)->findAll();
+        $units = UnitScopeService::accessibleUnits();
 
         $assignmentModel = new TeacherUnitAssignmentModel();
         $assignedUnitIds = array_column($assignmentModel->where('teacher_id', $teacher['id'])->findAll(), 'unit_id');
@@ -179,6 +193,13 @@ class TeachersController extends BaseController
                 $unitIds[] = (int)$data['primary_unit_id'];
             }
             $unitIds = array_values(array_unique(array_filter($unitIds)));
+            $unitIds = UnitScopeService::assertUnits($unitIds);
+
+            $teacher = (new TeacherModel())->where('uuid', $uuid)->where('deleted_at IS NULL')->first();
+            if (!$teacher) {
+                throw new \RuntimeException('Data guru tidak ditemukan.');
+            }
+            UnitScopeService::assertTeacherManage((int) $teacher['id']);
 
             TeacherService::updateTeacher($uuid, $data, $unitIds);
 
@@ -195,6 +216,11 @@ class TeachersController extends BaseController
         }
 
         try {
+            $teacher = (new TeacherModel())->where('uuid', $uuid)->where('deleted_at IS NULL')->first();
+            if (!$teacher) {
+                throw new \RuntimeException('Data guru tidak ditemukan.');
+            }
+            UnitScopeService::assertTeacherManage((int) $teacher['id']);
             TeacherService::verifyTeacher($uuid);
             return redirect()->back()->with('success', 'Profil guru berhasil diverifikasi.');
         } catch (\Throwable $e) {
@@ -209,8 +235,9 @@ class TeachersController extends BaseController
         }
 
         try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
             $filePath = MasterExportService::exportExcel('TEACHERS', [
-                'unit_id' => $this->request->getGet('unit_id') ?? session()->get('active_unit_id'),
+                'unit_id' => $unitId,
             ]);
 
             return $this->response->download($filePath, null);
