@@ -47,16 +47,18 @@ CREATE TABLE `academic_years` (
   `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- 3. Semesters
-CREATE TABLE `semesters` (
+-- 3. Academic Periods (Consolidated Semester and Period Representation)
+CREATE TABLE `academic_periods` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `academic_year_id` INT NOT NULL,
-  `number` INT NOT NULL,                      -- 1, 2
-  `name` VARCHAR(50) NOT NULL,               -- 'Semester Ganjil', 'Semester Genap'
+  `semester_number` INT NOT NULL,             -- 1 (Ganjil), 2 (Genap)
+  `name` VARCHAR(50) NOT NULL,                -- '2026/2027 Ganjil'
   `start_date` DATE NOT NULL,
   `end_date` DATE NOT NULL,
-  `status` VARCHAR(20) DEFAULT 'DRAFT',      -- 'DRAFT', 'ACTIVE', 'LOCKED'
+  `workflow_status` VARCHAR(20) DEFAULT 'DRAFT', -- 'DRAFT', 'VALIDATED', 'REVIEWED', 'APPROVED', 'LOCKED'
   `is_active` TINYINT(1) DEFAULT 0,
+  `approved_at` TIMESTAMP NULL,
+  `locked_at` TIMESTAMP NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`academic_year_id`) REFERENCES `academic_years` (`id`) ON DELETE CASCADE

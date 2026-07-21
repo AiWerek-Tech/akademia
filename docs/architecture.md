@@ -56,3 +56,13 @@ app/
 - **Access Control**: Role-Based Access Control (RBAC) enforced strictly at the controller/filter level.
 - **CSRF**: Token verification required for all POST/PUT/DELETE requests.
 - **XSS**: Escaping data using `esc()` on rendering.
+
+---
+
+## 5. Runtime Environment
+
+- **PHP Version**: `8.2.x` (Targeting PHP 8.2.20 in local development and production)
+- **Framework**: `CodeIgniter 4.7.4` (Latest secure version)
+- **Testing**: `PHPUnit 10.5.x`
+- **Isolation**: Executed using CGI handlers mapping specific directories to `php82` in XAMPP, leaving legacy projects on PHP 7.4.
+

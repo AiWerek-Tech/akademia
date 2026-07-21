@@ -23,8 +23,8 @@
                     <i class="bi bi-calendar-check"></i>
                 </div>
                 <div>
-                    <span class="text-secondary d-block fs-7 fw-medium mb-1">Periode Aktif</span>
-                    <span class="fw-bold text-slate-900 fs-5">T.A 2026/2027 Ganjil</span>
+                    <span class="text-secondary d-block fs-7 fw-medium mb-1">Periode Aktif (Mockup)</span>
+                    <span class="fw-bold text-slate-900 fs-5">Belum tersedia</span>
                 </div>
             </div>
         </div>
@@ -37,8 +37,8 @@
                     <i class="bi bi-people"></i>
                 </div>
                 <div>
-                    <span class="text-secondary d-block fs-7 fw-medium mb-1">Guru Terdaftar</span>
-                    <span class="fw-bold text-slate-900 fs-5">42 Guru Global</span>
+                    <span class="text-secondary d-block fs-7 fw-medium mb-1">Guru Terdaftar (Mockup)</span>
+                    <span class="fw-bold text-slate-900 fs-5">0 Guru</span>
                 </div>
             </div>
         </div>
@@ -51,8 +51,8 @@
                     <i class="bi bi-journal-check"></i>
                 </div>
                 <div>
-                    <span class="text-secondary d-block fs-7 fw-medium mb-1">Mata Pelajaran</span>
-                    <span class="fw-bold text-slate-900 fs-5">32 Mapel</span>
+                    <span class="text-secondary d-block fs-7 fw-medium mb-1">Mata Pelajaran (Mockup)</span>
+                    <span class="fw-bold text-slate-900 fs-5">0 Mapel</span>
                 </div>
             </div>
         </div>
@@ -65,8 +65,8 @@
                     <i class="bi bi-clock-history"></i>
                 </div>
                 <div>
-                    <span class="text-secondary d-block fs-7 fw-medium mb-1">Status Jadwal</span>
-                    <span class="fw-bold text-slate-900 fs-5">DRAFT (Belum Rilis)</span>
+                    <span class="text-secondary d-block fs-7 fw-medium mb-1">Status Jadwal (Mockup)</span>
+                    <span class="fw-bold text-slate-900 fs-5">Belum tersedia</span>
                 </div>
             </div>
         </div>
