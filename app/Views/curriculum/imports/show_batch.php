@@ -1,123 +1,29 @@
 <?= $this->extend('layouts/admin') ?>
-
-<?= $this->section('content') ?>
+<?= $this->section('main_content') ?>
+<?php $readyRows = (int) $batch['valid_rows'] + (int) $batch['warning_rows']; ?>
 <div class="container-fluid px-4 py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <a href="<?= base_url('curriculum/imports') ?>" class="text-decoration-none small"><i class="bi bi-arrow-left me-1"></i> Kembali ke List Import</a>
-            <h1 class="h3 mb-0 text-gray-800 mt-1">Detail Import Batch #<?= $batch['id'] ?></h1>
-            <p class="text-muted small mb-0">File: <?= esc($batch['source_filename']) ?> | Versi Target: <?= esc($version['name'] ?? '-') ?></p>
-        </div>
-        <div>
-            <?php if ($batch['status'] === 'VALIDATED'): ?>
-                <form action="<?= base_url('curriculum/imports/' . $batch['uuid'] . '/apply') ?>" method="post" class="d-inline">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-success" onclick="return confirm('Terapkan batch import ini ke database kurikulum?')">
-                        <i class="bi bi-check-circle me-1"></i> Terapkan ke Kurikulum (Apply)
-                    </button>
-                </form>
-            <?php endif; ?>
-        </div>
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div><a href="<?= base_url('curriculum/imports') ?>" class="text-decoration-none small"><i class="bi bi-arrow-left me-1"></i>Import kurikulum</a><h1 class="h3 mt-2 mb-1">Hasil pemeriksaan file</h1><p class="text-muted mb-0"><?= esc($batch['source_filename']) ?> · tujuan: <?= esc($version['name'] ?? '-') ?></p></div>
+        <?php if ($batch['status'] === 'VALIDATED' && $readyRows > 0): ?><form action="<?= base_url('curriculum/imports/' . $batch['uuid'] . '/apply') ?>" method="post" onsubmit="return confirm('Terapkan <?= $readyRows ?> baris yang siap ke kurikulum? Data dengan kombinasi yang sama akan diperbarui.')"><?= csrf_field() ?><button class="btn btn-success"><i class="bi bi-check2-circle me-1"></i>Terapkan <?= $readyRows ?> baris siap</button></form><?php endif; ?>
     </div>
 
-    <?php if (session()->getFlashdata('success')): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <?= session()->getFlashdata('success') ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
-    <?php if (session()->getFlashdata('error')): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <?= session()->getFlashdata('error') ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
+    <?php foreach (['success' => 'success', 'error' => 'danger'] as $key => $type): ?><?php if ($message = session()->getFlashdata($key)): ?><div class="alert alert-<?= $type ?> alert-dismissible fade show"><?= esc($message) ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><?php endif; ?><?php endforeach; ?>
+
+    <?php if ($batch['status'] === 'APPLIED'): ?><div class="alert alert-success border-0"><i class="bi bi-check-circle-fill me-2"></i><strong>Import telah diterapkan.</strong> <?= (int) $batch['applied_rows'] ?> baris berhasil disimpan ke struktur kurikulum.</div>
+    <?php elseif ((int) $batch['error_rows'] > 0): ?><div class="alert alert-warning border-0"><i class="bi bi-exclamation-triangle me-2"></i><?= (int) $batch['error_rows'] ?> baris bermasalah akan dilewati. Anda tetap dapat menerapkan <?= $readyRows ?> baris yang siap, atau memperbaiki file dan mengunggahnya kembali.</div>
+    <?php else: ?><div class="alert alert-info border-0"><i class="bi bi-info-circle me-2"></i>Periksa ringkasan di bawah. Data yang sudah ada ditandai <strong>Diperbarui</strong>, sehingga tidak menghasilkan duplikat.</div><?php endif; ?>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="small text-muted">Total Baris</div>
-                    <div class="fs-4 fw-bold"><?= $batch['total_rows'] ?></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-success bg-opacity-10 text-success">
-                <div class="card-body">
-                    <div class="small">Valid Rows</div>
-                    <div class="fs-4 fw-bold"><?= $batch['valid_rows'] ?></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-warning bg-opacity-10 text-warning">
-                <div class="card-body">
-                    <div class="small">Warning Rows</div>
-                    <div class="fs-4 fw-bold"><?= $batch['warning_rows'] ?></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-danger bg-opacity-10 text-danger">
-                <div class="card-body">
-                    <div class="small">Error Rows (Dilewati)</div>
-                    <div class="fs-4 fw-bold"><?= $batch['error_rows'] ?></div>
-                </div>
-            </div>
-        </div>
+        <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Total dibaca</div><div class="fs-3 fw-bold"><?= (int) $batch['total_rows'] ?></div></div></div></div>
+        <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Siap ditambah</div><div class="fs-3 fw-bold text-success"><?= (int) $batch['valid_rows'] ?></div></div></div></div>
+        <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Akan diperbarui</div><div class="fs-3 fw-bold text-warning"><?= (int) $batch['warning_rows'] ?></div></div></div></div>
+        <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Dilewati</div><div class="fs-3 fw-bold text-danger"><?= (int) $batch['error_rows'] ?></div></div></div></div>
     </div>
 
-    <!-- Rows Staging Table -->
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-3">
-            <h5 class="mb-0 text-gray-800"><i class="bi bi-table me-2"></i> Data Staging Import</h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Baris</th>
-                            <th>Unit</th>
-                            <th>Tingkat</th>
-                            <th>Kode Mapel</th>
-                            <th>Kategori</th>
-                            <th>Jam Efektif</th>
-                            <th>Sumber</th>
-                            <th>Status Validasi</th>
-                            <th>Pesan Validasi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($rows as $r): ?>
-                            <?php $msgs = json_decode($r['validation_messages_json'], true) ?? []; ?>
-                            <tr>
-                                <td>#<?= $r['row_number'] ?></td>
-                                <td><span class="badge bg-secondary"><?= esc($r['source_unit']) ?></span></td>
-                                <td><?= esc($r['source_grade']) ?></td>
-                                <td class="fw-bold"><?= esc($r['source_subject']) ?></td>
-                                <td><?= esc($r['category'] ?? '-') ?></td>
-                                <td class="fw-bold text-primary"><?= number_format((float)($r['official_hours'] ?? 0), 1) ?> JP</td>
-                                <td><?= esc($r['effective_source'] ?? 'OFFICIAL') ?></td>
-                                <td>
-                                    <span class="badge bg-<?= $r['validation_status'] === 'VALID' ? 'success' : ($r['validation_status'] === 'WARNING' ? 'warning text-dark' : 'danger') ?>">
-                                        <?= $r['validation_status'] ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <?php if (!empty($msgs)): ?>
-                                        <small class="text-danger"><?= esc(implode('; ', $msgs)) ?></small>
-                                    <?php else: ?>
-                                        <small class="text-success"><i class="bi bi-check me-1"></i> Siap Di-import</small>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    <div class="card border-0 shadow-sm"><div class="card-header bg-white py-3 d-flex justify-content-between"><div><h5 class="mb-0">Pratinjau data</h5><div class="small text-muted">Menampilkan maksimal 100 baris per halaman.</div></div><?php if ($batch['status'] === 'VALIDATED'): ?><a href="<?= base_url('curriculum/imports') ?>" class="btn btn-sm btn-outline-secondary">Unggah ulang</a><?php endif; ?></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th class="ps-4">Baris</th><th>Unit / tingkat</th><th>Mata pelajaran</th><th>Kategori</th><th class="text-end">Jam</th><th>Hasil</th><th class="pe-4">Keterangan</th></tr></thead><tbody>
+    <?php foreach ($rows as $row): ?><?php $messages = json_decode($row['validation_messages_json'], true) ?? []; $normalized = json_decode($row['normalized_data_json'], true) ?? []; $state = $row['validation_status'] === 'VALID' ? ['success', 'Ditambahkan'] : ($row['validation_status'] === 'WARNING' ? ['warning text-dark', 'Diperbarui'] : ['danger', 'Dilewati']); ?>
+        <tr><td class="ps-4 fw-semibold"><?= (int) $row['row_number'] ?></td><td><div class="fw-semibold"><?= esc($row['source_unit'] ?: '-') ?></div><div class="small text-muted"><?= esc($row['source_grade'] ?: '-') ?><?= $row['source_classroom'] ? ' · ' . esc($row['source_classroom']) : '' ?></div></td><td><div class="fw-semibold"><?= esc($row['source_subject'] ?: '-') ?></div><div class="small text-muted"><?= esc($normalized['subject_name'] ?? '') ?></div></td><td><span class="badge bg-light text-dark border"><?= esc(str_replace('_', ' ', $row['category'] ?? '-')) ?></span></td><td class="text-end fw-bold text-primary"><?= number_format((float) ($normalized['effective_weekly_hours'] ?? 0), 1, ',', '.') ?> JP</td><td><span class="badge bg-<?= $state[0] ?>"><?= $state[1] ?></span></td><td class="pe-4"><?php if ($messages === []): ?><span class="small text-success"><i class="bi bi-check-circle me-1"></i>Siap diterapkan</span><?php else: ?><ul class="small mb-0 ps-3"><?php foreach ($messages as $message): ?><li class="<?= $row['validation_status'] === 'ERROR' ? 'text-danger' : 'text-muted' ?>"><?= esc($message) ?></li><?php endforeach; ?></ul><?php endif; ?></td></tr>
+    <?php endforeach; ?>
+    </tbody></table></div><?php if ($pager): ?><div class="card-footer bg-white d-flex justify-content-center"><?= $pager->links('curriculum_rows', 'default_full') ?></div><?php endif; ?></div>
 </div>
 <?= $this->endSection() ?>

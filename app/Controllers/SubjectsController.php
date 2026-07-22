@@ -19,12 +19,16 @@ class SubjectsController extends BaseController
         }
 
         try {
-            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
+            $query = $this->request->getGet();
+            $unitId = array_key_exists('unit_id', $query) && $query['unit_id'] === ''
+                ? null
+                : UnitScopeService::resolveUnit($query['unit_id'] ?? null);
         } catch (\Throwable $e) {
             return redirect()->to('/dashboard')->with('error', $e->getMessage());
         }
         $filters = [
             'unit_id'   => $unitId,
+            'unit_ids'  => UnitScopeService::accessibleUnitIds(),
             'category'  => $this->request->getGet('category'),
             'is_active' => $this->request->getGet('is_active'),
             'search'    => $this->request->getGet('search'),

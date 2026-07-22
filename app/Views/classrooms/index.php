@@ -12,6 +12,9 @@
                 <p class="text-muted fs-7 mb-0">Manajemen rombongan belajar aktif pada periode dan unit terpilih</p>
             </div>
             <div class="d-flex align-items-center gap-2">
+                <?php if (has_permission('classrooms.import')): ?>
+                    <a href="<?= base_url('imports/master?type=CLASSROOMS') ?>" class="btn btn-outline-primary rounded-3 btn-sm px-3 d-flex align-items-center gap-2"><i data-lucide="upload" style="width:16px;height:16px"></i><span>Import</span></a>
+                <?php endif; ?>
                 <?php if (has_permission('classrooms.manage')): ?>
                     <a href="<?= base_url('classrooms/copy-period') ?>" class="btn btn-outline-primary rounded-3 btn-sm px-3 d-flex align-items-center gap-2">
                         <i data-lucide="copy" style="width: 16px; height: 16px;"></i>

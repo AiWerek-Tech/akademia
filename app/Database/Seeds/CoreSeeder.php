@@ -100,10 +100,6 @@ class CoreSeeder extends Seeder
             // Academic Periods
             ['code' => 'academic_periods.view', 'module' => 'academic_periods', 'name' => 'View Academic Periods', 'description' => 'Melihat daftar periode akademik'],
             ['code' => 'academic_periods.manage', 'module' => 'academic_periods', 'name' => 'Manage Academic Periods', 'description' => 'Membuat/mengedit periode akademik'],
-            ['code' => 'academic_periods.validate', 'module' => 'academic_periods', 'name' => 'Validate Academic Periods', 'description' => 'Memvalidasi periode akademik (DRAFT -> VALIDATED)'],
-            ['code' => 'academic_periods.review', 'module' => 'academic_periods', 'name' => 'Review Academic Periods', 'description' => 'Mereview periode akademik (VALIDATED -> REVIEWED)'],
-            ['code' => 'academic_periods.approve', 'module' => 'academic_periods', 'name' => 'Approve Academic Periods', 'description' => 'Menyetujui periode akademik (REVIEWED -> APPROVED)'],
-            ['code' => 'academic_periods.lock', 'module' => 'academic_periods', 'name' => 'Lock Academic Periods', 'description' => 'Mengunci periode akademik (APPROVED -> LOCKED)'],
             
             // Users
             ['code' => 'users.view', 'module' => 'users', 'name' => 'View Users', 'description' => 'Melihat daftar pengguna'],
@@ -167,8 +163,7 @@ class CoreSeeder extends Seeder
         // 2. kepala_sekolah mapping
         if (isset($role_ids['kepala_sekolah'])) {
             $ks_perms = [
-                'dashboard.view', 'units.view', 'academic_periods.view', 
-                'academic_periods.review', 'academic_periods.approve', 'academic_periods.lock',
+                'dashboard.view', 'units.view', 'academic_periods.view',
                 'users.view', 'audit.view'
             ];
             foreach ($ks_perms as $kp) {
@@ -182,7 +177,7 @@ class CoreSeeder extends Seeder
         if (isset($role_ids['wakasek_kurikulum'])) {
             $wk_perms = [
                 'dashboard.view', 'units.view', 'academic_years.view', 'academic_years.manage',
-                'academic_periods.view', 'academic_periods.manage', 'academic_periods.validate', 'academic_periods.review'
+                'academic_periods.view', 'academic_periods.manage'
             ];
             foreach ($wk_perms as $wp) {
                 if (isset($perm_ids[$wp])) {

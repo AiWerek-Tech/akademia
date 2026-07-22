@@ -115,7 +115,7 @@ final class ExtendedRbacTest extends CIUnitTestCase
     }
 
     // ── Wakasek can validate but NOT approve or lock ────────────
-    public function testWakasekPermissionBoundaries(): void
+    public function testWakasekCanManageAcademicPeriodsDirectly(): void
     {
         $wakasek = $this->createTestUserWithRole('wakasek_t', 'wakasek_kurikulum');
 
@@ -128,13 +128,14 @@ final class ExtendedRbacTest extends CIUnitTestCase
         ]);
         helper('auth');
 
-        $this->assertTrue(has_permission('academic_periods.validate'));
+        $this->assertTrue(has_permission('academic_periods.manage'));
+        $this->assertFalse(has_permission('academic_periods.validate'));
         $this->assertFalse(has_permission('academic_periods.approve'));
         $this->assertFalse(has_permission('academic_periods.lock'));
     }
 
     // ── Kepala Sekolah can approve but NOT manage ──────────────
-    public function testKepsekPermissionBoundaries(): void
+    public function testKepsekCanViewPeriodsWithoutWorkflowPermissions(): void
     {
         $kepsek = $this->createTestUserWithRole('kepsek_t', 'kepala_sekolah');
 
@@ -146,7 +147,8 @@ final class ExtendedRbacTest extends CIUnitTestCase
         ]);
         helper('auth');
 
-        $this->assertTrue(has_permission('academic_periods.approve'));
+        $this->assertTrue(has_permission('academic_periods.view'));
+        $this->assertFalse(has_permission('academic_periods.approve'));
         $this->assertFalse(has_permission('academic_periods.manage'));
     }
 }

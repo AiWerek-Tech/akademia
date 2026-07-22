@@ -12,6 +12,9 @@
                 <p class="text-muted fs-7 mb-0">Master data mata pelajaran global terpadu unit SMP dan SMA</p>
             </div>
             <div class="d-flex align-items-center gap-2">
+                <?php if (has_permission('subjects.import')): ?>
+                    <a href="<?= base_url('imports/master?type=SUBJECTS') ?>" class="btn btn-outline-primary rounded-3 btn-sm px-3 d-flex align-items-center gap-2"><i data-lucide="upload" style="width:16px;height:16px"></i><span>Import</span></a>
+                <?php endif; ?>
                 <?php if (has_permission('subjects.export')): ?>
                     <a href="<?= base_url('subjects/export?unit_id=' . ($filters['unit_id'] ?? '')) ?>" class="btn btn-outline-success rounded-3 btn-sm px-3 d-flex align-items-center gap-2">
                         <i data-lucide="download" style="width: 16px; height: 16px;"></i>
@@ -93,7 +96,7 @@
                                 <td>
                                     <?php if (!empty($s['unit_availabilities'])): ?>
                                         <?php foreach ($s['unit_availabilities'] as $ua): ?>
-                                            <span class="badge bg-info bg-opacity-10 text-info px-2 py-0.5 rounded-pill fs-9 me-1">Unit #<?= $ua['unit_id'] ?></span>
+                                            <span class="badge bg-info bg-opacity-10 text-info px-2 py-0.5 rounded-pill fs-9 me-1"><?= esc($ua['unit_code'] ?? $ua['unit_name'] ?? ('Unit #' . $ua['unit_id'])) ?></span>
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <span class="badge bg-light text-dark fs-9">Lintas Unit</span>

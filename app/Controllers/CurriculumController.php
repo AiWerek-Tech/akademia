@@ -28,14 +28,16 @@ class CurriculumController extends BaseController
 
         $filters = [
             'academic_period_id' => $this->request->getGet('academic_period_id'),
-            'workflow_status'    => $this->request->getGet('workflow_status'),
+            'is_active'          => $this->request->getGet('is_active'),
             'search'             => $this->request->getGet('search'),
         ];
 
         $versions = CurriculumVersionService::getVersions($filters);
 
-        $periodModel = new AcademicPeriodModel();
-        $periods = $periodModel->orderBy('id', 'DESC')->findAll();
+        $periods = Database::connect()->table('academic_periods ap')
+            ->select('ap.*, ay.name AS year_name')
+            ->join('academic_years ay', 'ay.id = ap.academic_year_id', 'left')
+            ->orderBy('ap.start_date', 'DESC')->get()->getResultArray();
 
         return view('curriculum/versions/index', [
             'versions' => $versions['data'],
@@ -50,8 +52,11 @@ class CurriculumController extends BaseController
             return redirect()->to('/curriculum')->with('error', 'Anda tidak memiliki hak akses untuk membuat kurikulum.');
         }
 
-        $periodModel = new AcademicPeriodModel();
-        $periods = $periodModel->orderBy('id', 'DESC')->findAll();
+        $periods = Database::connect()->table('academic_periods ap')
+            ->select('ap.*, ay.name AS year_name')
+            ->join('academic_years ay', 'ay.id = ap.academic_year_id', 'left')
+            ->where('ap.is_active', 1)
+            ->orderBy('ap.start_date', 'DESC')->get()->getResultArray();
 
         return view('curriculum/versions/create', [
             'periods' => $periods,
@@ -158,9 +163,6 @@ class CurriculumController extends BaseController
                 'classroom_id'            => $this->request->getPost('classroom_id'),
                 'subject_id'              => $this->request->getPost('subject_id'),
                 'effective_source'        => $this->request->getPost('effective_source'),
-                'official_weekly_hours'   => $this->request->getPost('official_weekly_hours'),
-                'custom_weekly_hours'     => $this->request->getPost('custom_weekly_hours'),
-                'manual_weekly_hours'     => $this->request->getPost('manual_weekly_hours'),
                 'category'                => $this->request->getPost('category'),
                 'block_pattern_json'      => $this->request->getPost('block_pattern_json'),
                 'minimum_days'            => $this->request->getPost('minimum_days'),
@@ -173,6 +175,12 @@ class CurriculumController extends BaseController
                 'notes'                   => $this->request->getPost('notes'),
             ];
 
+            $weeklyHours = $this->request->getPost('weekly_hours');
+            $source = strtoupper((string) $data['effective_source']);
+            $data['official_weekly_hours'] = $source === 'OFFICIAL' ? $weeklyHours : null;
+            $data['custom_weekly_hours'] = $source === 'CUSTOM' ? $weeklyHours : null;
+            $data['manual_weekly_hours'] = $source === 'MANUAL' ? $weeklyHours : null;
+
             CurriculumStructureService::createStructure($data);
             return redirect()->to('/curriculum/' . $uuid)->with('success', 'Struktur mata pelajaran berhasil ditambahkan.');
         } catch (\Throwable $e) {
@@ -180,41 +188,38 @@ class CurriculumController extends BaseController
         }
     }
 
-    public function workflowAction(string $uuid, string $action)
+    public function activate(string $uuid)
     {
-        $action = strtoupper(trim($action));
-
-        switch ($action) {
-            case 'VALIDATE':
-                if (!has_permission('curriculum.validate')) return redirect()->back()->with('error', 'Hak akses ditolak.');
-                break;
-            case 'REVIEW':
-                if (!has_permission('curriculum.review')) return redirect()->back()->with('error', 'Hak akses ditolak.');
-                break;
-            case 'APPROVE':
-                if (!has_permission('curriculum.approve')) return redirect()->back()->with('error', 'Hak akses ditolak.');
-                break;
-            case 'LOCK':
-                if (!has_permission('curriculum.lock')) return redirect()->back()->with('error', 'Hak akses ditolak.');
-                break;
-            case 'ACTIVATE':
-                if (!has_permission('curriculum.approve')) return redirect()->back()->with('error', 'Hak akses ditolak.');
-                break;
-            default:
-                if (!has_permission('curriculum.manage')) return redirect()->back()->with('error', 'Hak akses ditolak.');
+        if (!has_permission('curriculum.manage') && !has_permission('curriculum.approve')) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki hak akses untuk mengaktifkan kurikulum.');
         }
 
         try {
             $this->assertVersionScope($uuid);
-            $reason = $this->request->getPost('reason');
+            CurriculumWorkflowService::setActiveVersion($uuid);
+            return redirect()->to('/curriculum/' . $uuid)->with('success', 'Kurikulum berhasil diaktifkan. Versi aktif sebelumnya pada periode ini otomatis dinonaktifkan.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
 
-            if ($action === 'ACTIVATE') {
-                CurriculumWorkflowService::setActiveVersion($uuid);
-                return redirect()->to('/curriculum/' . $uuid)->with('success', 'Versi kurikulum telah diaktifkan untuk periode ini.');
-            } else {
-                CurriculumWorkflowService::transition($uuid, $action, $reason);
-                return redirect()->to('/curriculum/' . $uuid)->with('success', "Status versi kurikulum berhasil diubah ke {$action}.");
+    public function deleteStructure(string $versionUuid, string $structureUuid)
+    {
+        if (!has_permission('curriculum.manage')) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki hak akses untuk menghapus struktur kurikulum.');
+        }
+
+        try {
+            $this->assertVersionScope($versionUuid);
+            $version = CurriculumVersionService::getVersionByUuid($versionUuid);
+            $structure = Database::connect()->table('curriculum_structures')
+                ->where('uuid', $structureUuid)->where('deleted_at IS NULL')->get()->getRowArray();
+            if (!$version || !$structure || (int) $structure['curriculum_version_id'] !== (int) $version['id']) {
+                throw new \RuntimeException('Struktur kurikulum tidak ditemukan pada versi ini.');
             }
+            UnitScopeService::assertUnit((int) $structure['unit_id']);
+            CurriculumStructureService::deleteStructure($structureUuid, 'Dihapus melalui halaman struktur kurikulum');
+            return redirect()->back()->with('success', 'Mata pelajaran berhasil dihapus dari struktur kurikulum.');
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }

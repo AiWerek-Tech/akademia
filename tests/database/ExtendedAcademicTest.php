@@ -7,7 +7,6 @@ use CodeIgniter\Test\FeatureTestTrait;
 use CodeIgniter\Test\DatabaseTestTrait;
 use App\Models\AcademicYearModel;
 use App\Models\AcademicPeriodModel;
-use App\Services\AcademicPeriodWorkflowService;
 use App\Database\Seeds\CoreSeeder;
 use Config\Database;
 
@@ -16,6 +15,8 @@ use Config\Database;
  */
 final class ExtendedAcademicTest extends CIUnitTestCase
 {
+    private int $smpId = 1;
+
     use FeatureTestTrait;
     use DatabaseTestTrait;
 
@@ -47,9 +48,22 @@ final class ExtendedAcademicTest extends CIUnitTestCase
                 'created_at'           => date('Y-m-d H:i:s'),
             ]);
         }
-        
+
+        // Ensure super_admin role assignment
+        $superAdminRole = $db->table('roles')->where('code', 'super_admin')->get()->getRowArray();
+        if ($superAdminRole) {
+            $existing = $db->table('user_roles')->where('user_id', 1)->where('role_id', $superAdminRole['id'])->get()->getRowArray();
+            if (!$existing) {
+                $db->table('user_roles')->insert([
+                    'user_id' => 1,
+                    'role_id' => $superAdminRole['id'],
+                ]);
+            }
+        }
+
         $smp = $db->table('school_units')->where('code', 'SMP')->get()->getRowArray();
         if ($smp) {
+            $this->smpId = (int)$smp['id'];
             $access = $db->table('user_unit_access')
                 ->where('user_id', 1)
                 ->where('unit_id', $smp['id'])
@@ -74,16 +88,12 @@ final class ExtendedAcademicTest extends CIUnitTestCase
             'user_id'        => 1,
             'username'       => 'admin',
             'role_code'      => 'super_admin',
-            'active_unit_id' => 1,
+            'active_unit_id' => $this->smpId,
             'permissions'    => [
                 'academic_years.view',
                 'academic_years.manage',
                 'academic_periods.view',
-                'academic_periods.manage',
-                'academic_periods.validate',
-                'academic_periods.review',
-                'academic_periods.approve',
-                'academic_periods.lock'
+                'academic_periods.manage'
             ]
         ];
     }
@@ -101,6 +111,61 @@ final class ExtendedAcademicTest extends CIUnitTestCase
         $result->assertRedirect();
         $this->assertNotEmpty(session()->getFlashdata('error'));
         $this->assertStringContainsString('harus sebelum tanggal selesai', session()->getFlashdata('error'));
+    }
+
+    public function testAcademicYearIndexRenders(): void
+    {
+        $result = $this->withSession($this->getSuperAdminSession())->get('academic-years');
+        $result->assertOK();
+        $result->assertSee('Tahun Pelajaran');
+    }
+
+    public function testDashboardRendersOperationalSummary(): void
+    {
+        $result = $this->withSession($this->getSuperAdminSession())->get('dashboard');
+        $result->assertOK();
+        $result->assertSee('Kesiapan Data Master');
+        $result->assertSee('Akses Cepat');
+    }
+
+    public function testPeriodDatesMustStayInsideAcademicYear(): void
+    {
+        $yearModel = new AcademicYearModel();
+        $yearModel->insert([
+            'name' => '2030/2031', 'start_date' => '2030-07-01', 'end_date' => '2031-06-30',
+            'status' => 'DRAFT', 'is_active' => 0,
+        ]);
+
+        $result = $this->withSession($this->getSuperAdminSession())->post('academic-periods', [
+            'academic_year_id' => $yearModel->insertID(), 'semester_number' => 1,
+            'start_date' => '2030-06-01', 'end_date' => '2030-12-31',
+        ]);
+
+        $result->assertRedirect();
+        $this->assertStringContainsString('di dalam rentang tahun pelajaran', (string) session()->getFlashdata('error'));
+    }
+
+    public function testDraftPeriodCanBeActivatedInOneClick(): void
+    {
+        $yearModel = new AcademicYearModel();
+        $periodModel = new AcademicPeriodModel();
+        $yearModel->insert(['name' => '2032/2033', 'start_date' => '2032-07-01', 'end_date' => '2033-06-30', 'status' => 'DRAFT', 'is_active' => 0]);
+        $yearId = $yearModel->insertID();
+        $periodModel->insert([
+            'academic_year_id' => $yearId, 'semester_number' => 1, 'start_date' => '2032-07-01',
+            'end_date' => '2032-12-31', 'workflow_status' => 'DRAFT', 'is_active' => 0,
+            'revision_number' => 1, 'created_by' => 1,
+        ]);
+        $period = $periodModel->find($periodModel->insertID());
+
+        $result = $this->withSession($this->getSuperAdminSession())
+            ->post('academic-periods/' . $period['uuid'] . '/activate');
+
+        $result->assertRedirectTo('/academic-periods');
+        $updated = $periodModel->find($period['id']);
+        $this->assertSame(1, (int) $updated['is_active']);
+        $this->assertSame('APPROVED', $updated['workflow_status']);
+        $this->assertSame(1, (int) $yearModel->find($yearId)['is_active']);
     }
 
     public function testAcademicYearActivationOnlyOneActive(): void
@@ -172,74 +237,4 @@ final class ExtendedAcademicTest extends CIUnitTestCase
         $this->assertArrayHasKey('semester_number', $errors);
     }
 
-    public function testPeriodTransitionsAndPermissions(): void
-    {
-        $yearModel = new AcademicYearModel();
-        $periodModel = new AcademicPeriodModel();
-
-        $yearModel->insert([
-            'name'       => '2026/2027',
-            'start_date' => '2026-07-01',
-            'end_date'   => '2027-06-30',
-            'status'     => 'APPROVED',
-            'is_active'  => 1
-        ]);
-        $yearId = $yearModel->insertID();
-
-        $periodModel->insert([
-            'academic_year_id' => $yearId,
-            'semester_number'  => 1,
-            'start_date'       => '2026-07-01',
-            'end_date'         => '2026-12-31',
-            'is_active'        => 0,
-            'workflow_status'  => 'DRAFT',
-            'revision_number'  => 1,
-            'created_by'       => 1
-        ]);
-        $periodId = $periodModel->insertID();
-
-        // 1. Valid DRAFT -> VALIDATED
-        $res = AcademicPeriodWorkflowService::transition($periodId, 'VALIDATED', 1, 'Validation check');
-        $this->assertTrue($res);
-
-        // 2. Jumping transition (VALIDATED -> APPROVED without REVIEWED) should fail
-        $this->expectException(\RuntimeException::class);
-        AcademicPeriodWorkflowService::transition($periodId, 'APPROVED', 2, 'Skip reviewed check');
-    }
-
-    public function testStaleRevisionOptLocking(): void
-    {
-        $yearModel = new AcademicYearModel();
-        $periodModel = new AcademicPeriodModel();
-
-        $yearModel->insert([
-            'name'       => '2026/2027',
-            'start_date' => '2026-07-01',
-            'end_date'   => '2027-06-30',
-            'status'     => 'APPROVED',
-            'is_active'  => 1
-        ]);
-        $yearId = $yearModel->insertID();
-
-        $periodModel->insert([
-            'academic_year_id' => $yearId,
-            'semester_number'  => 1,
-            'start_date'       => '2026-07-01',
-            'end_date'         => '2026-12-31',
-            'is_active'        => 0,
-            'workflow_status'  => 'DRAFT',
-            'revision_number'  => 1,
-            'created_by'       => 1
-        ]);
-        $periodId = $periodModel->insertID();
-
-        // Run transition once, increments revision_number to 2
-        AcademicPeriodWorkflowService::transition($periodId, 'VALIDATED', 1, 'Validating');
-
-        // Run transition with stale revision_number 1 (expect RuntimeException)
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Data telah diperbarui oleh pengguna lain');
-        
-        AcademicPeriodWorkflowService::transition($periodId, 'REVIEWED', 1, 'Stale try');
-    }
 }

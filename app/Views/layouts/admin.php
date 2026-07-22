@@ -297,7 +297,7 @@ $userName = session()->get('username') ?? 'Guest';
                                 <?php else: ?>
                                     <?php foreach ($periods as $ap): ?>
                                         <option value="<?= $ap['id'] ?>" <?= (int)$ap['id'] === (int)$activePeriodId ? 'selected' : '' ?>>
-                                            T.A <?= esc($ap['year_name']) ?> - <?= (int)$ap['semester_number'] === 1 ? 'Ganjil' : 'Genap' ?> (<?= esc($ap['workflow_status']) ?>)
+                                            T.A <?= esc($ap['year_name']) ?> - <?= (int)$ap['semester_number'] === 1 ? 'Ganjil' : 'Genap' ?><?= (int)$ap['is_active'] === 1 ? ' — Aktif' : '' ?>
                                         </option>
                                     <?php endforeach; ?>
                                 <?php endif; ?>

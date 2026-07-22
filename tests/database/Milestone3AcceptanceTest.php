@@ -174,11 +174,58 @@ final class Milestone3AcceptanceTest extends CIUnitTestCase
             $this->class7AId = (int)$c7a['id'];
         }
 
+        // Ensure admin user exists
+        $user = $db->table('users')->where('id', 1)->get()->getRowArray();
+        if (!$user) {
+            $db->table('users')->insert([
+                'id'                   => 1,
+                'uuid'                 => '00000000-0000-0000-0000-000000000099',
+                'username'             => 'admin',
+                'email'                => 'admin@test.com',
+                'full_name'            => 'Super Admin',
+                'password_hash'        => password_hash('TestPass12345!', PASSWORD_BCRYPT),
+                'is_active'            => 1,
+                'must_change_password' => 0,
+                'created_at'           => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        // Ensure super_admin role assignment
+        $superAdminRole = $db->table('roles')->where('code', 'super_admin')->get()->getRowArray();
+        if ($superAdminRole) {
+            $roleAssignment = $db->table('user_roles')->where('user_id', 1)->where('role_id', $superAdminRole['id'])->get()->getRowArray();
+            if (!$roleAssignment) {
+                $db->table('user_roles')->insert([
+                    'user_id' => 1,
+                    'role_id' => $superAdminRole['id'],
+                ]);
+            }
+        }
+
+        // Ensure unit access exists
+        $access = $db->table('user_unit_access')->where('user_id', 1)->where('unit_id', $this->smpId)->get()->getRowArray();
+        if (!$access) {
+            $db->table('user_unit_access')->insert([
+                'user_id' => 1,
+                'unit_id' => $this->smpId,
+                'is_default' => 1
+            ]);
+        }
+        $accessSma = $db->table('user_unit_access')->where('user_id', 1)->where('unit_id', $this->smaId)->get()->getRowArray();
+        if (!$accessSma) {
+            $db->table('user_unit_access')->insert([
+                'user_id' => 1,
+                'unit_id' => $this->smaId,
+                'is_default' => 0
+            ]);
+        }
+
         // Session admin
         session()->set([
             'user_id' => 1,
             'logged_in' => true,
             'active_role' => 'super_admin',
+            'active_unit_id' => $this->smpId,
             'permissions' => ['curriculum.view', 'curriculum.manage', 'curriculum.validate', 'curriculum.review', 'curriculum.approve', 'curriculum.lock', 'curriculum.import', 'curriculum.export', 'curriculum.revise'],
         ]);
     }
@@ -581,5 +628,94 @@ final class Milestone3AcceptanceTest extends CIUnitTestCase
         if (file_exists($path)) {
             unlink($path);
         }
+    }
+
+    public function testH01_DirectActivationNeedsNoWorkflowSteps(): void
+    {
+        $version = CurriculumVersionService::createVersion([
+            'academic_period_id' => $this->periodId,
+            'code' => 'KUR-DIRECT-ACTIVE',
+            'name' => 'Kurikulum Aktivasi Langsung',
+        ]);
+        CurriculumStructureService::createStructure([
+            'curriculum_version_id' => $version['id'],
+            'unit_id' => $this->smpId,
+            'grade_level_id' => $this->grade7Id,
+            'subject_id' => $this->subjectMatId,
+            'effective_source' => 'OFFICIAL',
+            'official_weekly_hours' => 4,
+        ]);
+
+        $active = CurriculumWorkflowService::setActiveVersion($version['uuid']);
+
+        $this->assertSame('APPROVED', $active['workflow_status']);
+        $this->assertSame(1, (int) $active['is_active']);
+    }
+
+    public function testH02_ImportDetectsExistingScopeAsUpdate(): void
+    {
+        $version = CurriculumVersionService::createVersion([
+            'academic_period_id' => $this->periodId,
+            'code' => 'KUR-IMPORT-UPDATE',
+            'name' => 'Kurikulum Import Update',
+        ]);
+        CurriculumStructureService::createStructure([
+            'curriculum_version_id' => $version['id'],
+            'unit_id' => $this->smpId,
+            'grade_level_id' => $this->grade7Id,
+            'subject_id' => $this->subjectMatId,
+            'effective_source' => 'OFFICIAL',
+            'official_weekly_hours' => 4,
+        ]);
+
+        $method = new \ReflectionMethod(CurriculumImportService::class, 'validateRow');
+        $result = $method->invoke(null, $version['id'], [
+            'unit' => 'SMP', 'grade' => 'VII', 'subject_code' => 'MAT-SMP',
+            'category' => 'INTRAKURIKULER', 'official_weekly_hours' => '5',
+            'effective_source' => 'OFFICIAL',
+        ]);
+
+        $this->assertSame('WARNING', $result['status']);
+        $this->assertSame('UPDATE', $result['proposed_action']);
+    }
+
+    public function testH03_ImportAppliesAsUpdateWithoutDuplicate(): void
+    {
+        $version = CurriculumVersionService::createVersion([
+            'academic_period_id' => $this->periodId,
+            'code' => 'KUR-IMPORT-APPLY',
+            'name' => 'Kurikulum Import Apply',
+        ]);
+        CurriculumStructureService::createStructure([
+            'curriculum_version_id' => $version['id'], 'unit_id' => $this->smpId,
+            'grade_level_id' => $this->grade7Id, 'subject_id' => $this->subjectMatId,
+            'effective_source' => 'OFFICIAL', 'official_weekly_hours' => 4,
+        ]);
+        $batchModel = new CurriculumImportBatchModel();
+        $batchId = $batchModel->insert([
+            'uuid' => '10000000-0000-4000-8000-000000000001',
+            'curriculum_version_id' => $version['id'], 'source_filename' => 'update.xlsx',
+            'source_hash' => str_repeat('a', 64), 'source_mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'source_size' => 100, 'status' => 'VALIDATED', 'total_rows' => 1, 'warning_rows' => 1,
+            'created_by' => 1, 'created_at' => date('Y-m-d H:i:s'),
+        ]);
+        (new CurriculumImportRowModel())->insert([
+            'batch_id' => $batchId, 'row_number' => 2, 'raw_data_json' => '{}',
+            'normalized_data_json' => json_encode(['effective_weekly_hours' => 5, 'counts_in_report' => 1, 'counts_as_teaching_load' => 1]),
+            'source_unit' => 'SMP', 'source_grade' => 'VII', 'source_subject' => 'MAT-SMP',
+            'mapped_unit_id' => $this->smpId, 'mapped_grade_level_id' => $this->grade7Id,
+            'mapped_subject_id' => $this->subjectMatId, 'official_hours' => 5,
+            'effective_source' => 'OFFICIAL', 'category' => 'INTRAKURIKULER',
+            'proposed_action' => 'UPDATE', 'validation_status' => 'WARNING', 'admin_decision' => 'UPDATE',
+            'validation_messages_json' => '[]', 'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $result = CurriculumImportService::applyBatch('10000000-0000-4000-8000-000000000001');
+
+        $this->assertSame(1, $result['updated_rows']);
+        $this->assertSame(0, $result['inserted_rows']);
+        $rows = CurriculumStructureService::getStructures($version['id'])['data'];
+        $this->assertCount(1, $rows);
+        $this->assertSame(5.0, (float) $rows[0]['effective_weekly_hours']);
     }
 }

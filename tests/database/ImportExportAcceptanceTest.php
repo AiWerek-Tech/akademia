@@ -63,6 +63,23 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
             $path = MasterImportService::generateTemplate($type);
             $this->assertFileExists($path);
             $this->assertStringEndsWith('.xlsx', $path);
+            $workbook = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+            $this->assertSame(['Data Import', 'Contoh', 'Petunjuk Pengisian', 'Referensi'], $workbook->getSheetNames());
+            $this->assertNotEmpty($workbook->getSheetByName('Data Import')->getCell('A1')->getValue());
+            $this->assertNotEmpty($workbook->getSheetByName('Data Import')->getAutoFilter()->getRange());
+            $this->assertCount(1, $workbook->getSheetByName('Data Import')->getTableCollection());
+            $validationCell = match ($type) {
+                'TEACHERS' => 'O2',
+                'SUBJECTS' => 'D2',
+                'GRADE_LEVELS' => 'A2',
+                'CLASSROOMS' => 'A2',
+                'ROOMS' => 'C2',
+            };
+            $this->assertSame(
+                \PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST,
+                $workbook->getSheetByName('Data Import')->getCell($validationCell)->getDataValidation()->getType()
+            );
+            $workbook->disconnectWorksheets();
 
             // Clean up
             if (file_exists($path)) {
@@ -120,6 +137,8 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
         $result = $method->invoke(null, 'SUBJECTS', [
             'code' => 'IMP-SUBJ-01',
             'name' => 'Import Subject',
+            'category' => 'WAJIB',
+            'units' => 'SMP',
         ]);
 
         $this->assertEquals('VALID', $result['status']);
@@ -142,6 +161,8 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
         $result = $method->invoke(null, 'SUBJECTS', [
             'code' => 'IMP-DUP-01',
             'name' => 'Updated Subject',
+            'category' => 'WAJIB',
+            'units' => 'SMP',
         ]);
 
         $this->assertEquals('WARNING', $result['status']);
@@ -197,6 +218,9 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
         $result = $method->invoke(null, 'ROOMS', [
             'code' => 'IMP-DUP-RM',
             'name' => 'Updated Room',
+            'room_type' => $roomType['code'],
+            'unit' => 'SMP',
+            'shared_between_units' => 0,
         ]);
 
         $this->assertEquals('WARNING', $result['status']);
@@ -268,7 +292,7 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
             'row_number'               => 2,
             'entity_type'              => 'TEACHERS',
             'raw_data_json'            => json_encode(['full_name' => 'Import Guru Alpha', 'employment_status' => 'GURU_TETAP']),
-            'normalized_data_json'     => json_encode(['full_name' => 'Import Guru Alpha', 'employment_status' => 'GURU_TETAP']),
+            'normalized_data_json'     => json_encode(['full_name' => 'Import Guru Alpha', 'employment_status' => 'GURU_TETAP', 'primary_unit_id' => $this->smpId, 'unit_ids' => [$this->smpId]]),
             'proposed_action'          => 'INSERT',
             'validation_status'        => 'VALID',
             'validation_messages_json' => json_encode([]),
@@ -280,7 +304,7 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
             'row_number'               => 3,
             'entity_type'              => 'TEACHERS',
             'raw_data_json'            => json_encode(['full_name' => 'Import Guru Beta', 'employment_status' => 'GURU_HONORER']),
-            'normalized_data_json'     => json_encode(['full_name' => 'Import Guru Beta', 'employment_status' => 'GURU_HONORER']),
+            'normalized_data_json'     => json_encode(['full_name' => 'Import Guru Beta', 'employment_status' => 'GURU_HONORER', 'primary_unit_id' => $this->smpId, 'unit_ids' => [$this->smpId]]),
             'proposed_action'          => 'INSERT',
             'validation_status'        => 'VALID',
             'validation_messages_json' => json_encode([]),
@@ -330,7 +354,7 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
             'row_number'               => 2,
             'entity_type'              => 'TEACHERS',
             'raw_data_json'            => json_encode(['full_name' => 'Skip Test Valid', 'employment_status' => 'GURU_TETAP']),
-            'normalized_data_json'     => json_encode(['full_name' => 'Skip Test Valid', 'employment_status' => 'GURU_TETAP']),
+            'normalized_data_json'     => json_encode(['full_name' => 'Skip Test Valid', 'employment_status' => 'GURU_TETAP', 'primary_unit_id' => $this->smpId, 'unit_ids' => [$this->smpId]]),
             'proposed_action'          => 'INSERT',
             'validation_status'        => 'VALID',
             'validation_messages_json' => json_encode([]),
@@ -391,6 +415,59 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
         $result = MasterImportService::applyBatch($batch['uuid']);
 
         $this->assertEquals(0, $result['applied_rows']);
+    }
+
+    /** K.15 Grade-level rows are validated with unit scope and normalized values. */
+    public function testK15_ValidateGradeLevelRow(): void
+    {
+        $method = new \ReflectionMethod(MasterImportService::class, 'validateRow');
+        $method->setAccessible(true);
+
+        $result = $method->invoke(null, 'GRADE_LEVELS', [
+            'unit' => 'SMP',
+            'grade_number' => '6',
+            'code' => 'VI',
+            'name' => 'Kelas VI',
+            'phase' => 'C',
+            'active' => '1',
+        ]);
+
+        $this->assertSame('VALID', $result['status']);
+        $this->assertSame($this->smpId, $result['normalized_data']['unit_id']);
+        $this->assertSame(6, $result['normalized_data']['grade_number']);
+    }
+
+    /** K.16 Applying a grade-level batch creates the new scoped master row. */
+    public function testK16_ApplyGradeLevelBatch(): void
+    {
+        $batchModel = new MasterImportBatchModel();
+        $rowModel = new MasterImportRowModel();
+        $batchId = $batchModel->insert([
+            'import_type' => 'GRADE_LEVELS',
+            'source_filename' => 'grade_levels.xlsx',
+            'source_hash' => hash('sha256', 'grade_levels'),
+            'source_mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'source_size' => 1024,
+            'status' => 'VALIDATED',
+            'total_rows' => 1,
+            'valid_rows' => 1,
+            'created_by' => 1,
+        ]);
+        $rowModel->insert([
+            'batch_id' => $batchId,
+            'row_number' => 2,
+            'entity_type' => 'GRADE_LEVELS',
+            'raw_data_json' => json_encode(['unit' => 'SMP', 'grade_number' => '6', 'code' => 'VI', 'name' => 'Kelas VI']),
+            'normalized_data_json' => json_encode(['unit_id' => $this->smpId, 'grade_number' => 6, 'code' => 'VI', 'name' => 'Kelas VI', 'phase' => 'C', 'sort_order' => 6, 'is_active' => 1]),
+            'proposed_action' => 'INSERT',
+            'validation_status' => 'VALID',
+            'validation_messages_json' => json_encode([]),
+            'admin_decision' => 'INSERT',
+        ]);
+
+        $result = MasterImportService::applyBatch($batchModel->find($batchId)['uuid']);
+        $this->assertSame(1, $result['applied_rows']);
+        $this->seeInDatabase('grade_levels', ['unit_id' => $this->smpId, 'code' => 'VI', 'grade_number' => 6]);
     }
 
     // ==================================================

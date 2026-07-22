@@ -207,7 +207,7 @@ class CsrfEnforcementTest extends CIUnitTestCase
     }
 
     // ── 9. POST workflow period without token → rejected ──────────
-    public function testWorkflowPeriodWithoutCsrfTokenIsRejected(): void
+    public function testPeriodActivationWithoutCsrfTokenIsRejected(): void
     {
         $db = Database::connect($this->DBGroup);
         $period = $db->table('academic_periods')->get()->getFirstRow('array');
@@ -215,10 +215,7 @@ class CsrfEnforcementTest extends CIUnitTestCase
 
         $this->expectException(\CodeIgniter\Security\Exceptions\SecurityException::class);
         $this->withSession($this->getAuthenticatedSession())
-             ->post('academic-periods/' . $uuid . '/transition/VALIDATED', [
-                 'notes'           => 'No CSRF',
-                 'revision_number' => 1,
-             ]);
+             ->post('academic-periods/' . $uuid . '/activate');
     }
 
     // ── 10. Token not logged in audit trail ────────────────────────

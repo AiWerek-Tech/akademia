@@ -10,7 +10,8 @@ class MasterImportController extends BaseController
 {
     public function index()
     {
-        if (!has_permission('teachers.import') && !has_permission('subjects.import') && !has_permission('classrooms.import') && !has_permission('rooms.import')) {
+        $allowedTypes = $this->allowedImportTypes();
+        if ($allowedTypes === []) {
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak akses import.');
         }
 
@@ -25,12 +26,19 @@ class MasterImportController extends BaseController
             'breadcrumb_active' => 'Import Master',
             'batches'           => $batches,
             'pager'             => $batchModel->pager,
+            'allowedTypes'      => $allowedTypes,
+            'selectedType'      => strtoupper((string) $this->request->getGet('type')),
         ]);
     }
 
     public function downloadTemplate(string $type)
     {
         try {
+            $type = strtoupper($type);
+            $permission = $this->permissionForType($type);
+            if ($permission === null || !has_permission($permission)) {
+                throw new \RuntimeException('Anda tidak memiliki hak akses untuk template tersebut.');
+            }
             $path = MasterImportService::generateTemplate($type);
             $filename = 'template_master_' . strtolower($type) . '.xlsx';
             return $this->response->download($path, null)->setFileName($filename);
@@ -45,6 +53,7 @@ class MasterImportController extends BaseController
         $permMap = [
             'TEACHERS'   => 'teachers.import',
             'SUBJECTS'   => 'subjects.import',
+            'GRADE_LEVELS' => 'grade_levels.import',
             'CLASSROOMS' => 'classrooms.import',
             'ROOMS'      => 'rooms.import',
         ];
@@ -55,7 +64,7 @@ class MasterImportController extends BaseController
         }
 
         $rules = [
-            'import_type' => 'required|in_list[TEACHERS,SUBJECTS,CLASSROOMS,ROOMS]',
+            'import_type' => 'required|in_list[TEACHERS,SUBJECTS,GRADE_LEVELS,CLASSROOMS,ROOMS]',
             'file'        => 'uploaded[file]|max_size[file,10240]|ext_in[file,xlsx,xls,csv]|mime_in[file,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,text/plain,application/csv]',
         ];
 
@@ -88,7 +97,18 @@ class MasterImportController extends BaseController
         }
 
         $rowModel = new MasterImportRowModel();
+        $statusFilter = strtoupper((string) $this->request->getGet('status'));
+        if (in_array($statusFilter, ['VALID', 'WARNING', 'ERROR'], true)) {
+            $rowModel->where('validation_status', $statusFilter);
+        } else {
+            $statusFilter = '';
+        }
         $rows = $rowModel->where('batch_id', $batch['id'])->orderBy('row_number', 'ASC')->paginate(50);
+        $actionableRows = (new MasterImportRowModel())
+            ->where('batch_id', $batch['id'])
+            ->where('validation_status !=', 'ERROR')
+            ->where('admin_decision !=', 'SKIP')
+            ->countAllResults();
 
         return view('imports/show_batch', [
             'title'             => 'Detail Batch Staging Import #' . $batch['id'],
@@ -96,6 +116,10 @@ class MasterImportController extends BaseController
             'batch'             => $batch,
             'rows'              => $rows,
             'pager'             => $rowModel->pager,
+            'reviewColumns'     => MasterImportService::reviewColumns($batch['import_type']),
+            'typeLabel'         => MasterImportService::typeLabel($batch['import_type']),
+            'statusFilter'      => $statusFilter,
+            'actionableRows'    => $actionableRows,
         ]);
     }
 
@@ -110,11 +134,40 @@ class MasterImportController extends BaseController
                 && (int) $batch['created_by'] !== (int) session()->get('user_id')) {
                 throw new \RuntimeException('Anda tidak memiliki akses ke batch import tersebut.');
             }
+            $permission = $this->permissionForType((string) $batch['import_type']);
+            if ($permission === null || !has_permission($permission)) {
+                throw new \RuntimeException('Hak akses untuk menerapkan batch ini tidak tersedia.');
+            }
             $res = MasterImportService::applyBatch($uuid);
             return redirect()->to('/imports/master/' . $uuid)
                 ->with('success', 'Batch import berhasil diterapkan! Total ' . $res['applied_rows'] . ' data berhasil masuk ke database.');
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
+    }
+
+    private function allowedImportTypes(): array
+    {
+        $labels = [
+            'TEACHERS' => ['permission' => 'teachers.import', 'label' => 'Guru', 'icon' => 'users'],
+            'SUBJECTS' => ['permission' => 'subjects.import', 'label' => 'Mata Pelajaran', 'icon' => 'book-open'],
+            'GRADE_LEVELS' => ['permission' => 'grade_levels.import', 'label' => 'Tingkat Kelas', 'icon' => 'layers-3'],
+            'CLASSROOMS' => ['permission' => 'classrooms.import', 'label' => 'Kelas / Rombel', 'icon' => 'door-open'],
+            'ROOMS' => ['permission' => 'rooms.import', 'label' => 'Ruangan', 'icon' => 'map-pin'],
+        ];
+
+        return array_filter($labels, static fn (array $config): bool => has_permission($config['permission']));
+    }
+
+    private function permissionForType(string $type): ?string
+    {
+        return match (strtoupper($type)) {
+            'TEACHERS' => 'teachers.import',
+            'SUBJECTS' => 'subjects.import',
+            'GRADE_LEVELS' => 'grade_levels.import',
+            'CLASSROOMS' => 'classrooms.import',
+            'ROOMS' => 'rooms.import',
+            default => null,
+        };
     }
 }

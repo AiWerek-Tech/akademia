@@ -134,6 +134,7 @@ class Milestone2MasterSeeder extends Seeder
             // Grade Levels
             ['code' => 'grade_levels.view', 'module' => 'grade_levels', 'name' => 'View Grade Levels', 'description' => 'Melihat tingkat kelas'],
             ['code' => 'grade_levels.manage', 'module' => 'grade_levels', 'name' => 'Manage Grade Levels', 'description' => 'Mengedit nama/fase tingkat kelas'],
+            ['code' => 'grade_levels.import', 'module' => 'grade_levels', 'name' => 'Import Grade Levels', 'description' => 'Mengimpor dan memperbarui tingkat kelas melalui staging Excel'],
 
             // Classrooms
             ['code' => 'classrooms.view', 'module' => 'classrooms', 'name' => 'View Classrooms', 'description' => 'Melihat daftar kelas/rombel'],
@@ -172,7 +173,7 @@ class Milestone2MasterSeeder extends Seeder
             'super_admin' => [
                 'teachers.view', 'teachers.manage', 'teachers.verify', 'teachers.import', 'teachers.export',
                 'subjects.view', 'subjects.manage', 'subjects.import', 'subjects.export',
-                'grade_levels.view', 'grade_levels.manage',
+                'grade_levels.view', 'grade_levels.manage', 'grade_levels.import',
                 'classrooms.view', 'classrooms.manage', 'classrooms.import', 'classrooms.export',
                 'rooms.view', 'rooms.manage', 'rooms.import', 'rooms.export',
                 'duplicates.view', 'duplicates.resolve',
@@ -188,7 +189,7 @@ class Milestone2MasterSeeder extends Seeder
             'wakasek_kurikulum' => [
                 'teachers.view', 'teachers.manage', 'teachers.import', 'teachers.export',
                 'subjects.view', 'subjects.manage', 'subjects.import', 'subjects.export',
-                'grade_levels.view', 'grade_levels.manage',
+                'grade_levels.view', 'grade_levels.manage', 'grade_levels.import',
                 'classrooms.view', 'classrooms.manage', 'classrooms.import', 'classrooms.export',
                 'rooms.view', 'rooms.manage', 'rooms.import', 'rooms.export',
                 'duplicates.view', 'duplicates.resolve',
@@ -196,7 +197,7 @@ class Milestone2MasterSeeder extends Seeder
             'admin_smp' => [
                 'teachers.view', 'teachers.manage', 'teachers.import', 'teachers.export',
                 'subjects.view', 'subjects.manage', 'subjects.import', 'subjects.export',
-                'grade_levels.view', 'grade_levels.manage',
+                'grade_levels.view', 'grade_levels.manage', 'grade_levels.import',
                 'classrooms.view', 'classrooms.manage', 'classrooms.import', 'classrooms.export',
                 'rooms.view', 'rooms.manage', 'rooms.import', 'rooms.export',
                 'duplicates.view', 'duplicates.resolve',
@@ -204,7 +205,7 @@ class Milestone2MasterSeeder extends Seeder
             'admin_sma' => [
                 'teachers.view', 'teachers.manage', 'teachers.import', 'teachers.export',
                 'subjects.view', 'subjects.manage', 'subjects.import', 'subjects.export',
-                'grade_levels.view', 'grade_levels.manage',
+                'grade_levels.view', 'grade_levels.manage', 'grade_levels.import',
                 'classrooms.view', 'classrooms.manage', 'classrooms.import', 'classrooms.export',
                 'rooms.view', 'rooms.manage', 'rooms.import', 'rooms.export',
                 'duplicates.view', 'duplicates.resolve',

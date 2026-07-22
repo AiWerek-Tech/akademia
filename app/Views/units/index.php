@@ -16,6 +16,9 @@
 </div>
 
 <div class="row">
+    <?php if (session('success')): ?><div class="col-12"><div class="alert alert-success rounded-3"><?= esc(session('success')) ?></div></div><?php endif; ?>
+    <?php if (session('error')): ?><div class="col-12"><div class="alert alert-danger rounded-3"><?= esc(session('error')) ?></div></div><?php endif; ?>
+    <?php if (empty($units)): ?><div class="col-12"><div class="card border-0 shadow-sm rounded-4"><div class="card-body text-center py-5"><i data-lucide="building-2" class="text-muted mb-3" style="width:40px;height:40px"></i><h5 class="fw-bold">Belum ada unit yang dapat diakses</h5><p class="text-muted mb-0">Hubungi administrator untuk memberikan akses unit sekolah pada akun Anda.</p></div></div></div><?php endif; ?>
     <?php foreach ($units as $unit): ?>
         <div class="col-md-6 mb-4">
             <div class="card border-0 shadow-sm rounded-4 h-100">
@@ -30,6 +33,7 @@
                                 <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill fs-8 fw-semibold">
                                     <?= esc($unit['code']) ?>
                                 </span>
+                                <span class="badge bg-light text-slate-600 px-2 py-1 rounded-pill fs-9"><?= esc($unit['access_level']) ?></span>
                             </div>
                         </div>
                         <?php if (has_permission('units.manage')): ?>
@@ -47,6 +51,7 @@
                                 <span class="text-muted fs-8 d-block text-uppercase fw-semibold">NPSN</span>
                                 <span class="fw-medium text-slate-700"><?= esc($unit['npsn'] ?? '-') ?></span>
                             </div>
+                            <div class="col-6"><span class="text-muted fs-8 d-block text-uppercase fw-semibold">Jenjang</span><span class="fw-medium text-slate-700"><?= esc($unit['level'] ?? '-') ?></span></div>
                             <div class="col-6">
                                 <span class="text-muted fs-8 d-block text-uppercase fw-semibold">Waktu Lokal</span>
                                 <span class="fw-medium text-slate-700"><?= esc($unit['timezone']) ?></span>

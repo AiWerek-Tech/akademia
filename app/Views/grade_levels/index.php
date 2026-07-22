@@ -2,7 +2,8 @@
 
 <?= $this->section('main_content') ?>
 <div class="row mb-4">
-    <div class="col-12">
+    <div class="col d-flex justify-content-between align-items-start gap-3">
+        <div>
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
                 <h4 class="fw-bold mb-1 text-slate-800 d-flex align-items-center gap-2">
@@ -11,7 +12,12 @@
                 </h4>
                 <p class="text-muted fs-7 mb-0">Pengaturan tingkat kelas (Grade) dan Fase Kurikulum Merdeka per Unit</p>
             </div>
+            <?php if (has_permission('grade_levels.import')): ?>
+                <a href="<?= base_url('imports/master?type=GRADE_LEVELS') ?>" class="btn btn-outline-primary rounded-3 btn-sm px-3 d-flex align-items-center gap-2"><i data-lucide="upload" style="width:16px;height:16px"></i><span>Import Tingkat</span></a>
+            <?php endif; ?>
         </div>
+        </div>
+        <?php if (has_permission('grade_levels.manage')): ?><a href="<?= base_url('grade-levels/create') ?>" class="btn btn-primary rounded-3"><i class="bi bi-plus-lg me-1"></i>Tambah Tingkat</a><?php endif; ?>
     </div>
 </div>
 

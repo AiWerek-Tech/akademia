@@ -12,6 +12,9 @@
                 <p class="text-muted fs-7 mb-0">Pengelolaan master data guru terpadu unit SMP dan SMA</p>
             </div>
             <div class="d-flex align-items-center gap-2">
+                <?php if (has_permission('teachers.import')): ?>
+                    <a href="<?= base_url('imports/master?type=TEACHERS') ?>" class="btn btn-outline-primary rounded-3 btn-sm px-3 d-flex align-items-center gap-2"><i data-lucide="upload" style="width:16px;height:16px"></i><span>Import</span></a>
+                <?php endif; ?>
                 <?php if (has_permission('teachers.export')): ?>
                     <a href="<?= base_url('teachers/export?unit_id=' . ($filters['unit_id'] ?? '')) ?>" class="btn btn-outline-success rounded-3 btn-sm px-3 d-flex align-items-center gap-2">
                         <i data-lucide="download" style="width: 16px; height: 16px;"></i>
@@ -111,7 +114,7 @@
                                     <?php if (!empty($t['assignments'])): ?>
                                         <?php foreach ($t['assignments'] as $a): ?>
                                             <span class="badge bg-info bg-opacity-10 text-info px-2 py-0.5 rounded-pill fs-9 me-1">
-                                                Unit #<?= $a['unit_id'] ?> (<?= esc($a['assignment_type']) ?>)
+                                                <?= esc($a['unit_code'] ?? $a['unit_name'] ?? ('Unit #' . $a['unit_id'])) ?> (<?= esc($a['assignment_type']) ?>)
                                             </span>
                                         <?php endforeach; ?>
                                     <?php else: ?>

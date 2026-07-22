@@ -103,6 +103,33 @@ class UnitScopeService
         }
     }
 
+    public static function assertTeacherInUnit(int $teacherId, int $unitId, ?int $academicPeriodId = null): void
+    {
+        self::assertUnit($unitId);
+
+        $builder = Database::connect()->table('teachers t')
+            ->select('t.id')
+            ->join('teacher_unit_assignments tua', 'tua.teacher_id = t.id')
+            ->where('t.id', $teacherId)
+            ->where('tua.unit_id', $unitId)
+            ->where('tua.status', 'ACTIVE')
+            ->where('t.is_active', 1)
+            ->limit(1);
+
+        if ($academicPeriodId !== null) {
+            $builder->groupStart()
+                ->where('tua.academic_period_id IS NULL')
+                ->orWhere('tua.academic_period_id', $academicPeriodId)
+                ->groupEnd();
+        }
+
+        $allowed = $builder->get()->getRowArray();
+
+        if (!$allowed) {
+            throw new RuntimeException('Guru tidak aktif atau tidak ditugaskan pada unit sekolah yang dipilih.');
+        }
+    }
+
     public static function assertTeacherManage(int $teacherId): void
     {
         $ids = self::accessibleUnitIds();
@@ -129,6 +156,25 @@ class UnitScopeService
 
         if (!$allowed) {
             throw new RuntimeException('Anda tidak memiliki akses ke mata pelajaran tersebut.');
+        }
+    }
+
+    public static function assertSubjectInUnit(int $subjectId, int $unitId): void
+    {
+        self::assertUnit($unitId);
+
+        $allowed = Database::connect()->table('subjects s')
+            ->select('s.id')
+            ->join('subject_unit_availability sua', 'sua.subject_id = s.id')
+            ->where('s.id', $subjectId)
+            ->where('sua.unit_id', $unitId)
+            ->where('sua.is_available', 1)
+            ->where('s.is_active', 1)
+            ->get()
+            ->getRowArray();
+
+        if (!$allowed) {
+            throw new RuntimeException('Mata pelajaran tidak aktif atau tidak tersedia pada unit sekolah yang dipilih.');
         }
     }
 

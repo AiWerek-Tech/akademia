@@ -27,6 +27,11 @@
     </div>
 </div>
 
+<?php if (session('success')): ?><div class="alert alert-success rounded-3"><?= esc(session('success')) ?></div><?php endif; ?>
+<?php if (session('error')): ?><div class="alert alert-danger rounded-3"><?= esc(session('error')) ?></div><?php endif; ?>
+
+<div class="card border-0 shadow-sm rounded-4 mb-3"><div class="card-body p-3"><form method="GET" action="<?= base_url('academic-periods') ?>" class="row g-2 align-items-end"><div class="col-md-5"><label class="form-label fs-8 fw-semibold">Tahun Pelajaran</label><select name="academic_year_id" class="form-select form-select-sm rounded-3"><option value="">Semua tahun</option><?php foreach($years as $year): ?><option value="<?= esc($year['id']) ?>" <?= (string)($filters['academic_year_id']??'')===(string)$year['id']?'selected':'' ?>><?= esc($year['name']) ?></option><?php endforeach; ?></select></div><div class="col-md-4"><label class="form-label fs-8 fw-semibold">Status Periode</label><select name="state" class="form-select form-select-sm rounded-3"><option value="">Semua status</option><option value="ACTIVE" <?= ($filters['state']??'')==='ACTIVE'?'selected':'' ?>>Aktif</option><option value="INACTIVE" <?= ($filters['state']??'')==='INACTIVE'?'selected':'' ?>>Tidak Aktif</option><option value="ARCHIVED" <?= ($filters['state']??'')==='ARCHIVED'?'selected':'' ?>>Diarsipkan</option></select></div><div class="col-md-3 d-flex gap-2"><button class="btn btn-sm btn-primary flex-grow-1">Terapkan</button><a href="<?= base_url('academic-periods') ?>" class="btn btn-sm btn-light">Reset</a></div></form></div></div>
+
 <!-- Tabs Control -->
 <div class="row mb-3">
     <div class="col-12">
@@ -58,15 +63,14 @@
                                 <th>Semester</th>
                                 <th>Tanggal Mulai</th>
                                 <th>Tanggal Selesai</th>
-                                <th>Status Aktif</th>
-                                <th>Status Alur Kerja</th>
+                                <th>Status</th>
                                 <th class="text-end">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($periods)): ?>
                                 <tr>
-                                    <td colspan="7" class="text-center py-4 text-muted">Belum ada data periode akademik.</td>
+                                    <td colspan="6" class="text-center py-4 text-muted">Belum ada data periode akademik.</td>
                                 </tr>
                             <?php else: ?>
                                 <?php foreach ($periods as $ap): ?>
@@ -95,28 +99,16 @@
                                                 <span class="badge bg-light text-muted px-3 py-1 rounded-pill fw-semibold fs-8">Non-Aktif</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td>
-                                            <?php 
-                                            $badgeClass = 'bg-secondary';
-                                            if ($ap['workflow_status'] === 'APPROVED') $badgeClass = 'bg-success';
-                                            elseif ($ap['workflow_status'] === 'LOCKED') $badgeClass = 'bg-dark';
-                                            elseif ($ap['workflow_status'] === 'VALIDATED') $badgeClass = 'bg-info text-white';
-                                            elseif ($ap['workflow_status'] === 'REVIEWED') $badgeClass = 'bg-warning text-dark';
-                                            ?>
-                                            <span class="badge <?= $badgeClass ?> px-3 py-1 rounded-pill fw-semibold fs-8">
-                                                <?= $ap['workflow_status'] ?>
-                                            </span>
-                                        </td>
                                         <td class="text-end">
                                             <div class="d-flex justify-content-end gap-2">
                                                 <a href="<?= base_url('academic-periods/' . $ap['uuid']) ?>" class="btn btn-sm btn-light rounded-3 text-primary d-inline-flex align-items-center gap-1">
                                                     <i data-lucide="eye" style="width: 14px; height: 14px;"></i> Detail
                                                 </a>
-                                                <?php if ((int)$ap['is_active'] === 0 && in_array($ap['workflow_status'], ['APPROVED', 'LOCKED'], true) && has_permission('academic_periods.manage')): ?>
-                                                    <form action="<?= base_url('academic-periods/' . $ap['uuid'] . '/activate') ?>" method="POST" class="d-inline">
+                                                <?php if ((int)$ap['is_active'] === 0 && $ap['workflow_status'] !== 'ARCHIVED' && has_permission('academic_periods.manage')): ?>
+                                                    <form action="<?= base_url('academic-periods/' . $ap['uuid'] . '/activate') ?>" method="POST" class="d-inline" onsubmit="return confirm('Aktifkan Semester <?= (int)$ap['semester_number'] === 1 ? 'Ganjil' : 'Genap' ?> T.A. <?= esc($ap['year_name']) ?> sekarang? Periode aktif sebelumnya akan dinonaktifkan otomatis.');">
                                                         <?= csrf_field() ?>
-                                                        <button type="submit" class="btn btn-sm btn-outline-success rounded-3 d-inline-flex align-items-center gap-1">
-                                                            <i data-lucide="play-circle" style="width: 14px; height: 14px;"></i> Aktifkan
+                                                        <button type="submit" class="btn btn-sm btn-success rounded-3 d-inline-flex align-items-center gap-1">
+                                                            <i data-lucide="play-circle" style="width: 14px; height: 14px;"></i> Aktifkan Sekarang
                                                         </button>
                                                     </form>
                                                 <?php endif; ?>

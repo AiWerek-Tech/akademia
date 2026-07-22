@@ -4,7 +4,6 @@ namespace App\Controllers;
 
 use App\Models\AcademicPeriodModel;
 use App\Models\AcademicYearModel;
-use App\Services\AcademicPeriodWorkflowService;
 use App\Services\AuditService;
 use Config\Database;
 
@@ -18,16 +17,28 @@ class AcademicPeriodController extends BaseController
 
         $db = Database::connect();
         
-        // Fetch all academic years
+        $state = strtoupper(trim((string) $this->request->getGet('state')));
+        $yearId = (int) $this->request->getGet('academic_year_id');
+
         $years = $db->table('academic_years')
             ->orderBy('name', 'DESC')
             ->get()
             ->getResultArray();
 
-        // Fetch all periods with year names
-        $periods = $db->table('academic_periods ap')
+        $periodBuilder = $db->table('academic_periods ap')
             ->select('ap.*, ay.name as year_name')
-            ->join('academic_years ay', 'ay.id = ap.academic_year_id')
+            ->join('academic_years ay', 'ay.id = ap.academic_year_id');
+        if ($yearId > 0) {
+            $periodBuilder->where('ap.academic_year_id', $yearId);
+        }
+        if ($state === 'ACTIVE') {
+            $periodBuilder->where('ap.is_active', 1);
+        } elseif ($state === 'INACTIVE') {
+            $periodBuilder->where('ap.is_active', 0)->where('ap.workflow_status !=', 'ARCHIVED');
+        } elseif ($state === 'ARCHIVED') {
+            $periodBuilder->where('ap.workflow_status', 'ARCHIVED');
+        }
+        $periods = $periodBuilder
             ->orderBy('ay.name', 'DESC')
             ->orderBy('ap.semester_number', 'DESC')
             ->get()
@@ -37,7 +48,8 @@ class AcademicPeriodController extends BaseController
             'title'             => 'Tahun Pelajaran & Periode Akademik',
             'breadcrumb_active' => 'Tahun & Periode',
             'years'             => $years,
-            'periods'           => $periods
+            'periods'           => $periods,
+            'filters'           => ['academic_year_id' => $yearId ?: '', 'state' => $state],
         ]);
     }
 
@@ -83,6 +95,11 @@ class AcademicPeriodController extends BaseController
             return redirect()->back()->withInput()->with('error', 'Tanggal mulai harus sebelum tanggal selesai.');
         }
 
+        $year = (new AcademicYearModel())->find($yearId);
+        if (!$year || $startDate < $year['start_date'] || $endDate > $year['end_date']) {
+            return redirect()->back()->withInput()->with('error', 'Tanggal periode harus berada di dalam rentang tahun pelajaran yang dipilih.');
+        }
+
         $periodModel = new AcademicPeriodModel();
 
         // Unique check
@@ -93,6 +110,9 @@ class AcademicPeriodController extends BaseController
         if ($exists) {
             return redirect()->back()->withInput()->with('error', 'Periode akademik untuk semester tersebut sudah ada.');
         }
+        if ($this->periodOverlaps($yearId, $startDate, $endDate)) {
+            return redirect()->back()->withInput()->with('error', 'Rentang tanggal periode bertumpang tindih dengan periode lain pada tahun pelajaran yang sama.');
+        }
 
         $userId = session()->get('user_id');
 
@@ -102,7 +122,7 @@ class AcademicPeriodController extends BaseController
             'start_date'       => $startDate,
             'end_date'         => $endDate,
             'is_active'        => 0,
-            'workflow_status'  => 'DRAFT',
+            'workflow_status'  => 'APPROVED',
             'revision_number'  => 1,
             'created_by'       => $userId
         ];
@@ -209,6 +229,14 @@ class AcademicPeriodController extends BaseController
             return redirect()->back()->withInput()->with('error', 'Tanggal mulai harus sebelum tanggal selesai.');
         }
 
+        $year = (new AcademicYearModel())->find($period['academic_year_id']);
+        if (!$year || $startDate < $year['start_date'] || $endDate > $year['end_date']) {
+            return redirect()->back()->withInput()->with('error', 'Tanggal periode harus berada di dalam rentang tahun pelajaran.');
+        }
+        if ($this->periodOverlaps((int) $period['academic_year_id'], $startDate, $endDate, (int) $period['id'])) {
+            return redirect()->back()->withInput()->with('error', 'Rentang tanggal periode bertumpang tindih dengan periode semester lain.');
+        }
+
         // Optimistic locking
         if ((int)$period['revision_number'] !== $revision) {
             return redirect()->back()->withInput()->with('error', 'Data telah diperbarui oleh pengguna lain. Silakan muat ulang halaman.');
@@ -246,26 +274,6 @@ class AcademicPeriodController extends BaseController
         return redirect()->to("/academic-periods/{$uuid}")->with('success', 'Metadata periode akademik berhasil diperbarui.');
     }
 
-    public function transition(string $uuid, string $targetStatus)
-    {
-        $periodModel = new AcademicPeriodModel();
-        $period = $periodModel->where('uuid', $uuid)->first();
-
-        if (!$period) {
-            return redirect()->to('/academic-periods')->with('error', 'Periode akademik tidak ditemukan.');
-        }
-
-        $revision = (int)$this->request->getPost('revision_number');
-        $notes = $this->request->getPost('notes') ?: null;
-
-        try {
-            AcademicPeriodWorkflowService::transition($period['id'], $targetStatus, $revision, $notes);
-            return redirect()->to("/academic-periods/{$uuid}")->with('success', "Status periode akademik berhasil diubah menjadi {$targetStatus}.");
-        } catch (\Exception $e) {
-            return redirect()->to("/academic-periods/{$uuid}")->with('error', $e->getMessage());
-        }
-    }
-
     public function activate(string $uuid)
     {
         if (!has_permission('academic_periods.manage')) {
@@ -283,20 +291,26 @@ class AcademicPeriodController extends BaseController
                 throw new \RuntimeException('Periode akademik tidak ditemukan.');
             }
 
-            // Only APPROVED or LOCKED periods can be active!
-            if (!in_array($period['workflow_status'], ['APPROVED', 'LOCKED'], true)) {
-                throw new \RuntimeException('Hanya periode akademik dengan status APPROVED atau LOCKED yang dapat diaktifkan.');
+            if ($period['workflow_status'] === 'ARCHIVED') {
+                throw new \RuntimeException('Periode yang telah diarsipkan tidak dapat diaktifkan.');
             }
+
+            $beforeStatus = $period['workflow_status'];
+            $activationData = [
+                'is_active'      => 1,
+                'updated_at'     => date('Y-m-d H:i:s'),
+                'updated_by'     => session()->get('user_id'),
+                'revision_number'=> ((int) $period['revision_number']) + 1,
+            ];
+            $activationData['workflow_status'] = 'APPROVED';
 
             // Deactivate all periods
             $db->table('academic_periods')->where('id !=', $period['id'])->update(['is_active' => 0]);
 
-            // Activate this period
-            $db->table('academic_periods')->where('id', $period['id'])->update([
-                'is_active'  => 1,
-                'updated_at' => date('Y-m-d H:i:s'),
-                'updated_by' => session()->get('user_id')
-            ]);
+            $db->table('academic_periods')->where('id', $period['id'])->update($activationData);
+
+            $db->table('academic_years')->where('id !=', $period['academic_year_id'])->update(['is_active' => 0]);
+            $db->table('academic_years')->where('id', $period['academic_year_id'])->update(['is_active' => 1, 'status' => 'ACTIVE']);
 
             $db->transCommit();
 
@@ -309,15 +323,27 @@ class AcademicPeriodController extends BaseController
                 'activate',
                 'AcademicPeriod',
                 $period['id'],
-                ['is_active' => 0],
-                ['is_active' => 1],
-                'Periode akademik diaktifkan'
+                ['is_active' => (int) $period['is_active'], 'workflow_status' => $beforeStatus],
+                ['is_active' => 1, 'workflow_status' => $activationData['workflow_status'] ?? $beforeStatus],
+                'Periode akademik diaktifkan langsung'
             );
 
-            return redirect()->to('/academic-periods')->with('success', 'Periode akademik berhasil diaktifkan secara global.');
+            return redirect()->to('/academic-periods')->with('success', 'Periode berhasil diaktifkan. Periode sebelumnya dinonaktifkan otomatis.');
         } catch (\Exception $e) {
             $db->transRollback();
             return redirect()->to('/academic-periods')->with('error', 'Gagal mengaktifkan periode akademik: ' . $e->getMessage());
         }
+    }
+
+    private function periodOverlaps(int $yearId, string $startDate, string $endDate, ?int $exceptId = null): bool
+    {
+        $builder = Database::connect()->table('academic_periods')
+            ->where('academic_year_id', $yearId)
+            ->where('start_date <=', $endDate)
+            ->where('end_date >=', $startDate);
+        if ($exceptId !== null) {
+            $builder->where('id !=', $exceptId);
+        }
+        return $builder->countAllResults() > 0;
     }
 }

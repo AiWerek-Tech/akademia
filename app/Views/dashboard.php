@@ -1,198 +1,34 @@
 <?= $this->extend('layouts/admin') ?>
-
 <?= $this->section('main_content') ?>
-
-<section class="admin-command-center" aria-labelledby="admin-dashboard-title">
-    <!-- Hero panel -->
-    <header class="admin-hero-panel mb-4">
-        <div class="admin-hero-panel__content">
-            <p class="admin-hero-panel__eyebrow">Tahun Akademik Terpadu</p>
-            <h1 id="admin-dashboard-title" class="fw-bold mb-2">Selamat Datang, <?= esc(active_user_name()) ?>!</h1>
-            <p class="mb-0">Sistem Perencanaan Akademik Terpadu SMP–SMA WMVAA. Anda masuk sebagai peran <strong><?= esc(active_user_role()) ?></strong>.</p>
-        </div>
-        <div class="admin-hero-panel__actions">
-            <div class="badge bg-white bg-opacity-20 text-white p-3 fs-7 rounded-pill d-flex align-items-center gap-2">
-                <i data-lucide="clock" style="width: 16px; height: 16px;"></i>
-                <span>Sesi: <?= date('d F Y') ?></span>
-            </div>
-        </div>
-    </header>
-
-    <!-- Stat Cards -->
-    <div class="admin-summary-grid mb-4" aria-label="Ringkasan eksekutif">
-        <!-- Stat Card 1 -->
-        <div class="card stat-card stat-card--primary border-0 h-100">
-            <div class="card-body p-4 d-flex align-items-center gap-3">
-                <div class="stat-card__icon bg-primary bg-opacity-10 text-primary p-3 rounded-3 d-flex align-items-center justify-content-center">
-                    <i data-lucide="calendar" style="width: 24px; height: 24px;"></i>
-                </div>
-                <div>
-                    <span class="stat-card__label text-muted d-block fs-8 fw-semibold text-uppercase mb-1">Periode Aktif</span>
-                    <span class="stat-card__value fw-bold text-slate-900 fs-6"><?= esc($activePeriodStr) ?></span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Stat Card 2 -->
-        <div class="card stat-card stat-card--info border-0 h-100">
-            <div class="card-body p-4 d-flex align-items-center gap-3">
-                <div class="stat-card__icon bg-info bg-opacity-10 text-info p-3 rounded-3 d-flex align-items-center justify-content-center">
-                    <i data-lucide="building" style="width: 24px; height: 24px;"></i>
-                </div>
-                <div>
-                    <span class="stat-card__label text-muted d-block fs-8 fw-semibold text-uppercase mb-1">Unit Sekolah</span>
-                    <span class="stat-card__value fw-bold text-slate-900 fs-5"><?= esc($totalUnits) ?> Unit Aktif</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Stat Card 3 -->
-        <div class="card stat-card stat-card--success border-0 h-100">
-            <div class="card-body p-4 d-flex align-items-center gap-3">
-                <div class="stat-card__icon bg-success bg-opacity-10 text-success p-3 rounded-3 d-flex align-items-center justify-content-center">
-                    <i data-lucide="users" style="width: 24px; height: 24px;"></i>
-                </div>
-                <div>
-                    <span class="stat-card__label text-muted d-block fs-8 fw-semibold text-uppercase mb-1">Pengguna Aktif</span>
-                    <span class="stat-card__value fw-bold text-slate-900 fs-5"><?= esc($totalUsers) ?> Akun</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Stat Card 4 -->
-        <div class="card stat-card stat-card--warning border-0 h-100 opacity-75">
-            <div class="card-body p-4 d-flex align-items-center gap-3">
-                <div class="stat-card__icon bg-warning bg-opacity-10 text-warning p-3 rounded-3 d-flex align-items-center justify-content-center">
-                    <i data-lucide="cpu" style="width: 24px; height: 24px;"></i>
-                </div>
-                <div>
-                    <span class="stat-card__label text-muted d-block fs-8 fw-semibold text-uppercase mb-1">Engine Jadwal</span>
-                    <span class="stat-card__value fw-semibold text-slate-500 fs-7">Belum Tersedia</span>
-                </div>
-            </div>
+<?php $readyPercent = (int) round(($readinessDone / max(1, count($readiness))) * 100); ?>
+<section aria-labelledby="dashboard-title">
+    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style="background:linear-gradient(135deg,#17324d,#2563eb);">
+        <div class="card-body p-4 p-lg-5 text-white d-flex flex-column flex-lg-row justify-content-between gap-4">
+            <div><span class="badge bg-white bg-opacity-15 text-white rounded-pill mb-3">Ringkasan Akademik</span><h2 id="dashboard-title" class="fw-bold mb-2">Halo, <?= esc(active_user_name()) ?></h2><p class="mb-0 text-white text-opacity-75">Pantau kesiapan data dan lanjutkan pekerjaan yang paling penting dari satu tempat.</p></div>
+            <div class="bg-white bg-opacity-10 rounded-4 p-3 align-self-lg-center" style="min-width:260px"><div class="small text-white text-opacity-75">Periode aktif</div><div class="fw-bold mt-1"><?= esc($activePeriodStr) ?></div><?php if (!$activePeriod): ?><a href="<?= base_url('academic-periods') ?>" class="btn btn-sm btn-light mt-2">Atur periode</a><?php endif; ?></div>
         </div>
     </div>
 
-    <!-- Workflow and Status Panels -->
+    <?php if (session('success')): ?><div class="alert alert-success rounded-3"><?= esc(session('success')) ?></div><?php endif; ?>
+    <?php if (session('error')): ?><div class="alert alert-danger rounded-3"><?= esc(session('error')) ?></div><?php endif; ?>
+
+    <div class="row g-3 mb-4">
+        <?php foreach ([['Unit aktif',$totalUnits,'building-2','primary'],['Pengguna aktif',$totalUsers,'users','info'],['Guru aktif',$masterCounts['teachers'],'user-round-check','success'],['Rombel aktif',$masterCounts['classrooms'],'graduation-cap','warning']] as [$label,$value,$icon,$color]): ?>
+            <div class="col-6 col-xl-3"><div class="card border-0 shadow-sm rounded-4 h-100"><div class="card-body p-3 p-md-4 d-flex align-items-center gap-3"><span class="bg-<?= $color ?> bg-opacity-10 text-<?= $color ?> rounded-3 p-3"><i data-lucide="<?= $icon ?>" style="width:22px;height:22px"></i></span><div><div class="text-muted fs-8 text-uppercase fw-semibold"><?= esc($label) ?></div><div class="fs-4 fw-bold text-slate-800"><?= number_format((int)$value) ?></div></div></div></div></div>
+        <?php endforeach; ?>
+    </div>
+
     <div class="row g-4 mb-4">
-        <!-- Workflow Card -->
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-                <h5 class="fw-bold mb-3 text-slate-800 d-flex align-items-center gap-2">
-                    <i data-lucide="milestone" class="text-primary" style="width: 20px; height: 20px;"></i> 
-                    <span>Alur Kerja Pembangunan Sistem</span>
-                </h5>
-                <p class="text-secondary small mb-4">WMVAA Akademia dibangun secara modular. Berikut adalah status milestone sistem perencanaan akademik terpadu saat ini:</p>
-                
-                <div class="position-relative ps-4 border-start border-2 border-light-subtle">
-                    <div class="mb-4 position-relative">
-                        <div class="position-absolute start-0 translate-middle-x bg-success rounded-circle" style="width: 14px; height: 14px; margin-left: -29px; top: 5px;"></div>
-                        <h6 class="fw-bold text-success mb-1">Milestone 0: Discovery & Foundation Gate</h6>
-                        <p class="text-secondary small mb-0">Menyiapkan konfigurasi sistem, database utama, dan struktur shell UI terintegrasi. <span class="badge bg-success bg-opacity-10 text-success ms-2 px-2.5 py-1 rounded-pill">PASSED</span></p>
-                    </div>
-                    <div class="mb-4 position-relative">
-                        <div class="position-absolute start-0 translate-middle-x bg-primary rounded-circle" style="width: 14px; height: 14px; margin-left: -29px; top: 5px;"></div>
-                        <h6 class="fw-bold text-primary mb-1">Milestone 1: Autentikasi, RBAC & Periode Akademik</h6>
-                        <p class="text-secondary small mb-0">Menambahkan kontrol akses pengguna, audit logs, transisi status alur kerja periode semester, serta profil unit SMP & SMA. <span class="badge bg-primary bg-opacity-10 text-primary ms-2 px-2.5 py-1 rounded-pill">HARDENED</span></p>
-                    </div>
-                    <div class="mb-0 position-relative text-muted">
-                        <div class="position-absolute start-0 translate-middle-x bg-secondary rounded-circle" style="width: 10px; height: 10px; margin-left: -27px; top: 7px;"></div>
-                        <h6 class="fw-bold text-slate-400 mb-1">Milestone 2 - 12: Master Data, Kurikulum, Penugasan & Engine Jadwal</h6>
-                        <p class="text-secondary small mb-0">Penyusunan jadwal heuristic lintas unit, perhitungan beban kerja guru, pembuatan SK tugas mengajar, dan final QA deployment.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Health status Card -->
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-                <h5 class="fw-bold mb-3 text-slate-800 d-flex align-items-center gap-2">
-                    <i data-lucide="activity" class="text-success" style="width: 20px; height: 20px;"></i>
-                    <span>Status Kesehatan Sistem</span>
-                </h5>
-                <p class="text-secondary small mb-4">Pemeriksaan komponen aktif pada lingkungan server saat ini.</p>
-                
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0 py-2.5">
-                        <div class="d-flex align-items-center gap-2">
-                            <i data-lucide="database" class="text-primary" style="width: 18px; height: 18px;"></i>
-                            <span class="fw-medium text-slate-700 fs-7">Koneksi Database</span>
-                        </div>
-                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1.5 fw-semibold fs-8">Terhubung</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0 py-2.5">
-                        <div class="d-flex align-items-center gap-2">
-                            <i data-lucide="folder-check" class="text-info" style="width: 18px; height: 18px;"></i>
-                            <span class="fw-medium text-slate-700 fs-7">Direktori Writable</span>
-                        </div>
-                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1.5 fw-semibold fs-8">Dapat Ditulis</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0 py-2.5">
-                        <div class="d-flex align-items-center gap-2">
-                            <i data-lucide="terminal" class="text-warning" style="width: 18px; height: 18px;"></i>
-                            <span class="fw-medium text-slate-700 fs-7">Versi PHP</span>
-                        </div>
-                        <span class="fw-semibold text-slate-700 fs-7"><?= PHP_VERSION ?></span>
-                    </li>
-                </ul>
-            </div>
-        </div>
+        <div class="col-lg-7"><div class="card border-0 shadow-sm rounded-4 h-100"><div class="card-body p-4"><div class="d-flex justify-content-between align-items-start mb-3"><div><h5 class="fw-bold mb-1">Kesiapan Data Master</h5><p class="text-muted fs-8 mb-0">Lengkapi fondasi sebelum menyusun penugasan dan jadwal.</p></div><span class="badge bg-primary bg-opacity-10 text-primary rounded-pill"><?= $readinessDone ?>/<?= count($readiness) ?> siap</span></div><div class="progress mb-4" style="height:8px"><div class="progress-bar" style="width:<?= $readyPercent ?>%"></div></div><div class="row g-2"><?php foreach ($readiness as $item): ?><div class="col-md-6"><a href="<?= base_url($item['href']) ?>" class="d-flex align-items-center justify-content-between border rounded-3 p-3 text-decoration-none text-slate-700"><span class="d-flex align-items-center gap-2"><i data-lucide="<?= $item['ready'] ? 'check-circle-2' : 'circle-alert' ?>" class="text-<?= $item['ready'] ? 'success' : 'warning' ?>" style="width:18px;height:18px"></i><?= esc($item['label']) ?></span><i data-lucide="chevron-right" style="width:16px;height:16px"></i></a></div><?php endforeach; ?></div></div></div></div>
+        <div class="col-lg-5"><div class="card border-0 shadow-sm rounded-4 h-100"><div class="card-body p-4"><h5 class="fw-bold mb-1">Akses Cepat</h5><p class="text-muted fs-8 mb-3">Tindakan yang sering digunakan.</p><div class="d-grid gap-2">
+            <?php if (has_permission('academic_periods.view')): ?><a href="<?= base_url('academic-periods') ?>" class="btn btn-outline-primary text-start rounded-3"><i data-lucide="calendar-range" class="me-2" style="width:17px"></i>Tahun & Periode Akademik</a><?php endif; ?>
+            <?php if (has_permission('units.view')): ?><a href="<?= base_url('settings/units') ?>" class="btn btn-outline-primary text-start rounded-3"><i data-lucide="building" class="me-2" style="width:17px"></i>Profil Unit Sekolah</a><?php endif; ?>
+            <?php if (has_permission('teachers.view')): ?><a href="<?= base_url('teachers') ?>" class="btn btn-outline-primary text-start rounded-3"><i data-lucide="users" class="me-2" style="width:17px"></i>Kelola Guru</a><?php endif; ?>
+            <?php if (has_permission('teachers.import') || has_permission('subjects.import')): ?><a href="<?= base_url('imports/master') ?>" class="btn btn-primary text-start rounded-3"><i data-lucide="file-up" class="me-2" style="width:17px"></i>Import Master Data</a><?php endif; ?>
+        </div></div></div></div>
     </div>
 
-    <!-- Recent Audit Logs -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm rounded-4 p-4">
-                <h5 class="fw-bold mb-2 text-slate-800 d-flex align-items-center gap-2">
-                    <i data-lucide="scroll" class="text-primary" style="width: 20px; height: 20px;"></i>
-                    <span>Log Aktivitas Pengguna Terbaru</span>
-                </h5>
-                <p class="text-muted fs-8 mb-4">Menampilkan catatan audit terbaru yang tercatat oleh AuditService secara real-time.</p>
-                
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead>
-                            <tr class="text-uppercase text-muted fs-8 fw-bold">
-                                <th>Pengguna</th>
-                                <th>Kategori</th>
-                                <th>Tindakan</th>
-                                <th>Deskripsi</th>
-                                <th>Waktu</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($recentAudits)): ?>
-                                <tr>
-                                    <td colspan="5" class="text-center py-3 text-muted fs-7">Belum ada aktivitas audit log tercatat.</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($recentAudits as $log): ?>
-                                    <tr>
-                                        <td>
-                                            <span class="fw-semibold text-slate-700"><?= esc($log['username'] ?? 'System') ?></span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-light text-muted px-2.5 py-1 text-uppercase fs-9 fw-semibold rounded-pill">
-                                                <?= esc($log['module']) ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-secondary bg-opacity-10 text-secondary px-2.5 py-1 text-uppercase fs-9 fw-semibold rounded-pill">
-                                                <?= esc($log['action']) ?>
-                                            </span>
-                                        </td>
-                                        <td class="fs-7 text-slate-600"><?= esc($log['reason']) ?></td>
-                                        <td class="fs-8 text-muted"><?= date('d-m-Y H:i:s', strtotime($log['created_at'])) ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div class="card border-0 shadow-sm rounded-4"><div class="card-body p-4"><div class="d-flex justify-content-between align-items-start mb-3"><div><h5 class="fw-bold mb-1">Aktivitas Terbaru</h5><p class="text-muted fs-8 mb-0">Jejak perubahan terbaru pada sistem.</p></div></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Pengguna</th><th>Modul</th><th>Aksi</th><th>Catatan</th><th>Waktu</th></tr></thead><tbody><?php if (!$recentAudits): ?><tr><td colspan="5" class="text-center py-5 text-muted">Belum ada aktivitas tercatat.</td></tr><?php else: foreach ($recentAudits as $log): ?><tr><td class="fw-semibold"><?= esc($log['username'] ?? 'Sistem') ?></td><td><span class="badge bg-light text-slate-600"><?= esc($log['module']) ?></span></td><td><?= esc(strtoupper($log['action'])) ?></td><td class="text-muted"><?= esc($log['reason'] ?: '-') ?></td><td class="text-nowrap text-muted fs-8"><?= date('d-m-Y H:i', strtotime($log['created_at'])) ?></td></tr><?php endforeach; endif; ?></tbody></table></div></div></div>
 </section>
-
+<script>document.addEventListener('DOMContentLoaded',function(){if(typeof lucide!=='undefined')lucide.createIcons();});</script>
 <?= $this->endSection() ?>

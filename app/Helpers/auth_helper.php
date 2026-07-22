@@ -12,6 +12,9 @@ if (!function_exists('has_permission')) {
         }
         
         static $permissionCache = [];
+        if (ENVIRONMENT === 'testing') {
+            $permissionCache = [];
+        }
         $userId = (int) $session->get('user_id');
         $unitId = $session->get('active_unit_id');
         $cacheKey = $userId . ':' . (string) $unitId;

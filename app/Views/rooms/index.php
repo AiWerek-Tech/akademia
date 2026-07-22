@@ -12,6 +12,9 @@
                 <p class="text-muted fs-7 mb-0">Manajemen ruang kelas, lab komputer, perpustakaan, dan fasilitas belajar lainnya</p>
             </div>
             <div class="d-flex align-items-center gap-2">
+                <?php if (has_permission('rooms.import')): ?>
+                    <a href="<?= base_url('imports/master?type=ROOMS') ?>" class="btn btn-outline-primary rounded-3 btn-sm px-3 d-flex align-items-center gap-2"><i data-lucide="upload" style="width:16px;height:16px"></i><span>Import</span></a>
+                <?php endif; ?>
                 <?php if (has_permission('rooms.export')): ?>
                     <a href="<?= base_url('rooms/export?unit_id=' . ($filters['unit_id'] ?? '')) ?>" class="btn btn-outline-success rounded-3 btn-sm px-3 d-flex align-items-center gap-2">
                         <i data-lucide="download" style="width: 16px; height: 16px;"></i>
@@ -43,12 +46,11 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <select name="type" class="form-select form-select-sm rounded-3">
+                <select name="room_type_id" class="form-select form-select-sm rounded-3">
                     <option value="">-- Semua Jenis Ruang --</option>
-                    <option value="TEORITIS" <?= ($filters['type'] ?? '') === 'TEORITIS' ? 'selected' : '' ?>>Teoritis / Kelas Biasa</option>
-                    <option value="LABORATORIUM" <?= ($filters['type'] ?? '') === 'LABORATORIUM' ? 'selected' : '' ?>>Laboratorium / Praktek</option>
-                    <option value="PERPUSTAKAAN" <?= ($filters['type'] ?? '') === 'PERPUSTAKAAN' ? 'selected' : '' ?>>Perpustakaan</option>
-                    <option value="LAINNYA" <?= ($filters['type'] ?? '') === 'LAINNYA' ? 'selected' : '' ?>>Lainnya</option>
+                    <?php foreach ($roomTypes as $roomType): ?>
+                        <option value="<?= esc($roomType['id']) ?>" <?= (string)($filters['room_type_id'] ?? '') === (string)$roomType['id'] ? 'selected' : '' ?>><?= esc($roomType['name']) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="col-md-4">
@@ -88,15 +90,9 @@
                             <tr>
                                 <td><span class="fw-bold font-monospace text-primary fs-7"><?= esc($r['code']) ?></span></td>
                                 <td><span class="fw-bold text-slate-800"><?= esc($r['name']) ?></span></td>
-                                <td><span class="badge bg-secondary bg-opacity-10 text-dark px-2.5 py-1 rounded-pill fs-8"><?= esc($r['unit_name']) ?></span></td>
+                                <td><span class="badge bg-secondary bg-opacity-10 text-dark px-2.5 py-1 rounded-pill fs-8"><?= esc($r['unit_name'] ?: 'Bersama') ?></span></td>
                                 <td>
-                                    <?php if ($r['type'] === 'TEORITIS'): ?>
-                                        <span class="badge bg-primary bg-opacity-10 text-primary px-2.5 py-1 rounded-pill fs-8">Teoritis</span>
-                                    <?php elseif ($r['type'] === 'LABORATORIUM'): ?>
-                                        <span class="badge bg-warning bg-opacity-10 text-warning px-2.5 py-1 rounded-pill fs-8">Laboratorium</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-secondary bg-opacity-10 text-secondary px-2.5 py-1 rounded-pill fs-8"><?= esc($r['type']) ?></span>
-                                    <?php endif; ?>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary px-2.5 py-1 rounded-pill fs-8" title="<?= esc($r['room_type_code']) ?>"><?= esc($r['room_type_name']) ?></span>
                                 </td>
                                 <td><?= esc($r['capacity']) ?> Kursi</td>
                                 <td><?= esc($r['location'] ?: '-') ?></td>

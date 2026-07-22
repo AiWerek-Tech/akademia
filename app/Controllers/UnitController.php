@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\SchoolUnitModel;
 use App\Services\AuditService;
+use App\Services\UnitScopeService;
 use Config\Database;
 
 class UnitController extends BaseController
@@ -14,15 +15,14 @@ class UnitController extends BaseController
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $userId = session()->get('user_id');
         $db = Database::connect();
-
-        // Get units user has access to
-        $units = $db->table('user_unit_access uua')
+        $accessibleIds = UnitScopeService::accessibleUnitIds();
+        $units = $accessibleIds === [] ? [] : $db->table('school_units su')
             ->select('su.*, uua.access_level')
-            ->join('school_units su', 'su.id = uua.unit_id')
-            ->where('uua.user_id', $userId)
-            ->where('su.deleted_at', null)
+            ->join('user_unit_access uua', 'uua.unit_id = su.id AND uua.user_id = ' . (int) session()->get('user_id'))
+            ->whereIn('su.id', $accessibleIds)
+            ->where('su.deleted_at IS NULL')
+            ->orderBy('su.name', 'ASC')
             ->get()
             ->getResultArray();
 
@@ -45,6 +45,11 @@ class UnitController extends BaseController
         if (!$unit) {
             return redirect()->to('/settings/units')->with('error', 'Unit tidak ditemukan.');
         }
+        try {
+            UnitScopeService::assertUnit((int) $unit['id']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/settings/units')->with('error', $e->getMessage());
+        }
 
         return view('units/edit', [
             'title'             => 'Edit Profil Unit',
@@ -66,12 +71,19 @@ class UnitController extends BaseController
         if (!$unit) {
             return redirect()->to('/settings/units')->with('error', 'Unit tidak ditemukan.');
         }
+        try {
+            UnitScopeService::assertUnit((int) $unit['id']);
+        } catch (\Throwable $e) {
+            return redirect()->to('/settings/units')->with('error', $e->getMessage());
+        }
 
         $rules = [
             'name'       => 'required|min_length[3]|max_length[150]',
             'short_name' => 'required|min_length[2]|max_length[50]',
             'email'      => 'permit_empty|valid_email|max_length[150]',
             'phone'      => 'permit_empty|max_length[30]',
+            'npsn'       => 'permit_empty|numeric|min_length[8]|max_length[12]',
+            'address'    => 'permit_empty|max_length[500]',
             'timezone'   => 'required|in_list[' . implode(',', \DateTimeZone::listIdentifiers()) . ']',
         ];
 
@@ -91,7 +103,9 @@ class UnitController extends BaseController
             'updated_by' => session()->get('user_id')
         ];
 
-        $unitModel->update($unit['id'], $after);
+        if (!$unitModel->update($unit['id'], $after)) {
+            return redirect()->back()->withInput()->with('errors', $unitModel->errors());
+        }
 
         // Audit log
         AuditService::log(

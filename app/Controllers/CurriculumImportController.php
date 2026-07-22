@@ -7,6 +7,7 @@ use App\Models\CurriculumImportBatchModel;
 use App\Models\CurriculumImportRowModel;
 use App\Models\CurriculumVersionModel;
 use App\Services\UnitScopeService;
+use Config\Database;
 
 class CurriculumImportController extends BaseController
 {
@@ -22,9 +23,13 @@ class CurriculumImportController extends BaseController
         }
         $batches = $batchModel->orderBy('id', 'DESC')->findAll(50);
 
-        return view('curriculum/imports/index', [
-            'batches' => $batches,
-        ]);
+        $versions = Database::connect()->table('curriculum_versions cv')
+            ->select('cv.id, cv.code, cv.name, cv.is_active, ap.name AS period_name')
+            ->join('academic_periods ap', 'ap.id = cv.academic_period_id', 'left')
+            ->where('cv.workflow_status !=', 'ARCHIVED')
+            ->orderBy('cv.is_active', 'DESC')->orderBy('cv.id', 'DESC')->get()->getResultArray();
+
+        return view('curriculum/imports/index', ['batches' => $batches, 'versions' => $versions]);
     }
 
     public function template()
@@ -35,7 +40,7 @@ class CurriculumImportController extends BaseController
 
         try {
             $path = CurriculumImportService::generateTemplate();
-            return $this->response->download($path, null)->setFileName('template_struktur_kurikulum.xlsx');
+            return $this->response->download($path, null)->setFileName('Template_Import_Kurikulum.xlsx');
         } catch (\Throwable $e) {
             return redirect()->to('/curriculum/imports')->with('error', $e->getMessage());
         }
@@ -51,7 +56,7 @@ class CurriculumImportController extends BaseController
         $file      = $this->request->getFile('import_file');
 
         if (!$versionId || !$file) {
-            return redirect()->back()->with('error', 'Versi kurikulum target dan file import wajib diisi.');
+            return redirect()->back()->withInput()->with('error', 'Pilih kurikulum tujuan dan file Excel terlebih dahulu.');
         }
 
         $rules = [
@@ -64,7 +69,7 @@ class CurriculumImportController extends BaseController
 
         try {
             $batch = CurriculumImportService::processUpload((int)$versionId, $file);
-            return redirect()->to('/curriculum/imports/' . $batch['uuid'])->with('success', 'File berhasil diunggah dan diparse.');
+            return redirect()->to('/curriculum/imports/' . $batch['uuid'])->with('success', 'File selesai diperiksa. Tinjau hasilnya sebelum diterapkan.');
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
@@ -90,12 +95,13 @@ class CurriculumImportController extends BaseController
         }
 
         $version = !empty($batch['curriculum_version_id']) ? $versionModel->find($batch['curriculum_version_id']) : null;
-        $rows = $rowModel->where('batch_id', $batch['id'])->orderBy('row_number', 'ASC')->findAll();
+        $rows = $rowModel->where('batch_id', $batch['id'])->orderBy('row_number', 'ASC')->paginate(100, 'curriculum_rows');
 
         return view('curriculum/imports/show_batch', [
             'batch'   => $batch,
             'version' => $version,
             'rows'    => $rows,
+            'pager'   => $rowModel->pager,
         ]);
     }
 
@@ -115,7 +121,7 @@ class CurriculumImportController extends BaseController
                 throw new \RuntimeException('Anda tidak memiliki akses ke batch import tersebut.');
             }
             $result = CurriculumImportService::applyBatch($uuid);
-            return redirect()->to('/curriculum/imports/' . $uuid)->with('success', "Batch import berhasil diterapkan. Total {$result['applied_rows']} baris ditambahkan/diperbarui.");
+            return redirect()->to('/curriculum/imports/' . $uuid)->with('success', "Impor selesai. {$result['inserted_rows']} data ditambahkan dan {$result['updated_rows']} data diperbarui.");
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }

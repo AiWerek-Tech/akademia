@@ -18,9 +18,11 @@ class AddCurriculumScopeUniqueKeys extends Migration
     public function down()
     {
         // Drop unique keys and generated columns
-        $this->db->query("ALTER TABLE `curriculum_structures` DROP KEY `uq_classroom_override`");
-        $this->db->query("ALTER TABLE `curriculum_structures` DROP KEY `uq_grade_default`");
-        $this->db->query("ALTER TABLE `curriculum_structures` DROP COLUMN `classroom_override_key`");
-        $this->db->query("ALTER TABLE `curriculum_structures` DROP COLUMN `grade_default_key`");
+        if ($this->db->tableExists('curriculum_structures')) {
+            $this->db->query("ALTER TABLE `curriculum_structures` DROP KEY `uq_classroom_override`");
+            $this->db->query("ALTER TABLE `curriculum_structures` DROP KEY `uq_grade_default`");
+            $this->db->query("ALTER TABLE `curriculum_structures` DROP COLUMN `classroom_override_key`");
+            $this->db->query("ALTER TABLE `curriculum_structures` DROP COLUMN `grade_default_key`");
+        }
     }
 }

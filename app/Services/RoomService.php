@@ -25,6 +25,11 @@ class RoomService
                 ->where('rooms.unit_id', $unitId)
                 ->orWhere('rooms.shared_between_units', 1)
                 ->groupEnd();
+        } elseif (!empty($filters['unit_ids'])) {
+            $builder->groupStart()
+                ->whereIn('rooms.unit_id', $filters['unit_ids'])
+                ->orWhere('rooms.shared_between_units', 1)
+                ->groupEnd();
         }
 
         if (!empty($filters['room_type_id'])) {
@@ -92,6 +97,7 @@ class RoomService
             $data['shared_between_units'] = $isShared;
             $data['unit_id']              = $isShared ? ($data['unit_id'] ?? null) : $data['unit_id'];
             $data['facilities_json']      = is_array($data['facilities'] ?? null) ? json_encode($data['facilities']) : ($data['facilities_json'] ?? null);
+            unset($data['facilities']);
             $data['is_active']            = isset($data['is_active']) ? (int)$data['is_active'] : 1;
             $data['revision_number']      = 1;
             $data['created_by']           = session()->get('user_id');
@@ -149,6 +155,7 @@ class RoomService
 
             if (isset($data['facilities']) && is_array($data['facilities'])) {
                 $data['facilities_json'] = json_encode($data['facilities']);
+                unset($data['facilities']);
             }
 
             $data['shared_between_units'] = $isShared;

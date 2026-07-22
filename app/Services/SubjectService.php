@@ -39,6 +39,11 @@ class SubjectService
                         ->where('is_available', 1);
                 })
                 ->groupEnd();
+        } elseif (!empty($filters['unit_ids'])) {
+            $builder->whereIn('subjects.id', function ($sub) use ($filters) {
+                return $sub->select('subject_id')->from('subject_unit_availability')
+                    ->whereIn('unit_id', $filters['unit_ids'])->where('is_available', 1);
+            });
         }
 
         if (!empty($filters['category'])) {
@@ -67,7 +72,13 @@ class SubjectService
 
         foreach ($subjects as &$s) {
             $s['aliases'] = $aliasModel->where('subject_id', $s['id'])->findAll();
-            $s['unit_availabilities'] = $availModel->where('subject_id', $s['id'])->findAll();
+            $availModel->select('subject_unit_availability.*, school_units.code as unit_code, school_units.name as unit_name')
+                ->join('school_units', 'school_units.id = subject_unit_availability.unit_id')
+                ->where('subject_id', $s['id']);
+            if (session()->get('logged_in')) {
+                $availModel->whereIn('subject_unit_availability.unit_id', UnitScopeService::accessibleUnitIds());
+            }
+            $s['unit_availabilities'] = $availModel->findAll();
         }
 
         return [
