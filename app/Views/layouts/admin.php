@@ -402,7 +402,57 @@ $userName = session()->get('username') ?? 'Guest';
     <!-- Flash Message handler with premium SweetAlert2 styling -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const swalTheme = SpTheme.getSwalTheme();
+            document.addEventListener('submit', function(event) {
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                const trigger = event.submitter;
+                const confirmText = (trigger && trigger.dataset.confirm) || form.dataset.confirm;
+                if (!confirmText) {
+                    return;
+                }
+
+                if (form.dataset.confirmed === '1') {
+                    delete form.dataset.confirmed;
+                    return;
+                }
+
+                event.preventDefault();
+                Swal.fire(SpTheme.mergeSwalOptions({
+                    icon: form.dataset.confirmIcon || (trigger && trigger.dataset.confirmIcon) || 'question',
+                    title: form.dataset.confirmTitle || (trigger && trigger.dataset.confirmTitle) || 'Konfirmasi tindakan',
+                    text: confirmText,
+                    showCancelButton: true,
+                    confirmButtonText: form.dataset.confirmButton || (trigger && trigger.dataset.confirmButton) || 'Ya, lanjutkan',
+                    cancelButtonText: form.dataset.cancelButton || (trigger && trigger.dataset.cancelButton) || 'Batal',
+                    reverseButtons: true,
+                    focusCancel: true,
+                    customClass: {
+                        popup: 'rounded-4',
+                        confirmButton: 'rounded-3 px-4',
+                        cancelButton: 'rounded-3 px-4',
+                    },
+                })).then(function(result) {
+                    if (!result.isConfirmed) {
+                        return;
+                    }
+
+                    const loadingText = form.dataset.loadingText || (trigger && trigger.dataset.loadingText);
+                    if (trigger && loadingText) {
+                        trigger.disabled = true;
+                        trigger.innerHTML = loadingText;
+                    }
+
+                    form.dataset.confirmed = '1';
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit(trigger || undefined);
+                    } else {
+                        form.submit();
+                    }
+                });
+            });
             
             <?php if (session()->getFlashdata('error')): ?>
                 Swal.fire(SpTheme.mergeSwalOptions({

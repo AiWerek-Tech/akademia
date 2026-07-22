@@ -263,7 +263,9 @@ class MasterImportService
         $reader->setReadDataOnly(true);
         $spreadsheet = $reader->load($filePath);
         $worksheet = $spreadsheet->getActiveSheet();
-        if ($worksheet->getHighestDataRow() > 10000 || $worksheet->getHighestDataColumn() > 'AZ') {
+        $highestDataColumnIndex = Coordinate::columnIndexFromString($worksheet->getHighestDataColumn());
+        if ($worksheet->getHighestDataRow() > 10000 || $highestDataColumnIndex > 52) {
+            @unlink($filePath);
             throw new \InvalidArgumentException('File import melebihi batas 10.000 baris atau 52 kolom.');
         }
         $rowsData = $worksheet->toArray(null, true, true, true);

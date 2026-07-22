@@ -10,7 +10,7 @@
     <div class="d-flex gap-2">
         <a href="<?= base_url('imports/master/template/' . strtolower($batch['import_type'])) ?>" class="btn btn-outline-success btn-sm rounded-3"><i data-lucide="download" style="width:14px"></i> Template terbaru</a>
         <?php if ($batch['status'] === 'VALIDATED' && $actionableRows > 0): ?>
-            <form method="POST" action="<?= base_url('imports/master/' . $batch['uuid'] . '/apply') ?>" id="applyBatchForm">
+            <form method="POST" action="<?= base_url('imports/master/' . $batch['uuid'] . '/apply') ?>" id="applyBatchForm" data-confirm="Terapkan <?= esc($actionableRows) ?> baris yang siap ke database utama? Proses dilakukan dalam satu transaksi." data-confirm-title="Terapkan data import?" data-confirm-button="Terapkan sekarang" data-loading-text="<span class=&quot;spinner-border spinner-border-sm&quot;></span> Menerapkan data...">
                 <?= csrf_field() ?>
                 <button type="submit" class="btn btn-primary btn-sm rounded-3" id="applyBatchButton"><i data-lucide="database-zap" style="width:14px"></i> Terapkan <?= esc($actionableRows) ?> Baris</button>
             </form>
@@ -77,10 +77,4 @@
     <div class="card-footer bg-white border-0 p-4"><?= $pager->links() ?></div>
 </div>
 
-<script>
-document.getElementById('applyBatchForm')?.addEventListener('submit', event => {
-    if (!confirm('Terapkan <?= esc($actionableRows) ?> baris yang siap ke database utama? Proses dilakukan dalam satu transaksi.')) { event.preventDefault(); return; }
-    const button = document.getElementById('applyBatchButton'); button.disabled = true; button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Menerapkan data…';
-});
-</script>
 <?= $this->endSection() ?>
