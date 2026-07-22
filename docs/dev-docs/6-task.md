@@ -28,4 +28,4 @@
   - [x] Fix `UserModel::getPermissions` — `IS NULL` instead of `= null`
   - [x] Fix `Milestone3AcceptanceTest` — create user/role before unit_access FK
   - [x] Fix `WorkflowTest` — create user/role in DB for permission checks
-  - [/] Run full test suite — awaiting results
+  - [x] Run full test suite — PASSED (163 tests, 481 assertions, PHP 8.2.20 runtime, commits `7fe7874` & `1ec9f88`)
