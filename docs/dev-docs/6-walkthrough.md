@@ -60,7 +60,37 @@ Menjalankan scenario end-to-end penugasan mengajar, tugas tambahan, validasi, wo
 
 ---
 
-## 3. Status Akhir System
+## 4. Full Acceptance Gate & Security Hardening Result
+
+Seluruh pengujian unit dan database di lingkungan Akademia telah berhasil dijalankan tanpa error maupun failure:
+
+```powershell
+& "E:\xampp\php82\php.exe" vendor/bin/phpunit --no-coverage
+```
+
+```text
+PHPUnit 10.5.64 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.2.20
+Configuration: E:\xampp\htdocs\wmvaa.id\public_html\app.wmvaa.id\wmvaa-akademia\phpunit.xml.dist
+
+...............................................................  63 / 163 ( 38%)
+............................................................... 126 / 163 ( 77%)
+.....................................                           163 / 163 (100%)
+
+Time: 21:37.450, Memory: 72.00 MB
+
+OK (163 tests, 481 assertions)
+```
+
+| Suite | Status |
+| :--- | :--- |
+| Full PHPUnit Test Suite (163 tests, 481 assertions) | **100% PASSED** |
+| Branch Integration (`integration/m4-security-hardening`) | **COMMITTED** |
+
+---
+
+## 5. Status Akhir Sistem
 
 | Modul | Status |
 | :--- | :--- |
@@ -68,5 +98,6 @@ Menjalankan scenario end-to-end penugasan mengajar, tugas tambahan, validasi, wo
 | Milestone 1 — Fondasi Master Data | PASSED |
 | Milestone 2 — Master Data Sekolah, Rombel, & Guru | PASSED |
 | Milestone 3 — Struktur Kurikulum SMP–SMA | PASSED |
-| **Milestone 4 — Penugasan Mengajar & Beban Kerja Guru** | **PASSED** |
+| **Milestone 4 — Penugasan Mengajar & Beban Kerja Guru** | **FINAL PASSED** |
 | Milestone 5 — Jadwal Pelajaran (Generator & Slot) | NOT STARTED |
+
