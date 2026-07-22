@@ -31,6 +31,6 @@ final class HomeControllerTest extends CIUnitTestCase
 
         $this->assertTrue($result->isOK());
         $this->assertStringContainsString('WMVAA Akademia', $result->response()->getBody());
-        $this->assertStringContainsString('Selamat Datang', $result->response()->getBody());
+        $this->assertStringContainsString('Kesiapan Data Master', $result->response()->getBody());
     }
 }

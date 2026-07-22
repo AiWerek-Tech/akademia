@@ -22,15 +22,15 @@
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <label for="username" class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control rounded-3" id="username" name="username" required value="<?= old('username', $user['username']) ?>">
+                            <input type="text" class="form-control rounded-3" id="username" name="username" required value="<?= esc(old('username', $user['username'])) ?>">
                         </div>
                         <div class="col-md-6">
                             <label for="email" class="form-label fw-semibold">Alamat Email <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control rounded-3" id="email" name="email" required value="<?= old('email', $user['email']) ?>">
+                            <input type="email" class="form-control rounded-3" id="email" name="email" required value="<?= esc(old('email', $user['email'])) ?>">
                         </div>
                         <div class="col-md-6">
                             <label for="full_name" class="form-label fw-semibold">Nama Lengkap <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control rounded-3" id="full_name" name="full_name" required value="<?= old('full_name', $user['full_name']) ?>">
+                            <input type="text" class="form-control rounded-3" id="full_name" name="full_name" required value="<?= esc(old('full_name', $user['full_name'])) ?>">
                         </div>
                         <div class="col-md-6">
                             <label for="password" class="form-label fw-semibold">Kata Sandi Baru</label>

@@ -26,6 +26,15 @@ This document maps the project progress, past achievements, and future roadmap p
   - Reconciliation matrix and multi-rule validation checks.
   - Import/Export staging interface.
 
-## Milestone 4: Penjadwalan & Beban Mengajar
+## Milestone 4: Penugasan Mengajar & Beban Kerja Guru
+- **Status**: **FINAL PASSED**
+- **Deliverables**:
+  - Teaching assignments, team teaching split ratios, and classroom overrides.
+  - Teacher workload engine (teaching hours + additional duties).
+  - Configurable workload policies and automated status snapshots.
+  - Assignment version state machine (`DRAFT` → `VALIDATED` → `REVIEWED` → `APPROVED` → `LOCKED`).
+  - Import staging pipeline and export capabilities.
+
+## Milestone 5: Penjadwalan & Roster Mengajar
 - **Status**: **NOT STARTED** (Pending authorization)
-- **Deliverables**: Workloads, schedule assignments, automated conflict detection, duty rosters.
+- **Deliverables**: Time slots, schedule generators, automated conflict detection, duty rosters, piket, SK documents.

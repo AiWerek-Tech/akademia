@@ -18,20 +18,22 @@
             <div class="card-body p-4">
                 <form action="<?= base_url('settings/units/' . $unit['uuid']) ?>" method="POST">
                     <?= csrf_field() ?>
+                    <?php if (session('error')): ?><div class="alert alert-danger rounded-3"><?= esc(session('error')) ?></div><?php endif; ?>
+                    <?php if (session('errors')): ?><div class="alert alert-danger rounded-3"><ul class="mb-0"><?php foreach (session('errors') as $message): ?><li><?= esc($message) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
 
                     <div class="row g-3">
                         <div class="col-md-8">
                             <label for="name" class="form-label fw-semibold">Nama Unit Lengkap <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control rounded-3" id="name" name="name" value="<?= old('name', $unit['name']) ?>" required>
+                            <input type="text" class="form-control rounded-3" id="name" name="name" value="<?= esc(old('name', $unit['name'])) ?>" required>
                         </div>
                         <div class="col-md-4">
                             <label for="short_name" class="form-label fw-semibold">Singkatan <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control rounded-3" id="short_name" name="short_name" value="<?= old('short_name', $unit['short_name']) ?>" required>
+                            <input type="text" class="form-control rounded-3" id="short_name" name="short_name" value="<?= esc(old('short_name', $unit['short_name'])) ?>" required>
                         </div>
                         
                         <div class="col-md-6">
                             <label for="npsn" class="form-label fw-semibold">NPSN</label>
-                            <input type="text" class="form-control rounded-3" id="npsn" name="npsn" value="<?= old('npsn', $unit['npsn']) ?>">
+                            <input type="text" inputmode="numeric" maxlength="12" class="form-control rounded-3" id="npsn" name="npsn" value="<?= esc(old('npsn', $unit['npsn'])) ?>"><div class="form-text">8–12 digit, tanpa spasi atau tanda baca.</div>
                         </div>
                         
                         <div class="col-md-6">
@@ -47,17 +49,17 @@
 
                         <div class="col-12">
                             <label for="address" class="form-label fw-semibold">Alamat</label>
-                            <textarea class="form-control rounded-3" id="address" name="address" rows="3"><?= old('address', $unit['address']) ?></textarea>
+                            <textarea class="form-control rounded-3" id="address" name="address" rows="3"><?= esc(old('address', $unit['address'])) ?></textarea>
                         </div>
 
                         <div class="col-md-6">
                             <label for="phone" class="form-label fw-semibold">Telepon Kantor</label>
-                            <input type="text" class="form-control rounded-3" id="phone" name="phone" value="<?= old('phone', $unit['phone']) ?>">
+                            <input type="tel" class="form-control rounded-3" id="phone" name="phone" placeholder="Contoh: 0812 3456 7890" value="<?= esc(old('phone', $unit['phone'])) ?>">
                         </div>
 
                         <div class="col-md-6">
                             <label for="email" class="form-label fw-semibold">Email Resmi</label>
-                            <input type="email" class="form-control rounded-3" id="email" name="email" value="<?= old('email', $unit['email']) ?>">
+                            <input type="email" class="form-control rounded-3" id="email" name="email" value="<?= esc(old('email', $unit['email'])) ?>">
                         </div>
                     </div>
 

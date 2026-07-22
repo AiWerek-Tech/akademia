@@ -43,6 +43,17 @@ final class ExtendedUserManagementTest extends CIUnitTestCase
                 'created_at'           => date('Y-m-d H:i:s'),
             ]);
         }
+
+        $superAdminRole = $db->table('roles')->where('code', 'super_admin')->get()->getRowArray();
+        if ($superAdminRole && !$db->table('user_roles')
+            ->where('user_id', 1)
+            ->where('role_id', $superAdminRole['id'])
+            ->get()->getRowArray()) {
+            $db->table('user_roles')->insert([
+                'user_id' => 1,
+                'role_id' => $superAdminRole['id'],
+            ]);
+        }
         
         $smp = $db->table('school_units')->where('code', 'SMP')->get()->getRowArray();
         if ($smp) {
@@ -197,6 +208,13 @@ final class ExtendedUserManagementTest extends CIUnitTestCase
             'created_at'           => date('Y-m-d H:i:s')
         ]);
         $userId = $db->insertID();
+        $unit = $db->table('school_units')->where('code', 'SMP')->get()->getRowArray();
+        $db->table('user_unit_access')->insert([
+            'user_id' => $userId,
+            'unit_id' => $unit['id'],
+            'is_default' => 1,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
         $user = $db->table('users')->where('id', $userId)->get()->getRowArray();
 
         $result = $this->withSession($this->getSuperAdminSession())

@@ -24,6 +24,8 @@ class ClassroomService
 
         if (!empty($filters['unit_id'])) {
             $builder->where('classrooms.unit_id', $filters['unit_id']);
+        } elseif (!empty($filters['unit_ids'])) {
+            $builder->whereIn('classrooms.unit_id', $filters['unit_ids']);
         }
 
         if (!empty($filters['academic_period_id'])) {

@@ -41,7 +41,6 @@ $routes->post('academic-periods', 'AcademicPeriodController::store');
 $routes->get('academic-periods/(:segment)', 'AcademicPeriodController::show/$1');
 $routes->get('academic-periods/(:segment)/edit', 'AcademicPeriodController::edit/$1');
 $routes->post('academic-periods/(:segment)', 'AcademicPeriodController::update/$1');
-$routes->post('academic-periods/(:segment)/transition/(:segment)', 'AcademicPeriodController::transition/$1/$2');
 $routes->post('academic-periods/(:segment)/activate', 'AcademicPeriodController::activate/$1');
 
 // User Management
@@ -86,6 +85,8 @@ $routes->post('subjects/(:segment)', 'SubjectsController::update/$1');
 
 // Tingkat Kelas & Fase
 $routes->get('grade-levels', 'GradeLevelsController::index');
+$routes->get('grade-levels/create', 'GradeLevelsController::create');
+$routes->post('grade-levels/store', 'GradeLevelsController::store');
 $routes->get('grade-levels/(:segment)/edit', 'GradeLevelsController::edit/$1');
 $routes->post('grade-levels/(:segment)', 'GradeLevelsController::update/$1');
 
@@ -125,7 +126,35 @@ $routes->get('curriculum/imports/(:segment)', 'CurriculumImportController::showB
 $routes->post('curriculum/imports/(:segment)/apply', 'CurriculumImportController::apply/$1');
 $routes->get('curriculum/(:segment)', 'CurriculumController::show/$1');
 $routes->post('curriculum/(:segment)/structures', 'CurriculumController::storeStructure/$1');
+$routes->post('curriculum/(:segment)/structures/(:segment)/delete', 'CurriculumController::deleteStructure/$1/$2');
 $routes->get('curriculum/(:segment)/reconciliation', 'CurriculumController::reconciliation/$1');
 $routes->get('curriculum/(:segment)/export', 'CurriculumController::export/$1');
-$routes->post('curriculum/(:segment)/workflow/(:segment)', 'CurriculumController::workflowAction/$1/$2');
+$routes->post('curriculum/(:segment)/activate', 'CurriculumController::activate/$1');
 
+// Teaching Assignments & Workload (Milestone 4)
+$routes->get('assignments', 'AssignmentsController::index');
+$routes->get('assignments/create', 'AssignmentsController::create');
+$routes->post('assignments', 'AssignmentsController::store');
+$routes->get('assignments/imports', 'AssignmentsImportController::index');
+$routes->get('assignments/imports/template', 'AssignmentsImportController::template');
+$routes->post('assignments/imports/upload', 'AssignmentsImportController::upload');
+$routes->get('assignments/imports/(:segment)', 'AssignmentsImportController::showBatch/$1');
+$routes->post('assignments/imports/(:segment)/apply', 'AssignmentsImportController::apply/$1');
+$routes->post('assignments/imports/(:segment)/rollback', 'AssignmentsImportController::rollback/$1');
+$routes->get('assignments/(:segment)', 'AssignmentsController::show/$1');
+$routes->post('assignments/(:segment)/store-assignment', 'AssignmentsController::storeAssignment/$1');
+$routes->get('assignments/(:segment)/matrix', 'AssignmentsController::matrix/$1');
+$routes->get('assignments/(:segment)/export', 'AssignmentsController::export/$1');
+$routes->post('assignments/(:segment)/workflow/(:segment)', 'AssignmentsController::workflowAction/$1/$2');
+$routes->post('assignments/(:segment)/clone', 'AssignmentsController::cloneVersion/$1');
+
+$routes->get('workloads', 'WorkloadsController::index');
+$routes->get('workloads/policies', 'WorkloadsController::policies');
+$routes->get('workloads/policies/create', 'WorkloadsController::createPolicy');
+$routes->post('workloads/policies', 'WorkloadsController::storePolicy');
+$routes->post('workloads/recalculate', 'WorkloadsController::recalculate');
+$routes->get('workloads/export', 'WorkloadsController::export');
+
+$routes->get('duties', 'DutiesController::index');
+$routes->get('duties/create', 'DutiesController::create');
+$routes->post('duties', 'DutiesController::store');

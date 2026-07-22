@@ -17,10 +17,40 @@ use Config\Database;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+use PhpOffice\PhpSpreadsheet\Worksheet\Table;
+use PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle;
 
 class MasterImportService
 {
-    public const SUPPORTED_TYPES = ['TEACHERS', 'SUBJECTS', 'CLASSROOMS', 'ROOMS'];
+    public const SUPPORTED_TYPES = ['TEACHERS', 'SUBJECTS', 'GRADE_LEVELS', 'CLASSROOMS', 'ROOMS'];
+
+    public static function reviewColumns(string $type): array
+    {
+        $definition = self::templateDefinition(strtoupper($type));
+        $preferred = match (strtoupper($type)) {
+            'TEACHERS' => ['employee_number', 'nip', 'full_name', 'employment_status', 'primary_unit', 'additional_units'],
+            'SUBJECTS' => ['code', 'name', 'short_name', 'category', 'units', 'aliases'],
+            'GRADE_LEVELS' => ['unit', 'grade_number', 'code', 'name', 'phase', 'active'],
+            'CLASSROOMS' => ['academic_year', 'semester', 'unit', 'grade', 'code', 'name', 'capacity'],
+            'ROOMS' => ['code', 'name', 'room_type', 'unit', 'shared_between_units', 'capacity', 'location'],
+            default => array_keys($definition['columns']),
+        };
+
+        return array_intersect_key(
+            array_map(static fn (array $column) => $column['label'], $definition['columns']),
+            array_flip($preferred)
+        );
+    }
+
+    public static function typeLabel(string $type): string
+    {
+        return self::templateDefinition(strtoupper($type))['title'];
+    }
 
     /**
      * Generate Excel template file for master import type
@@ -32,99 +62,141 @@ class MasterImportService
             throw new \InvalidArgumentException('Jenis import master tidak dikenal.');
         }
 
+        $definition = self::templateDefinition($type);
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Template Data');
+        $sheet->setTitle('Data Import');
+        $headers = array_keys($definition['columns']);
+        $lastColumn = Coordinate::stringFromColumnIndex(count($headers));
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->freezePane('A2');
+        $sheet->setAutoFilter("A1:{$lastColumn}1");
+        $sheet->setShowGridlines(false);
+        $sheet->getRowDimension(1)->setRowHeight(32);
+        $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '0F766E']]],
+        ]);
 
-        $headers = [];
-        $instructions = [];
-
-        switch ($type) {
-            case 'TEACHERS':
-                $headers = [
-                    'employee_number', 'nip', 'nik', 'full_name', 'title_prefix',
-                    'degree_suffix', 'gender', 'birth_place', 'birth_date', 'phone',
-                    'email', 'address', 'employment_status', 'employment_type',
-                    'primary_unit', 'additional_units', 'hire_date', 'notes', 'active'
-                ];
-                $instructions = [
-                    ['Kolom', 'Keterangan', 'Wajib / Opsional'],
-                    ['full_name', 'Nama lengkap guru', 'Wajib'],
-                    ['employment_status', 'Status kepegawaian (GURU_TETAP, GURU_HONORER, DPK, dll)', 'Wajib'],
-                    ['primary_unit', 'Kode unit utama (SMP atau SMA)', 'Wajib'],
-                    ['additional_units', 'Unit tambahan dipisah koma (misal: SMA)', 'Opsional'],
-                    ['birth_date', 'Format YYYY-MM-DD', 'Opsional'],
-                ];
-                break;
-
-            case 'SUBJECTS':
-                $headers = [
-                    'code', 'name', 'short_name', 'category', 'counts_in_report',
-                    'counts_as_teaching_load', 'units', 'aliases', 'default_room_type',
-                    'sort_order', 'active'
-                ];
-                $instructions = [
-                    ['Kolom', 'Keterangan', 'Wajib / Opsional'],
-                    ['code', 'Kode mata pelajaran unik (misal: MAT-SMP)', 'Wajib'],
-                    ['name', 'Nama lengkap mata pelajaran', 'Wajib'],
-                    ['category', 'WAJIB, PILIHAN, MUATAN_LOKAL, KOKURIKULER, EKSTRAKURIKULER, KEGIATAN_TETAP, OTHER', 'Wajib'],
-                    ['units', 'Kode unit yang menggunakan (SMP, SMA, atau SMP,SMA)', 'Wajib'],
-                ];
-                break;
-
-            case 'CLASSROOMS':
-                $headers = [
-                    'academic_year', 'semester', 'unit', 'grade', 'code', 'name',
-                    'major', 'specialization', 'capacity', 'homeroom_teacher_identifier',
-                    'default_room_code', 'active'
-                ];
-                $instructions = [
-                    ['Kolom', 'Keterangan', 'Wajib / Opsional'],
-                    ['unit', 'Kode unit (SMP / SMA)', 'Wajib'],
-                    ['grade', 'Kode tingkat (VII, VIII, IX, X, XI, XII)', 'Wajib'],
-                    ['code', 'Kode kelas unik per periode & unit (misal: 7A, X-IPA-1)', 'Wajib'],
-                    ['name', 'Nama tampilan kelas (misal: Kelas VII A)', 'Wajib'],
-                ];
-                break;
-
-            case 'ROOMS':
-                $headers = [
-                    'code', 'name', 'room_type', 'unit', 'shared_between_units',
-                    'capacity', 'location', 'floor', 'facilities', 'active'
-                ];
-                $instructions = [
-                    ['Kolom', 'Keterangan', 'Wajib / Opsional'],
-                    ['code', 'Kode ruang unik (misal: R-101, LAB-KOMP-1)', 'Wajib'],
-                    ['name', 'Nama lengkap ruang', 'Wajib'],
-                    ['room_type', 'Kode jenis ruang (CLASSROOM, LAB_COMPUTER, LAB_SCIENCE, dll)', 'Wajib'],
-                    ['shared_between_units', '1 jika ruang dipakai bersama SMP & SMA, 0 jika tidak', 'Wajib'],
-                ];
-                break;
+        foreach ($definition['columns'] as $index => $column) {
+            $columnIndex = array_search($index, $headers, true) + 1;
+            $columnLetter = Coordinate::stringFromColumnIndex($columnIndex);
+            $sheet->getColumnDimension($columnLetter)->setWidth($column['width'] ?? 18);
+            $sheet->getComment($columnLetter . '1')->getText()->createTextRun(
+                ($column['required'] ? 'WAJIB — ' : 'OPSIONAL — ') . $column['description']
+            );
+            $sheet->getStyle($columnLetter . '2:' . $columnLetter . '500')->getNumberFormat()
+                ->setFormatCode(($column['format'] ?? 'text') === 'date' ? 'yyyy-mm-dd' : '@');
         }
 
-        // Set headers on sheet 1
-        $col = 'A';
-        foreach ($headers as $h) {
-            $sheet->setCellValue($col . '1', $h);
-            $sheet->getStyle($col . '1')->getFont()->setBold(true);
-            $col++;
+        $exampleSheet = $spreadsheet->createSheet();
+        $exampleSheet->setTitle('Contoh');
+        $exampleSheet->fromArray($headers, null, 'A1');
+        $exampleSheet->fromArray(array_map(static fn (array $column) => $column['example'] ?? '', $definition['columns']), null, 'A2');
+        $exampleSheet->freezePane('A2');
+        $exampleSheet->setShowGridlines(false);
+        $exampleSheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F766E']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+        $exampleSheet->getStyle("A2:{$lastColumn}2")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('ECFDF5');
+        foreach ($definition['columns'] as $index => $column) {
+            $letter = Coordinate::stringFromColumnIndex(array_search($index, $headers, true) + 1);
+            $exampleSheet->getColumnDimension($letter)->setWidth($column['width'] ?? 18);
         }
 
-        // Add instructions on sheet 2
         $infoSheet = $spreadsheet->createSheet();
         $infoSheet->setTitle('Petunjuk Pengisian');
-        $row = 1;
-        foreach ($instructions as $inst) {
-            $infoSheet->setCellValue('A' . $row, $inst[0]);
-            $infoSheet->setCellValue('B' . $row, $inst[1] ?? '');
-            $infoSheet->setCellValue('C' . $row, $inst[2] ?? '');
-            if ($row === 1) {
-                $infoSheet->getStyle('A1:C1')->getFont()->setBold(true);
-            }
-            $row++;
+        $infoSheet->mergeCells('A1:E1');
+        $infoSheet->setCellValue('A1', 'Panduan Import ' . $definition['title']);
+        $infoSheet->setCellValue('A2', 'Isi hanya sheet “Data Import”. Jangan mengubah nama header pada baris pertama. Maksimal 10.000 baris dan 10 MB.');
+        $infoSheet->mergeCells('A2:E2');
+        $infoSheet->fromArray(['Kolom Teknis', 'Nama Kolom', 'Status', 'Aturan Pengisian', 'Contoh'], null, 'A4');
+        $row = 5;
+        foreach ($definition['columns'] as $key => $column) {
+            $infoSheet->fromArray([
+                $key,
+                $column['label'],
+                $column['required'] ? 'WAJIB' : 'Opsional',
+                $column['description'],
+                $column['example'] ?? '',
+            ], null, 'A' . $row++);
+        }
+        $lastInfoRow = $row - 1;
+        $infoSheet->setShowGridlines(false);
+        $infoSheet->freezePane('A5');
+        $infoSheet->getStyle('A1:E1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 16, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $infoSheet->getRowDimension(1)->setRowHeight(34);
+        $infoSheet->getStyle('A2:E2')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('E0F2FE');
+        $infoSheet->getStyle('A4:E4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F766E']],
+        ]);
+        $infoSheet->getStyle("A5:E{$lastInfoRow}")->getAlignment()->setVertical(Alignment::VERTICAL_TOP)->setWrapText(true);
+        foreach (['A' => 24, 'B' => 24, 'C' => 14, 'D' => 70, 'E' => 32] as $letter => $width) {
+            $infoSheet->getColumnDimension($letter)->setWidth($width);
         }
 
+        $referenceSheet = $spreadsheet->createSheet();
+        $referenceSheet->setTitle('Referensi');
+        $references = self::templateReferenceLists();
+        $referenceRanges = [];
+        $referenceColumn = 1;
+        foreach ($references as $referenceKey => $values) {
+            $letter = Coordinate::stringFromColumnIndex($referenceColumn++);
+            $referenceSheet->setCellValue($letter . '1', $referenceKey);
+            $values = array_values(array_unique(array_filter(array_map('strval', $values), static fn ($value) => $value !== '')));
+            foreach ($values as $offset => $value) {
+                $referenceSheet->setCellValueExplicit($letter . ($offset + 2), $value, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            }
+            $lastReferenceRow = max(2, count($values) + 1);
+            $referenceRanges[$referenceKey] = "'Referensi'!\${$letter}\$2:\${$letter}\${$lastReferenceRow}";
+            $referenceSheet->getColumnDimension($letter)->setWidth(26);
+        }
+        $referenceSheet->getStyle('A1:' . Coordinate::stringFromColumnIndex(max(1, $referenceColumn - 1)) . '1')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '475569']],
+        ]);
+        $referenceSheet->freezePane('A2');
+        $referenceSheet->setShowGridlines(false);
+
+        foreach ($definition['columns'] as $key => $column) {
+            if (empty($column['list']) || empty($referenceRanges[$column['list']])) {
+                continue;
+            }
+            $letter = Coordinate::stringFromColumnIndex(array_search($key, $headers, true) + 1);
+            for ($dataRow = 2; $dataRow <= 500; $dataRow++) {
+                $validation = $sheet->getCell($letter . $dataRow)->getDataValidation();
+                $validation->setType(DataValidation::TYPE_LIST)
+                    ->setErrorStyle(DataValidation::STYLE_STOP)
+                    ->setAllowBlank(!$column['required'])
+                    ->setShowDropDown(true)
+                    ->setShowErrorMessage(true)
+                    ->setErrorTitle('Nilai tidak valid')
+                    ->setError('Pilih nilai dari daftar referensi yang tersedia.')
+                    ->setFormula1($referenceRanges[$column['list']]);
+            }
+        }
+
+        $tableName = 'Import' . str_replace('_', '', ucwords(strtolower($type), '_')) . 'Table';
+        $table = new Table("A1:{$lastColumn}2", $tableName);
+        $tableStyle = new TableStyle();
+        $tableStyle->setTheme(TableStyle::TABLE_STYLE_MEDIUM2);
+        $table->setStyle($tableStyle);
+        $sheet->addTable($table);
+
         $spreadsheet->setActiveSheetIndex(0);
+        $spreadsheet->getProperties()
+            ->setCreator('WMVAA Akademia')
+            ->setTitle('Template Import ' . $definition['title'])
+            ->setDescription('Template resmi untuk staging import master data WMVAA Akademia.');
 
         $tempPath = WRITEPATH . 'imports/template_' . strtolower($type) . '_' . time() . '.xlsx';
         if (!is_dir(WRITEPATH . 'imports')) {
@@ -173,6 +245,18 @@ class MasterImportService
         $sourceHash = hash_file('sha256', $filePath);
         $sourceSize = filesize($filePath);
         $sourceMime = $file->getClientMimeType();
+        $duplicateBatch = (new MasterImportBatchModel())
+            ->where('import_type', $type)
+            ->where('source_hash', $sourceHash)
+            ->where('status !=', 'CANCELLED')
+            ->orderBy('id', 'DESC')
+            ->first();
+        if ($duplicateBatch) {
+            @unlink($filePath);
+            throw new \InvalidArgumentException(
+                'File yang sama sudah pernah diunggah pada batch #' . $duplicateBatch['id'] . '. Gunakan batch tersebut atau ubah isi file sebelum mengunggah ulang.'
+            );
+        }
 
         // Parse Spreadsheet safely
         $reader = IOFactory::createReaderForFile($filePath);
@@ -188,8 +272,35 @@ class MasterImportService
             throw new \InvalidArgumentException('File spreadsheet kosong atau hanya memiliki header.');
         }
 
-        $headers = array_map('trim', array_shift($rowsData));
+        $headers = array_map(
+            static fn ($header) => strtolower(trim(str_replace("\xEF\xBB\xBF", '', (string) $header))),
+            array_shift($rowsData)
+        );
         $headerKeys = array_values($headers);
+        $definition = self::templateDefinition($type);
+        $allowedHeaders = array_keys($definition['columns']);
+        $requiredHeaders = array_keys(array_filter(
+            $definition['columns'],
+            static fn (array $column): bool => $column['required']
+        ));
+        $missingHeaders = array_values(array_diff($requiredHeaders, $headerKeys));
+        $unknownHeaders = array_values(array_diff(array_filter($headerKeys), $allowedHeaders));
+        if (in_array('', $headerKeys, true)) {
+            @unlink($filePath);
+            throw new \InvalidArgumentException('Header spreadsheet tidak boleh kosong.');
+        }
+        if (count($headerKeys) !== count(array_unique($headerKeys))) {
+            @unlink($filePath);
+            throw new \InvalidArgumentException('Header spreadsheet tidak boleh duplikat.');
+        }
+        if ($missingHeaders !== []) {
+            @unlink($filePath);
+            throw new \InvalidArgumentException('Header wajib tidak ditemukan: ' . implode(', ', $missingHeaders) . '.');
+        }
+        if ($unknownHeaders !== []) {
+            @unlink($filePath);
+            throw new \InvalidArgumentException('Header tidak dikenal: ' . implode(', ', $unknownHeaders) . '. Gunakan template terbaru.');
+        }
 
         $db = Database::connect();
         $db->transBegin();
@@ -198,6 +309,13 @@ class MasterImportService
             $batchModel = new MasterImportBatchModel();
             $rowModel   = new MasterImportRowModel();
 
+            $nonEmptyRows = array_values(array_filter($rowsData, static function (array $row): bool {
+                return count(array_filter($row, static fn ($value) => trim((string) $value) !== '')) > 0;
+            }));
+            if ($nonEmptyRows === []) {
+                throw new \InvalidArgumentException('File spreadsheet tidak memiliki baris data untuk diimpor.');
+            }
+
             $batchId = $batchModel->insert([
                 'import_type'     => $type,
                 'source_filename' => $file->getClientName(),
@@ -205,7 +323,7 @@ class MasterImportService
                 'source_mime'     => $sourceMime,
                 'source_size'     => $sourceSize,
                 'status'          => 'PARSED',
-                'total_rows'      => count($rowsData),
+                'total_rows'      => count($nonEmptyRows),
                 'created_by'      => session()->get('user_id'),
             ]);
 
@@ -213,8 +331,9 @@ class MasterImportService
             $warningCount = 0;
             $errorCount   = 0;
 
-            $rowNumber = 2; // Row 1 was header
-            foreach ($rowsData as $row) {
+            $seenIdentities = [];
+            foreach ($rowsData as $rowOffset => $row) {
+                $rowNumber = $rowOffset + 2; // Excel row; row 1 is the header.
                 // Map columns by header name
                 $mappedRow = [];
                 $colIndex = 0;
@@ -230,6 +349,14 @@ class MasterImportService
                 }
 
                 $validation = self::validateRow($type, $mappedRow);
+                $identity = self::rowIdentity($type, $mappedRow);
+                if ($identity !== null && isset($seenIdentities[$identity])) {
+                    $validation['status'] = 'ERROR';
+                    $validation['messages'][] = 'Data duplikat di dalam file; sama dengan baris ' . $seenIdentities[$identity] . '.';
+                    $validation['proposed_action'] = 'SKIP';
+                } elseif ($identity !== null) {
+                    $seenIdentities[$identity] = $rowNumber;
+                }
 
                 if ($validation['status'] === 'VALID') {
                     $validCount++;
@@ -249,10 +376,10 @@ class MasterImportService
                     'target_entity_id'         => $validation['target_entity_id'],
                     'validation_status'        => $validation['status'],
                     'validation_messages_json' => json_encode($validation['messages']),
-                    'admin_decision'           => $validation['proposed_action'],
+                    'admin_decision'           => $validation['status'] === 'ERROR' || $validation['proposed_action'] === 'MERGE'
+                        ? 'SKIP'
+                        : $validation['proposed_action'],
                 ]);
-
-                $rowNumber++;
             }
 
             $batchModel->update($batchId, [
@@ -262,7 +389,7 @@ class MasterImportService
                 'error_rows'   => $errorCount,
             ]);
 
-            AuditService::log('master_import', 'UPLOAD', 'MasterImportBatch', $batchId, null, ['type' => $type, 'rows' => count($rowsData)], 'Upload & parse staging import file');
+            AuditService::log('master_import', 'UPLOAD', 'MasterImportBatch', $batchId, null, ['type' => $type, 'rows' => count($nonEmptyRows)], 'Upload & parse staging import file');
 
             $db->transCommit();
             return $batchModel->find($batchId);
@@ -282,18 +409,52 @@ class MasterImportService
         $status = 'VALID';
         $proposedAction = 'INSERT';
         $targetEntityId = null;
-        $normData = $row;
+        $normData = array_map(static fn ($value) => trim((string) $value), $row);
 
         switch ($type) {
             case 'TEACHERS':
-                if (empty($row['full_name'])) {
-                    $messages[] = 'Nama lengkap (full_name) wajib diisi';
+                if (mb_strlen(trim($row['full_name'] ?? '')) < 3) {
+                    $messages[] = 'Nama lengkap (full_name) wajib diisi minimal 3 karakter.';
                     $status = 'ERROR';
                 }
 
                 if (empty($row['employment_status'])) {
                     $messages[] = 'Status kepegawaian (employment_status) wajib diisi';
                     $status = 'ERROR';
+                }
+                if (!empty($row['email']) && !filter_var(trim($row['email']), FILTER_VALIDATE_EMAIL)) {
+                    $messages[] = 'Format email tidak valid.';
+                    $status = 'ERROR';
+                }
+                if (!empty($row['gender']) && !in_array(strtoupper(trim($row['gender'])), ['LAKI_LAKI', 'PEREMPUAN'], true)) {
+                    $messages[] = 'gender harus LAKI_LAKI atau PEREMPUAN.';
+                    $status = 'ERROR';
+                } elseif (!empty($row['gender'])) {
+                    $normData['gender'] = strtoupper(trim($row['gender']));
+                }
+                $normData['employment_status'] = strtoupper(trim($row['employment_status'] ?? ''));
+                $normData['employment_type'] = strtoupper(trim($row['employment_type'] ?? '')) ?: null;
+                foreach (['birth_date', 'hire_date'] as $dateField) {
+                    if (!empty($row[$dateField])) {
+                        $normalizedDate = self::normalizeDate($row[$dateField]);
+                        if ($normalizedDate === null) {
+                            $messages[] = "{$dateField} harus berupa tanggal valid dengan format YYYY-MM-DD.";
+                            $status = 'ERROR';
+                        } else {
+                            $normData[$dateField] = $normalizedDate;
+                        }
+                    }
+                }
+                if (!empty($normData['birth_date']) && $normData['birth_date'] > date('Y-m-d')) {
+                    $messages[] = 'Tanggal lahir tidak boleh berada di masa depan.';
+                    $status = 'ERROR';
+                }
+                $active = self::normalizeBoolean($row['active'] ?? '', 1);
+                if ($active === null) {
+                    $messages[] = 'active harus bernilai 1 atau 0.';
+                    $status = 'ERROR';
+                } else {
+                    $normData['is_active'] = $active;
                 }
 
                 $primaryUnit = self::resolveUnitCode($row['primary_unit'] ?? '');
@@ -353,6 +514,13 @@ class MasterImportService
                     $messages[] = 'Nama mata pelajaran (name) wajib diisi';
                     $status = 'ERROR';
                 }
+                $category = strtoupper(trim($row['category'] ?? ''));
+                if (!in_array($category, SubjectService::CATEGORIES, true)) {
+                    $messages[] = 'Kategori mata pelajaran tidak valid.';
+                    $status = 'ERROR';
+                } else {
+                    $normData['category'] = $category;
+                }
                 $normData['unit_ids'] = [];
                 foreach (self::splitCodes($row['units'] ?? '') as $code) {
                     $unit = self::resolveUnitCode($code);
@@ -367,6 +535,77 @@ class MasterImportService
                     $messages[] = 'Minimal satu unit yang dapat diakses wajib diisi pada kolom units.';
                     $status = 'ERROR';
                 }
+                foreach (['counts_in_report', 'counts_as_teaching_load', 'active'] as $booleanField) {
+                    $boolean = self::normalizeBoolean($row[$booleanField] ?? '', 1);
+                    if ($boolean === null) {
+                        $messages[] = "{$booleanField} harus bernilai 1 atau 0.";
+                        $status = 'ERROR';
+                    } else {
+                        $normData[$booleanField === 'active' ? 'is_active' : $booleanField] = $boolean;
+                    }
+                }
+                $normData['alias_list'] = self::splitTextValues($row['aliases'] ?? '');
+                $normData['sort_order'] = ($row['sort_order'] ?? '') === '' ? 0 : (int) $row['sort_order'];
+                if ($normData['sort_order'] < 0 || !preg_match('/^\d+$/', (string) ($row['sort_order'] ?? '0'))) {
+                    $messages[] = 'sort_order harus berupa angka bulat tidak negatif.';
+                    $status = 'ERROR';
+                }
+                if (!empty($row['default_room_type'])) {
+                    $roomType = (new RoomTypeModel())->where('code', strtoupper(trim($row['default_room_type'])))->where('is_active', 1)->first();
+                    if (!$roomType) {
+                        $messages[] = 'default_room_type tidak ditemukan atau tidak aktif.';
+                        $status = 'ERROR';
+                    } else {
+                        $normData['default_room_type_id'] = (int) $roomType['id'];
+                    }
+                }
+                break;
+
+            case 'GRADE_LEVELS':
+                $unit = self::resolveUnitCode($row['unit'] ?? '');
+                $gradeNumber = filter_var($row['grade_number'] ?? null, FILTER_VALIDATE_INT);
+                $code = strtoupper(trim($row['code'] ?? ''));
+                if (!$unit) {
+                    $messages[] = 'Unit tidak ditemukan atau tidak dapat diakses.';
+                    $status = 'ERROR';
+                }
+                if ($gradeNumber === false || $gradeNumber < 1 || $gradeNumber > 12) {
+                    $messages[] = 'grade_number harus berupa angka 1 sampai 12.';
+                    $status = 'ERROR';
+                }
+                if ($code === '') {
+                    $messages[] = 'Kode tingkat (code) wajib diisi.';
+                    $status = 'ERROR';
+                }
+                if (mb_strlen(trim($row['name'] ?? '')) < 2) {
+                    $messages[] = 'Nama tingkat (name) wajib diisi minimal 2 karakter.';
+                    $status = 'ERROR';
+                }
+                if ($unit && $gradeNumber !== false && $code !== '') {
+                    $normData['unit_id'] = (int) $unit['id'];
+                    $normData['grade_number'] = (int) $gradeNumber;
+                    $normData['code'] = $code;
+                    $existing = (new GradeLevelModel())
+                        ->where('unit_id', $unit['id'])
+                        ->groupStart()->where('code', $code)->orWhere('grade_number', $gradeNumber)->groupEnd()
+                        ->first();
+                    if ($existing) {
+                        $proposedAction = 'UPDATE';
+                        $targetEntityId = (int) $existing['id'];
+                        $messages[] = 'Tingkat dengan kode atau nomor yang sama sudah ada dan akan diperbarui.';
+                        if ($status !== 'ERROR') {
+                            $status = 'WARNING';
+                        }
+                    }
+                }
+                $normData['sort_order'] = ($row['sort_order'] ?? '') === '' ? (int) ($gradeNumber ?: 0) : (int) $row['sort_order'];
+                $active = self::normalizeBoolean($row['active'] ?? '', 1);
+                if ($active === null) {
+                    $messages[] = 'active harus bernilai 1 atau 0.';
+                    $status = 'ERROR';
+                } else {
+                    $normData['is_active'] = $active;
+                }
                 break;
 
             case 'CLASSROOMS':
@@ -380,7 +619,7 @@ class MasterImportService
                 }
                 $unit = self::resolveUnitCode($row['unit'] ?? '');
                 $year = (new AcademicYearModel())->where('name', trim($row['academic_year'] ?? ''))->first();
-                $semester = (int) ($row['semester'] ?? 0);
+                $semester = filter_var($row['semester'] ?? null, FILTER_VALIDATE_INT);
                 $period = $year && $semester > 0
                     ? (new AcademicPeriodModel())->where('academic_year_id', $year['id'])->where('semester_number', $semester)->first()
                     : null;
@@ -394,6 +633,60 @@ class MasterImportService
                     $normData['unit_id'] = (int) $unit['id'];
                     $normData['academic_period_id'] = (int) $period['id'];
                     $normData['grade_level_id'] = (int) $grade['id'];
+                    $existing = (new ClassroomModel())
+                        ->where('academic_period_id', $period['id'])
+                        ->where('unit_id', $unit['id'])
+                        ->where('code', strtoupper(trim($row['code'] ?? '')))
+                        ->where('deleted_at IS NULL')
+                        ->first();
+                    if ($existing) {
+                        $proposedAction = 'UPDATE';
+                        $targetEntityId = (int) $existing['id'];
+                        $messages[] = 'Kode kelas sudah ada pada unit dan periode tersebut; data akan diperbarui.';
+                        if ($status !== 'ERROR') {
+                            $status = 'WARNING';
+                        }
+                    }
+                }
+                if ($semester === false || !in_array((int) $semester, [1, 2], true)) {
+                    $messages[] = 'semester harus bernilai 1 atau 2.';
+                    $status = 'ERROR';
+                }
+                if (($row['capacity'] ?? '') !== '' && (!preg_match('/^\d+$/', trim($row['capacity'])) || (int) $row['capacity'] < 0)) {
+                    $messages[] = 'capacity harus berupa angka bulat tidak negatif.';
+                    $status = 'ERROR';
+                }
+                $normData['capacity'] = ($row['capacity'] ?? '') === '' ? null : (int) $row['capacity'];
+                $active = self::normalizeBoolean($row['active'] ?? '', 1);
+                if ($active === null) {
+                    $messages[] = 'active harus bernilai 1 atau 0.';
+                    $status = 'ERROR';
+                } else {
+                    $normData['is_active'] = $active;
+                }
+                if ($unit && $period && !empty($row['homeroom_teacher_identifier'])) {
+                    $teacher = self::resolveTeacherIdentifier($row['homeroom_teacher_identifier']);
+                    if (!$teacher) {
+                        $messages[] = 'Identitas wali kelas tidak ditemukan atau ambigu.';
+                        $status = 'ERROR';
+                    } else {
+                        try {
+                            UnitScopeService::assertTeacherInUnit((int) $teacher['id'], (int) $unit['id'], (int) $period['id']);
+                            $normData['homeroom_teacher_id'] = (int) $teacher['id'];
+                        } catch (\Throwable $e) {
+                            $messages[] = $e->getMessage();
+                            $status = 'ERROR';
+                        }
+                    }
+                }
+                if ($unit && !empty($row['default_room_code'])) {
+                    $room = (new RoomModel())->where('code', strtoupper(trim($row['default_room_code'])))->where('deleted_at IS NULL')->first();
+                    if (!$room || (!(int) $room['shared_between_units'] && (int) $room['unit_id'] !== (int) $unit['id'])) {
+                        $messages[] = 'Kode ruang default tidak ditemukan atau tidak tersedia pada unit tersebut.';
+                        $status = 'ERROR';
+                    } else {
+                        $normData['default_room_id'] = (int) $room['id'];
+                    }
                 }
                 break;
 
@@ -418,10 +711,15 @@ class MasterImportService
                     $messages[] = 'Nama ruang (name) wajib diisi';
                     $status = 'ERROR';
                 }
-                $isShared = !empty($row['shared_between_units']) ? 1 : 0;
+                $isShared = self::normalizeBoolean($row['shared_between_units'] ?? '', null);
                 $unit = !empty($row['unit']) ? self::resolveUnitCode($row['unit']) : null;
                 $roomType = (new RoomTypeModel())->where('code', strtoupper(trim($row['room_type'] ?? '')))->first();
-                if (!$isShared && !$unit) {
+                if ($isShared === null) {
+                    $messages[] = 'shared_between_units wajib bernilai 1 atau 0.';
+                    $status = 'ERROR';
+                    $isShared = 0;
+                }
+                if ($isShared === 0 && !$unit) {
                     $messages[] = 'Ruang non-shared wajib memiliki unit yang dapat diakses.';
                     $status = 'ERROR';
                 }
@@ -432,6 +730,19 @@ class MasterImportService
                 $normData['shared_between_units'] = $isShared;
                 $normData['unit_id'] = $unit ? (int) $unit['id'] : null;
                 $normData['room_type_id'] = $roomType ? (int) $roomType['id'] : null;
+                if (($row['capacity'] ?? '') !== '' && (!preg_match('/^\d+$/', trim($row['capacity'])) || (int) $row['capacity'] < 0)) {
+                    $messages[] = 'capacity harus berupa angka bulat tidak negatif.';
+                    $status = 'ERROR';
+                }
+                $normData['capacity'] = ($row['capacity'] ?? '') === '' ? null : (int) $row['capacity'];
+                $normData['facilities'] = self::splitTextValues($row['facilities'] ?? '');
+                $active = self::normalizeBoolean($row['active'] ?? '', 1);
+                if ($active === null) {
+                    $messages[] = 'active harus bernilai 1 atau 0.';
+                    $status = 'ERROR';
+                } else {
+                    $normData['is_active'] = $active;
+                }
                 break;
         }
 
@@ -450,6 +761,217 @@ class MasterImportService
             static fn ($code) => strtoupper(trim($code)),
             preg_split('/[,;]+/', $value) ?: []
         )));
+    }
+
+    private static function splitTextValues(string $value): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static fn ($item) => trim($item),
+            preg_split('/[,;]+/', $value) ?: []
+        ))));
+    }
+
+    private static function normalizeBoolean($value, ?int $default = null): ?int
+    {
+        $value = strtolower(trim((string) $value));
+        if ($value === '') {
+            return $default;
+        }
+        if (in_array($value, ['1', 'true', 'ya', 'yes', 'aktif'], true)) {
+            return 1;
+        }
+        if (in_array($value, ['0', 'false', 'tidak', 'no', 'nonaktif', 'non-aktif'], true)) {
+            return 0;
+        }
+
+        return null;
+    }
+
+    private static function normalizeDate($value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+        foreach (['Y-m-d', 'd/m/Y', 'd-m-Y'] as $format) {
+            $date = \DateTimeImmutable::createFromFormat('!' . $format, $value);
+            $errors = \DateTimeImmutable::getLastErrors();
+            if ($date && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))) {
+                return $date->format('Y-m-d');
+            }
+        }
+
+        return null;
+    }
+
+    private static function resolveTeacherIdentifier(string $identifier): ?array
+    {
+        $identifier = trim($identifier);
+        if ($identifier === '') {
+            return null;
+        }
+        $matches = (new TeacherModel())
+            ->groupStart()
+                ->where('employee_number', $identifier)
+                ->orWhere('nip', $identifier)
+                ->orWhere('nik', $identifier)
+            ->groupEnd()
+            ->where('is_active', 1)
+            ->where('deleted_at IS NULL')
+            ->findAll(2);
+
+        return count($matches) === 1 ? $matches[0] : null;
+    }
+
+    private static function templateDefinition(string $type): array
+    {
+        $definitions = [
+            'TEACHERS' => [
+                'title' => 'Master Guru',
+                'columns' => [
+                    'employee_number' => ['label' => 'Nomor Pegawai', 'required' => false, 'description' => 'Nomor internal sekolah. Simpan sebagai teks agar angka nol di depan tidak hilang.', 'example' => 'G-0001', 'width' => 18],
+                    'nip' => ['label' => 'NIP', 'required' => false, 'description' => 'NIP unik. Simpan sebagai teks.', 'example' => '198501012010011001', 'width' => 22],
+                    'nik' => ['label' => 'NIK', 'required' => false, 'description' => 'NIK unik 16 digit. Simpan sebagai teks.', 'example' => '3273010101850001', 'width' => 20],
+                    'full_name' => ['label' => 'Nama Lengkap', 'required' => true, 'description' => 'Nama tanpa gelar, minimal 3 karakter.', 'example' => 'Ahmad Fauzi', 'width' => 28],
+                    'title_prefix' => ['label' => 'Gelar Depan', 'required' => false, 'description' => 'Contoh: Dr., Drs., Hj.', 'example' => 'Drs.', 'width' => 14],
+                    'degree_suffix' => ['label' => 'Gelar Belakang', 'required' => false, 'description' => 'Pisahkan beberapa gelar dengan koma.', 'example' => 'S.Pd., M.Pd.', 'width' => 20],
+                    'gender' => ['label' => 'Jenis Kelamin', 'required' => false, 'description' => 'Pilih LAKI_LAKI atau PEREMPUAN.', 'example' => 'LAKI_LAKI', 'width' => 16, 'list' => 'GENDER'],
+                    'birth_place' => ['label' => 'Tempat Lahir', 'required' => false, 'description' => 'Nama kota/kabupaten kelahiran.', 'example' => 'Bandung', 'width' => 18],
+                    'birth_date' => ['label' => 'Tanggal Lahir', 'required' => false, 'description' => 'Gunakan tanggal Excel atau format YYYY-MM-DD.', 'example' => '1985-01-01', 'width' => 16, 'format' => 'date'],
+                    'phone' => ['label' => 'Telepon', 'required' => false, 'description' => 'Nomor telepon aktif, sebaiknya diawali 08 atau kode negara.', 'example' => '081234567890', 'width' => 18],
+                    'email' => ['label' => 'Email', 'required' => false, 'description' => 'Alamat email valid.', 'example' => 'ahmad@example.sch.id', 'width' => 28],
+                    'address' => ['label' => 'Alamat', 'required' => false, 'description' => 'Alamat domisili.', 'example' => 'Jl. Pendidikan No. 1', 'width' => 34],
+                    'employment_status' => ['label' => 'Status Kepegawaian', 'required' => true, 'description' => 'Pilih status kepegawaian dari referensi.', 'example' => 'GURU_TETAP', 'width' => 22, 'list' => 'EMPLOYMENT_STATUS'],
+                    'employment_type' => ['label' => 'Tipe Kepegawaian', 'required' => false, 'description' => 'Pilih FULL_TIME atau PART_TIME.', 'example' => 'FULL_TIME', 'width' => 18, 'list' => 'EMPLOYMENT_TYPE'],
+                    'primary_unit' => ['label' => 'Unit Utama', 'required' => true, 'description' => 'Kode unit utama yang tersedia pada sheet Referensi.', 'example' => 'SMP', 'width' => 14, 'list' => 'UNIT_CODE'],
+                    'additional_units' => ['label' => 'Unit Tambahan', 'required' => false, 'description' => 'Kode unit tambahan dipisahkan koma, misalnya SMP,SMA.', 'example' => 'SMA', 'width' => 20],
+                    'hire_date' => ['label' => 'Tanggal Mulai', 'required' => false, 'description' => 'Gunakan tanggal Excel atau format YYYY-MM-DD.', 'example' => '2010-07-01', 'width' => 16, 'format' => 'date'],
+                    'notes' => ['label' => 'Catatan', 'required' => false, 'description' => 'Catatan administratif singkat.', 'example' => 'Guru matematika', 'width' => 30],
+                    'active' => ['label' => 'Aktif', 'required' => false, 'description' => '1 = aktif, 0 = nonaktif. Kosong dianggap aktif.', 'example' => '1', 'width' => 10, 'list' => 'BOOLEAN'],
+                ],
+            ],
+            'SUBJECTS' => [
+                'title' => 'Master Mata Pelajaran',
+                'columns' => [
+                    'code' => ['label' => 'Kode Mapel', 'required' => true, 'description' => 'Kode unik global, tanpa spasi. Kode yang sudah ada akan diperbarui.', 'example' => 'MAT-SMP', 'width' => 18],
+                    'name' => ['label' => 'Nama Mapel', 'required' => true, 'description' => 'Nama lengkap mata pelajaran.', 'example' => 'Matematika', 'width' => 30],
+                    'short_name' => ['label' => 'Nama Singkat', 'required' => false, 'description' => 'Nama singkat untuk tampilan jadwal.', 'example' => 'MAT', 'width' => 16],
+                    'category' => ['label' => 'Kategori', 'required' => true, 'description' => 'Pilih kategori resmi dari referensi.', 'example' => 'WAJIB', 'width' => 22, 'list' => 'SUBJECT_CATEGORY'],
+                    'counts_in_report' => ['label' => 'Masuk Rapor', 'required' => false, 'description' => '1 = masuk rapor, 0 = tidak. Kosong dianggap 1.', 'example' => '1', 'width' => 14, 'list' => 'BOOLEAN'],
+                    'counts_as_teaching_load' => ['label' => 'Hitung Beban Mengajar', 'required' => false, 'description' => '1 = dihitung sebagai beban mengajar, 0 = tidak.', 'example' => '1', 'width' => 22, 'list' => 'BOOLEAN'],
+                    'units' => ['label' => 'Unit Tersedia', 'required' => true, 'description' => 'Satu atau beberapa kode unit dipisahkan koma.', 'example' => 'SMP,SMA', 'width' => 18],
+                    'aliases' => ['label' => 'Alias', 'required' => false, 'description' => 'Nama alternatif dipisahkan koma atau titik koma.', 'example' => 'MTK;Math', 'width' => 28],
+                    'default_room_type' => ['label' => 'Jenis Ruang Default', 'required' => false, 'description' => 'Kode jenis ruang default dari referensi.', 'example' => 'CLASSROOM', 'width' => 24, 'list' => 'ROOM_TYPE'],
+                    'sort_order' => ['label' => 'Urutan', 'required' => false, 'description' => 'Angka urutan tampilan, minimal 0.', 'example' => '10', 'width' => 10],
+                    'active' => ['label' => 'Aktif', 'required' => false, 'description' => '1 = aktif, 0 = nonaktif. Kosong dianggap aktif.', 'example' => '1', 'width' => 10, 'list' => 'BOOLEAN'],
+                ],
+            ],
+            'GRADE_LEVELS' => [
+                'title' => 'Master Tingkat Kelas',
+                'columns' => [
+                    'unit' => ['label' => 'Unit', 'required' => true, 'description' => 'Kode unit sekolah.', 'example' => 'SMP', 'width' => 14, 'list' => 'UNIT_CODE'],
+                    'grade_number' => ['label' => 'Nomor Tingkat', 'required' => true, 'description' => 'Nomor tingkat numerik, misalnya 7 untuk VII dan 10 untuk X.', 'example' => '7', 'width' => 16],
+                    'code' => ['label' => 'Kode Tingkat', 'required' => true, 'description' => 'Kode unik per unit, misalnya VII atau X.', 'example' => 'VII', 'width' => 16],
+                    'name' => ['label' => 'Nama Tingkat', 'required' => true, 'description' => 'Nama tampilan tingkat kelas.', 'example' => 'Kelas VII', 'width' => 24],
+                    'phase' => ['label' => 'Fase', 'required' => false, 'description' => 'Fase kurikulum, misalnya D, E, atau F.', 'example' => 'D', 'width' => 12, 'list' => 'PHASE'],
+                    'sort_order' => ['label' => 'Urutan', 'required' => false, 'description' => 'Urutan tampilan. Kosong mengikuti nomor tingkat.', 'example' => '7', 'width' => 12],
+                    'active' => ['label' => 'Aktif', 'required' => false, 'description' => '1 = aktif, 0 = nonaktif.', 'example' => '1', 'width' => 10, 'list' => 'BOOLEAN'],
+                ],
+            ],
+            'CLASSROOMS' => [
+                'title' => 'Master Kelas / Rombel',
+                'columns' => [
+                    'academic_year' => ['label' => 'Tahun Pelajaran', 'required' => true, 'description' => 'Nama tahun pelajaran yang sudah tersedia.', 'example' => '2026/2027', 'width' => 18, 'list' => 'ACADEMIC_YEAR'],
+                    'semester' => ['label' => 'Semester', 'required' => true, 'description' => 'Nomor semester 1 atau 2.', 'example' => '1', 'width' => 12, 'list' => 'SEMESTER'],
+                    'unit' => ['label' => 'Unit', 'required' => true, 'description' => 'Kode unit sekolah.', 'example' => 'SMP', 'width' => 14, 'list' => 'UNIT_CODE'],
+                    'grade' => ['label' => 'Tingkat', 'required' => true, 'description' => 'Kode tingkat sesuai unit.', 'example' => 'VII', 'width' => 14, 'list' => 'GRADE_CODE'],
+                    'code' => ['label' => 'Kode Rombel', 'required' => true, 'description' => 'Kode unik pada unit dan periode.', 'example' => 'VII-A', 'width' => 16],
+                    'name' => ['label' => 'Nama Rombel', 'required' => true, 'description' => 'Nama tampilan kelas/rombel.', 'example' => 'Kelas VII A', 'width' => 26],
+                    'major' => ['label' => 'Jurusan', 'required' => false, 'description' => 'Jurusan untuk SMA jika relevan.', 'example' => 'MIPA', 'width' => 16, 'list' => 'MAJOR'],
+                    'specialization' => ['label' => 'Peminatan', 'required' => false, 'description' => 'Keterangan peminatan atau konsentrasi.', 'example' => 'Sains', 'width' => 20],
+                    'capacity' => ['label' => 'Kapasitas', 'required' => false, 'description' => 'Jumlah siswa maksimal, angka tidak negatif.', 'example' => '32', 'width' => 12],
+                    'homeroom_teacher_identifier' => ['label' => 'Identitas Wali Kelas', 'required' => false, 'description' => 'NIP, NIK, atau nomor pegawai yang unik.', 'example' => 'G-0001', 'width' => 26],
+                    'default_room_code' => ['label' => 'Kode Ruang Default', 'required' => false, 'description' => 'Kode ruang yang tersedia pada unit.', 'example' => 'R-101', 'width' => 22, 'list' => 'ROOM_CODE'],
+                    'active' => ['label' => 'Aktif', 'required' => false, 'description' => '1 = aktif, 0 = nonaktif.', 'example' => '1', 'width' => 10, 'list' => 'BOOLEAN'],
+                ],
+            ],
+            'ROOMS' => [
+                'title' => 'Master Ruangan',
+                'columns' => [
+                    'code' => ['label' => 'Kode Ruang', 'required' => true, 'description' => 'Kode unik global. Kode yang sudah ada akan diperbarui.', 'example' => 'R-101', 'width' => 18],
+                    'name' => ['label' => 'Nama Ruang', 'required' => true, 'description' => 'Nama lengkap ruangan.', 'example' => 'Ruang Kelas 101', 'width' => 28],
+                    'room_type' => ['label' => 'Jenis Ruang', 'required' => true, 'description' => 'Kode jenis ruang aktif dari referensi.', 'example' => 'CLASSROOM', 'width' => 22, 'list' => 'ROOM_TYPE'],
+                    'unit' => ['label' => 'Unit', 'required' => false, 'description' => 'Wajib untuk ruang non-shared; kosong boleh untuk ruang shared.', 'example' => 'SMP', 'width' => 14, 'list' => 'UNIT_CODE'],
+                    'shared_between_units' => ['label' => 'Dipakai Bersama', 'required' => true, 'description' => '1 = dapat dipakai lintas unit, 0 = khusus satu unit.', 'example' => '0', 'width' => 20, 'list' => 'BOOLEAN'],
+                    'capacity' => ['label' => 'Kapasitas', 'required' => false, 'description' => 'Jumlah kursi/orang, angka tidak negatif.', 'example' => '32', 'width' => 12],
+                    'location' => ['label' => 'Lokasi', 'required' => false, 'description' => 'Gedung atau area.', 'example' => 'Gedung A', 'width' => 22],
+                    'floor' => ['label' => 'Lantai', 'required' => false, 'description' => 'Nomor/nama lantai.', 'example' => '1', 'width' => 12],
+                    'facilities' => ['label' => 'Fasilitas', 'required' => false, 'description' => 'Daftar fasilitas dipisahkan koma.', 'example' => 'Proyektor,AC,Papan Tulis', 'width' => 34],
+                    'active' => ['label' => 'Aktif', 'required' => false, 'description' => '1 = aktif, 0 = nonaktif.', 'example' => '1', 'width' => 10, 'list' => 'BOOLEAN'],
+                ],
+            ],
+        ];
+
+        if (!isset($definitions[$type])) {
+            throw new \InvalidArgumentException('Jenis import master tidak dikenal.');
+        }
+
+        return $definitions[$type];
+    }
+
+    private static function templateReferenceLists(): array
+    {
+        $db = Database::connect();
+        $unitIds = session()->get('logged_in') ? UnitScopeService::accessibleUnitIds() : [];
+
+        $unitBuilder = $db->table('school_units')->select('code')->where('is_active', 1)->orderBy('code', 'ASC');
+        $gradeBuilder = $db->table('grade_levels')->select('code')->where('is_active', 1)->orderBy('sort_order', 'ASC');
+        $roomBuilder = $db->table('rooms')->select('code')->where('is_active', 1)->where('deleted_at IS NULL')->orderBy('code', 'ASC');
+        if ($unitIds !== []) {
+            $unitBuilder->whereIn('id', $unitIds);
+            $gradeBuilder->whereIn('unit_id', $unitIds);
+            $roomBuilder->groupStart()->where('shared_between_units', 1)->orWhereIn('unit_id', $unitIds)->groupEnd();
+        }
+
+        return [
+            'UNIT_CODE' => array_column($unitBuilder->get()->getResultArray(), 'code'),
+            'GRADE_CODE' => array_column($gradeBuilder->get()->getResultArray(), 'code'),
+            'ROOM_CODE' => array_column($roomBuilder->get()->getResultArray(), 'code'),
+            'ROOM_TYPE' => array_column($db->table('room_types')->select('code')->where('is_active', 1)->orderBy('code', 'ASC')->get()->getResultArray(), 'code'),
+            'ACADEMIC_YEAR' => array_column($db->table('academic_years')->select('name')->orderBy('start_date', 'DESC')->get()->getResultArray(), 'name'),
+            'BOOLEAN' => ['1', '0'],
+            'SEMESTER' => ['1', '2'],
+            'GENDER' => ['LAKI_LAKI', 'PEREMPUAN'],
+            'EMPLOYMENT_STATUS' => ['GURU_TETAP', 'GURU_HONORER', 'PNS', 'PPPK', 'DPK', 'KONTRAK'],
+            'EMPLOYMENT_TYPE' => ['FULL_TIME', 'PART_TIME'],
+            'SUBJECT_CATEGORY' => SubjectService::CATEGORIES,
+            'PHASE' => ['A', 'B', 'C', 'D', 'E', 'F'],
+            'MAJOR' => ['MIPA', 'IPS', 'BAHASA'],
+        ];
+    }
+
+    private static function rowIdentity(string $type, array $row): ?string
+    {
+        $parts = match ($type) {
+            'TEACHERS' => [
+                ($row['nip'] ?? '') ?: (($row['nik'] ?? '') ?: (($row['employee_number'] ?? '') ?: strtolower(trim($row['full_name'] ?? '')))),
+                strtoupper(trim($row['primary_unit'] ?? '')),
+            ],
+            'SUBJECTS', 'ROOMS' => [strtoupper(trim($row['code'] ?? ''))],
+            'GRADE_LEVELS' => [strtoupper(trim($row['unit'] ?? '')), strtoupper(trim($row['code'] ?? ''))],
+            'CLASSROOMS' => [
+                trim($row['academic_year'] ?? ''),
+                trim($row['semester'] ?? ''),
+                strtoupper(trim($row['unit'] ?? '')),
+                strtoupper(trim($row['code'] ?? '')),
+            ],
+            default => [],
+        };
+        if ($parts === [] || count(array_filter($parts, static fn ($part) => $part !== '')) !== count($parts)) {
+            return null;
+        }
+
+        return $type . ':' . implode('|', $parts);
     }
 
     private static function resolveUnitCode(string $code): ?array
@@ -516,7 +1038,8 @@ class MasterImportService
                 $normData = json_decode($r['normalized_data_json'], true) ?? [];
                 $action   = $r['admin_decision'] ?? $r['proposed_action'];
 
-                switch ($batch['import_type']) {
+                try {
+                    switch ($batch['import_type']) {
                     case 'TEACHERS':
                         if ($action === 'INSERT') {
                             $unitIds = self::authorizedUnitIds((array) ($normData['unit_ids'] ?? []));
@@ -525,15 +1048,20 @@ class MasterImportService
                                 'nip'               => $normData['nip'] ?? null,
                                 'nik'               => $normData['nik'] ?? null,
                                 'employee_number'   => $normData['employee_number'] ?? null,
+                                'title_prefix'      => $normData['title_prefix'] ?? null,
+                                'degree_suffix'     => $normData['degree_suffix'] ?? null,
                                 'gender'            => $normData['gender'] ?? null,
+                                'birth_place'       => $normData['birth_place'] ?? null,
                                 'birth_date'        => !empty($normData['birth_date']) ? $normData['birth_date'] : null,
                                 'phone'             => $normData['phone'] ?? null,
                                 'email'             => $normData['email'] ?? null,
                                 'address'           => $normData['address'] ?? null,
                                 'employment_status' => $normData['employment_status'] ?? 'GURU_TETAP',
+                                'employment_type'   => $normData['employment_type'] ?? null,
+                                'hire_date'         => !empty($normData['hire_date']) ? $normData['hire_date'] : null,
                                 'primary_unit_id'    => $normData['primary_unit_id'] ?? null,
                                 'notes'             => $normData['notes'] ?? null,
-                                'is_active'         => 1,
+                                'is_active'         => $normData['is_active'] ?? 1,
                             ], $unitIds);
                             $appliedCount++;
                         }
@@ -551,11 +1079,17 @@ class MasterImportService
                                     UnitScopeService::assertSubject((int) $existing['id']);
                                 }
                                 SubjectService::updateSubject($existing['uuid'], [
+                                    'code'       => $code,
                                     'name'       => $normData['name'] ?? $existing['name'],
                                     'category'   => $normData['category'] ?? $existing['category'],
                                     'short_name' => $normData['short_name'] ?? $existing['short_name'],
+                                    'counts_in_report' => $normData['counts_in_report'] ?? $existing['counts_in_report'],
+                                    'counts_as_teaching_load' => $normData['counts_as_teaching_load'] ?? $existing['counts_as_teaching_load'],
+                                    'default_room_type_id' => $normData['default_room_type_id'] ?? $existing['default_room_type_id'],
+                                    'sort_order' => $normData['sort_order'] ?? $existing['sort_order'],
+                                    'is_active' => $normData['is_active'] ?? $existing['is_active'],
                                     'revision_number' => $existing['revision_number'],
-                                ], $unitIds);
+                                ], $unitIds, (array) ($normData['alias_list'] ?? []));
                             } else {
                                 $unitIds = self::authorizedUnitIds((array) ($normData['unit_ids'] ?? []));
                                 SubjectService::createSubject([
@@ -563,9 +1097,42 @@ class MasterImportService
                                     'name'                    => $normData['name'] ?? '',
                                     'short_name'              => $normData['short_name'] ?? ($normData['code'] ?? ''),
                                     'category'                => $normData['category'] ?? 'WAJIB',
-                                    'counts_in_report'        => 1,
-                                    'counts_as_teaching_load' => 1,
-                                ], $unitIds);
+                                    'counts_in_report'        => $normData['counts_in_report'] ?? 1,
+                                    'counts_as_teaching_load' => $normData['counts_as_teaching_load'] ?? 1,
+                                    'default_room_type_id'    => $normData['default_room_type_id'] ?? null,
+                                    'sort_order'              => $normData['sort_order'] ?? 0,
+                                    'is_active'               => $normData['is_active'] ?? 1,
+                                ], $unitIds, (array) ($normData['alias_list'] ?? []));
+                            }
+                            $appliedCount++;
+                        }
+                        break;
+
+                    case 'GRADE_LEVELS':
+                        if ($action === 'INSERT' || $action === 'UPDATE') {
+                            if (session()->get('logged_in')) {
+                                UnitScopeService::assertUnit((int) ($normData['unit_id'] ?? 0));
+                            }
+                            $gradeModel = new GradeLevelModel();
+                            $existing = !empty($r['target_entity_id']) ? $gradeModel->find($r['target_entity_id']) : null;
+                            if ($existing) {
+                                GradeLevelService::updateGradeLevel($existing['uuid'], [
+                                    'name' => $normData['name'] ?? $existing['name'],
+                                    'phase' => $normData['phase'] ?? $existing['phase'],
+                                    'sort_order' => $normData['sort_order'] ?? $existing['sort_order'],
+                                    'is_active' => $normData['is_active'] ?? $existing['is_active'],
+                                ]);
+                            } else {
+                                $gradeModel->insert([
+                                    'unit_id' => (int) $normData['unit_id'],
+                                    'grade_number' => (int) $normData['grade_number'],
+                                    'code' => strtoupper(trim($normData['code'] ?? '')),
+                                    'name' => $normData['name'] ?? '',
+                                    'phase' => ($normData['phase'] ?? '') !== '' ? $normData['phase'] : null,
+                                    'sort_order' => (int) ($normData['sort_order'] ?? $normData['grade_number']),
+                                    'is_active' => $normData['is_active'] ?? 1,
+                                    'created_by' => session()->get('user_id'),
+                                ]);
                             }
                             $appliedCount++;
                         }
@@ -589,8 +1156,11 @@ class MasterImportService
                                     'room_type_id'         => $normData['room_type_id'],
                                     'unit_id'              => $normData['unit_id'],
                                     'shared_between_units' => !empty($normData['shared_between_units']) ? 1 : 0,
-                                    'capacity'             => !empty($normData['capacity']) ? (int)$normData['capacity'] : 30,
-                                    'is_active'            => 1,
+                                    'capacity'             => $normData['capacity'] !== null ? (int) $normData['capacity'] : 30,
+                                    'location'             => $normData['location'] ?? null,
+                                    'floor'                => $normData['floor'] ?? null,
+                                    'facilities'           => (array) ($normData['facilities'] ?? []),
+                                    'is_active'            => $normData['is_active'] ?? 1,
                                 ]);
                                 $appliedCount++;
                             } else {
@@ -602,7 +1172,11 @@ class MasterImportService
                                     'room_type_id'         => $normData['room_type_id'] ?? $existing['room_type_id'],
                                     'unit_id'              => $normData['unit_id'] ?? $existing['unit_id'],
                                     'shared_between_units' => $normData['shared_between_units'] ?? $existing['shared_between_units'],
-                                    'capacity'             => !empty($normData['capacity']) ? (int) $normData['capacity'] : $existing['capacity'],
+                                    'capacity'             => $normData['capacity'] !== null ? (int) $normData['capacity'] : $existing['capacity'],
+                                    'location'             => $normData['location'] ?? $existing['location'],
+                                    'floor'                => $normData['floor'] ?? $existing['floor'],
+                                    'facilities'           => (array) ($normData['facilities'] ?? []),
+                                    'is_active'            => $normData['is_active'] ?? $existing['is_active'],
                                     'revision_number'      => $existing['revision_number'],
                                 ]);
                                 $appliedCount++;
@@ -611,11 +1185,11 @@ class MasterImportService
                         break;
 
                     case 'CLASSROOMS':
-                        if ($action === 'INSERT') {
+                        if ($action === 'INSERT' || $action === 'UPDATE') {
                             if (session()->get('logged_in')) {
                                 UnitScopeService::assertUnit((int) ($normData['unit_id'] ?? 0));
                             }
-                            ClassroomService::createClassroom([
+                            $payload = [
                                 'academic_period_id' => $normData['academic_period_id'] ?? null,
                                 'unit_id'            => $normData['unit_id'] ?? null,
                                 'grade_level_id'     => $normData['grade_level_id'] ?? null,
@@ -623,12 +1197,24 @@ class MasterImportService
                                 'name'               => $normData['name'] ?? '',
                                 'major'              => $normData['major'] ?? null,
                                 'specialization'     => $normData['specialization'] ?? null,
-                                'capacity'           => !empty($normData['capacity']) ? (int) $normData['capacity'] : null,
-                                'is_active'          => isset($normData['active']) ? (int) $normData['active'] : 1,
-                            ]);
+                                'capacity'           => $normData['capacity'] !== null ? (int) $normData['capacity'] : null,
+                                'homeroom_teacher_id'=> $normData['homeroom_teacher_id'] ?? null,
+                                'default_room_id'    => $normData['default_room_id'] ?? null,
+                                'is_active'          => $normData['is_active'] ?? 1,
+                            ];
+                            $existing = !empty($r['target_entity_id']) ? (new ClassroomModel())->find($r['target_entity_id']) : null;
+                            if ($existing) {
+                                $payload['revision_number'] = $existing['revision_number'];
+                                ClassroomService::updateClassroom($existing['uuid'], $payload);
+                            } else {
+                                ClassroomService::createClassroom($payload);
+                            }
                             $appliedCount++;
                         }
                         break;
+                    }
+                } catch (\Throwable $rowError) {
+                    throw new \RuntimeException('Baris Excel ' . $r['row_number'] . ' gagal diterapkan: ' . $rowError->getMessage(), 0, $rowError);
                 }
             }
 

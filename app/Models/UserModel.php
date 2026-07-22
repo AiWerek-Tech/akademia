@@ -60,7 +60,7 @@ class UserModel extends Model
         if ($unitId !== null) {
             $builder->groupStart()
                 ->where('ur.unit_id', $unitId)
-                ->orWhere('ur.unit_id', null)
+                ->orWhere('ur.unit_id IS NULL')
                 ->groupEnd();
         }
 

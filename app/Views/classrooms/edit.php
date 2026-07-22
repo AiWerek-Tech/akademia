@@ -12,6 +12,9 @@
     <div class="card-body p-4">
         <form method="POST" action="<?= base_url('classrooms/' . $classroom['uuid']) ?>">
             <?= csrf_field() ?>
+            <input type="hidden" name="revision_number" value="<?= esc($classroom['revision_number']) ?>">
+            <?php if (session('error')): ?><div class="alert alert-danger rounded-3"><?= esc(session('error')) ?></div><?php endif; ?>
+            <?php if (session('errors')): ?><div class="alert alert-danger rounded-3"><ul class="mb-0"><?php foreach (session('errors') as $message): ?><li><?= esc($message) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
 
             <div class="row g-3">
                 <div class="col-md-3">
@@ -54,7 +57,7 @@
                     <select name="homeroom_teacher_id" class="form-select rounded-3">
                         <option value="">-- Pilih Wali Kelas --</option>
                         <?php foreach ($teachers as $t): ?>
-                            <option value="<?= $t['id'] ?>" <?= (int)$classroom['homeroom_teacher_id'] === (int)$t['id'] ? 'selected' : '' ?>><?= esc($t['name']) ?></option>
+                            <option value="<?= $t['id'] ?>" <?= (int)$classroom['homeroom_teacher_id'] === (int)$t['id'] ? 'selected' : '' ?>><?= esc($t['full_name']) ?><?= !empty($t['employee_number']) ? ' — ' . esc($t['employee_number']) : '' ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -63,7 +66,7 @@
                     <select name="default_room_id" class="form-select rounded-3">
                         <option value="">-- Pilih Ruangan --</option>
                         <?php foreach ($rooms as $r): ?>
-                            <option value="<?= $r['id'] ?>" <?= (int)$classroom['default_room_id'] === (int)$r['id'] ? 'selected' : '' ?>><?= esc($r['name']) ?> (<?= esc($r['type']) ?>)</option>
+                            <option value="<?= $r['id'] ?>" <?= (int)$classroom['default_room_id'] === (int)$r['id'] ? 'selected' : '' ?>><?= esc($r['name']) ?> (<?= esc($r['room_type_name']) ?>)</option>
                         <?php endforeach; ?>
                     </select>
                 </div>

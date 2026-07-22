@@ -14,6 +14,8 @@ use Config\Database;
  */
 final class ExtendedSecurityTest extends CIUnitTestCase
 {
+    private int $smpId = 1;
+
     use FeatureTestTrait;
     use DatabaseTestTrait;
 
@@ -44,9 +46,22 @@ final class ExtendedSecurityTest extends CIUnitTestCase
                 'created_at'           => date('Y-m-d H:i:s'),
             ]);
         }
-        
+
+        // Ensure super_admin role assignment
+        $superAdminRole = $db->table('roles')->where('code', 'super_admin')->get()->getRowArray();
+        if ($superAdminRole) {
+            $existing = $db->table('user_roles')->where('user_id', 1)->where('role_id', $superAdminRole['id'])->get()->getRowArray();
+            if (!$existing) {
+                $db->table('user_roles')->insert([
+                    'user_id' => 1,
+                    'role_id' => $superAdminRole['id'],
+                ]);
+            }
+        }
+
         $smp = $db->table('school_units')->where('code', 'SMP')->get()->getRowArray();
         if ($smp) {
+            $this->smpId = (int)$smp['id'];
             $access = $db->table('user_unit_access')
                 ->where('user_id', 1)
                 ->where('unit_id', $smp['id'])
@@ -71,7 +86,7 @@ final class ExtendedSecurityTest extends CIUnitTestCase
             'user_id'        => 1,
             'username'       => 'admin',
             'role_code'      => 'super_admin',
-            'active_unit_id' => 1,
+            'active_unit_id' => $this->smpId,
             'permissions'    => ['users.manage']
         ];
     }

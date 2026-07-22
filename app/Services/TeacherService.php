@@ -27,6 +27,13 @@ class TeacherService
                         ->where('unit_id', $filters['unit_id']);
                 })
                 ->groupEnd();
+        } elseif (!empty($filters['unit_ids'])) {
+            $builder->groupStart()
+                ->whereIn('teachers.primary_unit_id', $filters['unit_ids'])
+                ->orWhereIn('teachers.id', function ($sub) use ($filters) {
+                    return $sub->select('teacher_id')->from('teacher_unit_assignments')->whereIn('unit_id', $filters['unit_ids']);
+                })
+                ->groupEnd();
         }
 
         // Status filter
@@ -59,7 +66,13 @@ class TeacherService
         $qualModel = new TeacherQualificationModel();
 
         foreach ($teachers as &$t) {
-            $assignments = $assignmentModel->where('teacher_id', $t['id'])->findAll();
+            $assignmentModel->select('teacher_unit_assignments.*, school_units.code as unit_code, school_units.name as unit_name')
+                ->join('school_units', 'school_units.id = teacher_unit_assignments.unit_id')
+                ->where('teacher_id', $t['id']);
+            if (session()->get('logged_in')) {
+                $assignmentModel->whereIn('teacher_unit_assignments.unit_id', UnitScopeService::accessibleUnitIds());
+            }
+            $assignments = $assignmentModel->findAll();
             $qualifications = $qualModel->where('teacher_id', $t['id'])->findAll();
 
             $completeness = TeacherProfileCompletenessService::evaluate($t, $assignments, $qualifications);

@@ -12,6 +12,8 @@
     <div class="card-body p-4">
         <form method="POST" action="<?= base_url('classrooms/store') ?>">
             <?= csrf_field() ?>
+            <?php if (session('error')): ?><div class="alert alert-danger rounded-3"><?= esc(session('error')) ?></div><?php endif; ?>
+            <?php if (session('errors')): ?><div class="alert alert-danger rounded-3"><ul class="mb-0"><?php foreach (session('errors') as $message): ?><li><?= esc($message) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
 
             <div class="row g-3">
                 <div class="col-md-3">
@@ -55,15 +57,15 @@
 
                 <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">Kode Rombel <span class="text-danger">*</span></label>
-                    <input type="text" name="code" class="form-control rounded-3 font-monospace" placeholder="Contoh: VIIA-26" value="<?= old('code') ?>" required>
+                    <input type="text" name="code" class="form-control rounded-3 font-monospace" placeholder="Contoh: VIIA-26" value="<?= esc(old('code')) ?>" required>
                 </div>
                 <div class="col-md-5">
                     <label class="form-label fs-8 fw-bold">Nama Rombel <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control rounded-3" placeholder="Contoh: Kelas VII A" value="<?= old('name') ?>" required>
+                    <input type="text" name="name" class="form-control rounded-3" placeholder="Contoh: Kelas VII A" value="<?= esc(old('name')) ?>" required>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fs-8 fw-bold">Kapasitas Maksimal Siswa</label>
-                    <input type="number" name="capacity" class="form-control rounded-3" value="<?= old('capacity', 36) ?>" required>
+                    <input type="number" name="capacity" class="form-control rounded-3" value="<?= esc(old('capacity', 36)) ?>" required>
                 </div>
 
                 <div class="col-md-6">
@@ -71,7 +73,7 @@
                     <select name="homeroom_teacher_id" class="form-select rounded-3">
                         <option value="">-- Pilih Wali Kelas --</option>
                         <?php foreach ($teachers as $t): ?>
-                            <option value="<?= $t['id'] ?>" <?= old('homeroom_teacher_id') == $t['id'] ? 'selected' : '' ?>><?= esc($t['name']) ?></option>
+                            <option value="<?= $t['id'] ?>" <?= old('homeroom_teacher_id') == $t['id'] ? 'selected' : '' ?>><?= esc($t['full_name']) ?><?= !empty($t['employee_number']) ? ' — ' . esc($t['employee_number']) : '' ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -80,7 +82,7 @@
                     <select name="default_room_id" class="form-select rounded-3">
                         <option value="">-- Pilih Ruangan --</option>
                         <?php foreach ($rooms as $r): ?>
-                            <option value="<?= $r['id'] ?>" <?= old('default_room_id') == $r['id'] ? 'selected' : '' ?>><?= esc($r['name']) ?> (<?= esc($r['type']) ?>)</option>
+                            <option value="<?= $r['id'] ?>" <?= old('default_room_id') == $r['id'] ? 'selected' : '' ?>><?= esc($r['name']) ?> (<?= esc($r['room_type_name']) ?>)</option>
                         <?php endforeach; ?>
                     </select>
                 </div>

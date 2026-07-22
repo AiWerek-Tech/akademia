@@ -1,0 +1,31 @@
+# Milestone 4 Execution Checklist
+
+- [x] Phase 1: Database Schema & Seeds
+  - [x] Create migration `20260722100000_CreateMilestone4Tables.php` (11 tables)
+  - [x] Apply migration and test rollback
+  - [x] Add seeder `Milestone4Seeder.php` for permissions and default duty types
+- [x] Phase 2: Models & Core Entities
+  - [x] Create models for all 11 new tables
+- [x] Phase 3: Workload Policy & Calculations Service
+  - [x] Create `TeacherWorkloadCalculationService`
+  - [x] Implement min/max checking, shortages, overloads, and priority resolution
+- [x] Phase 4: Validation Engine
+  - [x] Implement `AssignmentValidationService` with severity and validation codes
+- [x] Phase 5: Assignment Workflow
+  - [x] Implement `AssignmentWorkflowService` (DRAFT→VALIDATED→REVIEWED→APPROVED→LOCKED)
+- [x] Phase 6: Requirement Matrix
+  - [x] Implement assignment requirement matrix, resolving grade defaults and classroom overrides
+- [x] Phase 7: Staging & Import Flow
+  - [x] Implement `AssignmentImportService` (upload, validate, map, apply, rollback)
+- [x] Phase 8: Controllers, Routes, & Views
+  - [x] Implement endpoints and UI pages for assignments, workloads, duties
+  - [x] Route security: auth, password_change_required, unit_access filters applied
+- [x] Phase 9: Testing & Verification
+  - [x] Write `Milestone4AcceptanceTest.php` (1 test, 20 assertions) — PASSED
+  - [x] Fix `AssignmentValidationService.php` syntax error (string interpolation with `??`)
+  - [x] Fix `AddCurriculumScopeUniqueKeys` migration `down()` — guard with `tableExists()`
+  - [x] Fix `auth_helper.php` static permission cache — clear in testing env
+  - [x] Fix `UserModel::getPermissions` — `IS NULL` instead of `= null`
+  - [x] Fix `Milestone3AcceptanceTest` — create user/role before unit_access FK
+  - [x] Fix `WorkflowTest` — create user/role in DB for permission checks
+  - [x] Run full test suite — PASSED (163 tests, 481 assertions, PHP 8.2.20 runtime, commits `7fe7874` & `1ec9f88`)

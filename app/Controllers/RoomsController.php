@@ -18,12 +18,16 @@ class RoomsController extends BaseController
         }
 
         try {
-            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
+            $query = $this->request->getGet();
+            $unitId = array_key_exists('unit_id', $query) && $query['unit_id'] === ''
+                ? null
+                : UnitScopeService::resolveUnit($query['unit_id'] ?? null);
         } catch (\Throwable $e) {
             return redirect()->to('/dashboard')->with('error', $e->getMessage());
         }
         $filters = [
             'unit_id'      => $unitId,
+            'unit_ids'     => UnitScopeService::accessibleUnitIds(),
             'room_type_id' => $this->request->getGet('room_type_id'),
             'is_active'    => $this->request->getGet('is_active'),
             'search'       => $this->request->getGet('search'),
@@ -76,6 +80,7 @@ class RoomsController extends BaseController
             'code'         => 'required|min_length[2]|max_length[30]',
             'name'         => 'required|min_length[3]|max_length[100]',
             'room_type_id' => 'required|numeric',
+            'capacity'     => 'permit_empty|integer|greater_than_equal_to[0]',
         ];
 
         if (!$this->validate($rules)) {
@@ -84,6 +89,8 @@ class RoomsController extends BaseController
 
         try {
             $data = $this->request->getPost();
+            $data['facilities'] = $this->parseFacilities($data['facilities_text'] ?? '');
+            unset($data['facilities_text']);
             if (empty($data['shared_between_units'])) {
                 $data['unit_id'] = UnitScopeService::resolveUnit($data['unit_id'] ?? null);
             } elseif (!empty($data['unit_id'])) {
@@ -138,6 +145,7 @@ class RoomsController extends BaseController
             'code'            => 'required|min_length[2]|max_length[30]',
             'name'            => 'required|min_length[3]|max_length[100]',
             'room_type_id'    => 'required|numeric',
+            'capacity'        => 'permit_empty|integer|greater_than_equal_to[0]',
             'revision_number' => 'required|numeric',
         ];
 
@@ -152,6 +160,8 @@ class RoomsController extends BaseController
             }
             UnitScopeService::assertRoom((int) $room['id']);
             $data = $this->request->getPost();
+            $data['facilities'] = $this->parseFacilities($data['facilities_text'] ?? '');
+            unset($data['facilities_text']);
             if (empty($data['shared_between_units'])) {
                 $data['unit_id'] = UnitScopeService::resolveUnit($data['unit_id'] ?? $room['unit_id']);
             } elseif (!empty($data['unit_id'])) {
@@ -180,5 +190,12 @@ class RoomsController extends BaseController
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
+    }
+
+    private function parseFacilities(string $value): array
+    {
+        $items = preg_split('/[,;\r\n]+/', $value) ?: [];
+        $items = array_values(array_unique(array_filter(array_map('trim', $items))));
+        return $items;
     }
 }

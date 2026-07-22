@@ -19,15 +19,17 @@
                 <form action="<?= base_url('academic-periods/' . $period['uuid']) ?>" method="POST">
                     <?= csrf_field() ?>
                     <input type="hidden" name="revision_number" value="<?= esc($period['revision_number']) ?>">
+                    <?php if (session('error')): ?><div class="alert alert-danger rounded-3"><?= esc(session('error')) ?></div><?php endif; ?>
+                    <?php if (session('errors')): ?><div class="alert alert-danger rounded-3"><ul class="mb-0"><?php foreach (session('errors') as $message): ?><li><?= esc($message) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
 
                     <div class="row">
                         <div class="col-6 mb-3">
                             <label for="start_date" class="form-label fw-semibold">Tanggal Mulai <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control rounded-3" id="start_date" name="start_date" value="<?= old('start_date', $period['start_date']) ?>" required>
+                            <input type="date" class="form-control rounded-3" id="start_date" name="start_date" value="<?= esc(old('start_date', $period['start_date'])) ?>" required>
                         </div>
                         <div class="col-6 mb-3">
                             <label for="end_date" class="form-label fw-semibold">Tanggal Selesai <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control rounded-3" id="end_date" name="end_date" value="<?= old('end_date', $period['end_date']) ?>" required>
+                            <input type="date" class="form-control rounded-3" id="end_date" name="end_date" value="<?= esc(old('end_date', $period['end_date'])) ?>" required>
                         </div>
                     </div>
 

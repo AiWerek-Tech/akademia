@@ -170,8 +170,20 @@ class CurriculumWorkflowService
                 throw new \RuntimeException('Versi kurikulum tidak ditemukan.');
             }
 
-            if (!in_array($version['workflow_status'], ['APPROVED', 'LOCKED'], true)) {
-                throw new \RuntimeException('Hanya versi kurikulum yang berstatus APPROVED atau LOCKED yang dapat diaktifkan.');
+            if ($version['workflow_status'] === 'ARCHIVED') {
+                throw new \RuntimeException('Kurikulum yang sudah diarsipkan tidak dapat diaktifkan.');
+            }
+
+            $structureCount = $db->table('curriculum_structures')
+                ->where('curriculum_version_id', $version['id'])->where('status', 'ACTIVE')
+                ->where('deleted_at IS NULL')->countAllResults();
+            if ($structureCount === 0) {
+                throw new \RuntimeException('Tambahkan setidaknya satu mata pelajaran sebelum mengaktifkan kurikulum.');
+            }
+
+            $validation = CurriculumValidationService::validateVersion((int) $version['id']);
+            if ($validation['has_blockers']) {
+                throw new \RuntimeException("Kurikulum belum dapat diaktifkan karena masih ada {$validation['errors']} data yang perlu diperbaiki.");
             }
 
             // Deactivate all other versions for the same academic period
@@ -182,6 +194,9 @@ class CurriculumWorkflowService
             // Activate target version
             $versionModel->update($version['id'], [
                 'is_active'  => 1,
+                'workflow_status' => 'APPROVED',
+                'approved_by' => $userId,
+                'approved_at' => date('Y-m-d H:i:s'),
                 'updated_by' => $userId,
             ]);
 

@@ -23,13 +23,17 @@ class ClassroomsController extends BaseController
         $activePeriodId = session()->get('active_period_id');
 
         try {
-            $unitId = UnitScopeService::resolveUnit($this->request->getGet('unit_id'));
+            $query = $this->request->getGet();
+            $unitId = array_key_exists('unit_id', $query) && $query['unit_id'] === ''
+                ? null
+                : UnitScopeService::resolveUnit($query['unit_id'] ?? null);
         } catch (\Throwable $e) {
             return redirect()->to('/dashboard')->with('error', $e->getMessage());
         }
 
         $filters = [
             'unit_id'            => $unitId,
+            'unit_ids'           => UnitScopeService::accessibleUnitIds(),
             'academic_period_id' => $this->request->getGet('academic_period_id') ?? $activePeriodId,
             'grade_level_id'     => $this->request->getGet('grade_level_id'),
             'is_active'          => $this->request->getGet('is_active'),
@@ -43,7 +47,7 @@ class ClassroomsController extends BaseController
         $periodModel = new AcademicPeriodModel();
         $periods = $periodModel->orderBy('id', 'DESC')->findAll();
 
-        $gradeLevels = GradeLevelService::getGradeLevels($filters['unit_id'] ? (int)$filters['unit_id'] : null);
+        $gradeLevels = GradeLevelService::getGradeLevels($filters['unit_id'] ? (int)$filters['unit_id'] : null, $filters['unit_ids']);
 
         return view('classrooms/index', [
             'title'             => 'Master Kelas / Rombel',
@@ -100,6 +104,7 @@ class ClassroomsController extends BaseController
             'grade_level_id'     => 'required|numeric',
             'code'               => 'required|min_length[2]|max_length[30]',
             'name'               => 'required|min_length[3]|max_length[100]',
+            'capacity'           => 'permit_empty|integer|greater_than_equal_to[0]',
         ];
 
         if (!$this->validate($rules)) {
@@ -164,6 +169,7 @@ class ClassroomsController extends BaseController
         $rules = [
             'code'            => 'required|min_length[2]|max_length[30]',
             'name'            => 'required|min_length[3]|max_length[100]',
+            'capacity'        => 'permit_empty|integer|greater_than_equal_to[0]',
             'revision_number' => 'required|numeric',
         ];
 

@@ -301,18 +301,18 @@ class CurriculumStructureService
             $newRevision = (int)$structure['revision_number'] + 1;
 
             $updateData = [
-                'official_weekly_hours'   => array_key_exists('official_weekly_hours', $data) ? ($data['official_weekly_hours'] !== '' ? (float)$data['official_weekly_hours'] : null) : $structure['official_weekly_hours'],
-                'custom_weekly_hours'     => array_key_exists('custom_weekly_hours', $data) ? ($data['custom_weekly_hours'] !== '' ? (float)$data['custom_weekly_hours'] : null) : $structure['custom_weekly_hours'],
-                'manual_weekly_hours'     => array_key_exists('manual_weekly_hours', $data) ? ($data['manual_weekly_hours'] !== '' ? (float)$data['manual_weekly_hours'] : null) : $structure['manual_weekly_hours'],
+                'official_weekly_hours'   => array_key_exists('official_weekly_hours', $data) ? ($data['official_weekly_hours'] !== '' && $data['official_weekly_hours'] !== null ? (float)$data['official_weekly_hours'] : null) : $structure['official_weekly_hours'],
+                'custom_weekly_hours'     => array_key_exists('custom_weekly_hours', $data) ? ($data['custom_weekly_hours'] !== '' && $data['custom_weekly_hours'] !== null ? (float)$data['custom_weekly_hours'] : null) : $structure['custom_weekly_hours'],
+                'manual_weekly_hours'     => array_key_exists('manual_weekly_hours', $data) ? ($data['manual_weekly_hours'] !== '' && $data['manual_weekly_hours'] !== null ? (float)$data['manual_weekly_hours'] : null) : $structure['manual_weekly_hours'],
                 'effective_weekly_hours'  => $effResult['effective_weekly_hours'],
                 'effective_source'        => $effResult['effective_source'],
                 'category'                => isset($data['category']) ? strtoupper(trim($data['category'])) : $structure['category'],
                 'block_pattern_json'      => $blockPatternJson,
-                'minimum_days'            => array_key_exists('minimum_days', $data) ? ($data['minimum_days'] !== '' ? (int)$data['minimum_days'] : null) : $structure['minimum_days'],
-                'maximum_daily_hours'     => array_key_exists('maximum_daily_hours', $data) ? ($data['maximum_daily_hours'] !== '' ? (float)$data['maximum_daily_hours'] : null) : $structure['maximum_daily_hours'],
+                'minimum_days'            => array_key_exists('minimum_days', $data) ? ($data['minimum_days'] !== '' && $data['minimum_days'] !== null ? (int)$data['minimum_days'] : null) : $structure['minimum_days'],
+                'maximum_daily_hours'     => array_key_exists('maximum_daily_hours', $data) ? ($data['maximum_daily_hours'] !== '' && $data['maximum_daily_hours'] !== null ? (float)$data['maximum_daily_hours'] : null) : $structure['maximum_daily_hours'],
                 'counts_in_report'        => isset($data['counts_in_report']) ? (int)$data['counts_in_report'] : $structure['counts_in_report'],
                 'counts_as_teaching_load' => isset($data['counts_as_teaching_load']) ? (int)$data['counts_as_teaching_load'] : $structure['counts_as_teaching_load'],
-                'required_room_type_id'   => array_key_exists('required_room_type_id', $data) ? ($data['required_room_type_id'] !== '' ? (int)$data['required_room_type_id'] : null) : $structure['required_room_type_id'],
+                'required_room_type_id'   => array_key_exists('required_room_type_id', $data) ? ($data['required_room_type_id'] !== '' && $data['required_room_type_id'] !== null ? (int)$data['required_room_type_id'] : null) : $structure['required_room_type_id'],
                 'schedule_priority'       => isset($data['schedule_priority']) ? (int)$data['schedule_priority'] : $structure['schedule_priority'],
                 'adjustment_reason'       => $effResult['adjustment_reason'],
                 'legal_reference'         => array_key_exists('legal_reference', $data) ? $data['legal_reference'] : $structure['legal_reference'],
@@ -321,11 +321,13 @@ class CurriculumStructureService
                 'updated_by'              => $userId,
             ];
 
-            $db->table('curriculum_structures')
+            $updated = $db->table('curriculum_structures')
                 ->where('id', $structure['id'])
                 ->where('revision_number', $structure['revision_number'])
                 ->update($updateData);
-            if ($db->affectedRows() !== 1) {
+            $persistedRevision = $db->table('curriculum_structures')->select('revision_number')
+                ->where('id', $structure['id'])->get()->getRowArray();
+            if (!$updated || !$persistedRevision || (int) $persistedRevision['revision_number'] !== $newRevision) {
                 throw new \RuntimeException('Struktur telah diperbarui oleh pengguna lain. Silakan muat ulang halaman.');
             }
 

@@ -1,6 +1,6 @@
 <?= $this->extend('layouts/admin') ?>
 
-<?= $this->section('content') ?>
+<?= $this->section('main_content') ?>
 <div class="container-fluid px-4 py-4">
     <div class="mb-4">
         <a href="<?= base_url('curriculum/' . $version['uuid']) ?>" class="text-decoration-none small"><i class="bi bi-arrow-left me-1"></i> Kembali ke Versi Kurikulum</a>

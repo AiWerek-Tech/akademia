@@ -155,7 +155,7 @@
             <?= csrf_field() ?>
 
             <div class="form-floating mb-3">
-                <input type="text" class="form-control" id="username" name="username" placeholder="Username" required value="<?= old('username') ?>">
+                <input type="text" class="form-control" id="username" name="username" placeholder="Username" required value="<?= esc(old('username')) ?>">
                 <label for="username"><i class="bi bi-person me-2"></i>Username</label>
             </div>
 
@@ -186,7 +186,7 @@
             Swal.fire({
                 icon: 'error',
                 title: 'Gagal Masuk',
-                text: '<?= session()->getFlashdata('error') ?>',
+                text: <?= json_encode(session()->getFlashdata('error'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
                 confirmButtonColor: '#3b82f6',
                 background: '#1e293b',
                 color: '#fff'
@@ -197,7 +197,7 @@
             Swal.fire({
                 icon: 'success',
                 title: 'Berhasil',
-                text: '<?= session()->getFlashdata('success') ?>',
+                text: <?= json_encode(session()->getFlashdata('success'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
                 confirmButtonColor: '#3b82f6',
                 background: '#1e293b',
                 color: '#fff'

@@ -16,15 +16,15 @@
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">Kode Mapel <span class="text-danger">*</span></label>
-                    <input type="text" name="code" class="form-control rounded-3" placeholder="misal: MAT, IND, IPA" value="<?= old('code') ?>" required>
+                    <input type="text" name="code" class="form-control rounded-3" placeholder="misal: MAT, IND, IPA" value="<?= esc(old('code')) ?>" required>
                 </div>
                 <div class="col-md-5">
                     <label class="form-label fs-8 fw-bold">Nama Lengkap Mapel <span class="text-danger">*</span></label>
-                    <input type="text" name="name" class="form-control rounded-3" placeholder="misal: Matematika Umum" value="<?= old('name') ?>" required>
+                    <input type="text" name="name" class="form-control rounded-3" placeholder="misal: Matematika Umum" value="<?= esc(old('name')) ?>" required>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fs-8 fw-bold">Nama Singkat <span class="text-danger">*</span></label>
-                    <input type="text" name="short_name" class="form-control rounded-3" placeholder="misal: MTK" value="<?= old('short_name') ?>" required>
+                    <input type="text" name="short_name" class="form-control rounded-3" placeholder="misal: MTK" value="<?= esc(old('short_name')) ?>" required>
                 </div>
 
                 <div class="col-md-6">
@@ -50,7 +50,7 @@
 
                 <div class="col-12">
                     <label class="form-label fs-8 fw-bold">Alias Nama (pisahkan dengan koma)</label>
-                    <input type="text" name="aliases" class="form-control rounded-3" placeholder="misal: Math, Matematika Wajib, MTK" value="<?= old('aliases') ?>">
+                    <input type="text" name="aliases" class="form-control rounded-3" placeholder="misal: Math, Matematika Wajib, MTK" value="<?= esc(old('aliases')) ?>">
                 </div>
 
                 <div class="col-md-6">

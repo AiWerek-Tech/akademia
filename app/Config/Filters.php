@@ -121,6 +121,12 @@ class Filters extends BaseConfig
                 'duplicates/*',
                 'curriculum',
                 'curriculum/*',
+                'assignments',
+                'assignments/*',
+                'workloads',
+                'workloads/*',
+                'duties',
+                'duties/*',
             ]
         ],
         'unit_access' => [
@@ -157,6 +163,12 @@ class Filters extends BaseConfig
                 'duplicates/*',
                 'curriculum',
                 'curriculum/*',
+                'assignments',
+                'assignments/*',
+                'workloads',
+                'workloads/*',
+                'duties',
+                'duties/*',
             ]
         ],
         'password_change_required' => [
@@ -193,6 +205,12 @@ class Filters extends BaseConfig
                 'duplicates/*',
                 'curriculum',
                 'curriculum/*',
+                'assignments',
+                'assignments/*',
+                'workloads',
+                'workloads/*',
+                'duties',
+                'duties/*',
             ]
         ]
     ];

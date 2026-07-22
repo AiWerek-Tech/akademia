@@ -16,28 +16,28 @@
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label fs-8 fw-bold">Gelar Depan</label>
-                    <input type="text" name="title_prefix" class="form-control rounded-3" placeholder="misal: Drs., Dr." value="<?= old('title_prefix') ?>">
+                    <input type="text" name="title_prefix" class="form-control rounded-3" placeholder="misal: Drs., Dr." value="<?= esc(old('title_prefix')) ?>">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fs-8 fw-bold">Nama Lengkap <span class="text-danger">*</span></label>
-                    <input type="text" name="full_name" class="form-control rounded-3" placeholder="Nama tanpa gelar" value="<?= old('full_name') ?>" required>
+                    <input type="text" name="full_name" class="form-control rounded-3" placeholder="Nama tanpa gelar" value="<?= esc(old('full_name')) ?>" required>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fs-8 fw-bold">Gelar Belakang</label>
-                    <input type="text" name="degree_suffix" class="form-control rounded-3" placeholder="misal: S.Pd, M.Pd" value="<?= old('degree_suffix') ?>">
+                    <input type="text" name="degree_suffix" class="form-control rounded-3" placeholder="misal: S.Pd, M.Pd" value="<?= esc(old('degree_suffix')) ?>">
                 </div>
 
                 <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">NIP (ASN/PNS)</label>
-                    <input type="text" name="nip" class="form-control rounded-3" placeholder="Nomor Induk Pegawai" value="<?= old('nip') ?>">
+                    <input type="text" name="nip" class="form-control rounded-3" placeholder="Nomor Induk Pegawai" value="<?= esc(old('nip')) ?>">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">NIK (KTP)</label>
-                    <input type="text" name="nik" class="form-control rounded-3" placeholder="Nomor Induk Kependudukan" value="<?= old('nik') ?>">
+                    <input type="text" name="nik" class="form-control rounded-3" placeholder="Nomor Induk Kependudukan" value="<?= esc(old('nik')) ?>">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">Nomor Pegawai / NIPG</label>
-                    <input type="text" name="employee_number" class="form-control rounded-3" placeholder="Identitas internal sekolah" value="<?= old('employee_number') ?>">
+                    <input type="text" name="employee_number" class="form-control rounded-3" placeholder="Identitas internal sekolah" value="<?= esc(old('employee_number')) ?>">
                 </div>
 
                 <div class="col-md-4">
@@ -50,11 +50,11 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">Tempat Lahir</label>
-                    <input type="text" name="birth_place" class="form-control rounded-3" value="<?= old('birth_place') ?>">
+                    <input type="text" name="birth_place" class="form-control rounded-3" value="<?= esc(old('birth_place')) ?>">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">Tanggal Lahir</label>
-                    <input type="date" name="birth_date" class="form-control rounded-3" value="<?= old('birth_date') ?>">
+                    <input type="date" name="birth_date" class="form-control rounded-3" value="<?= esc(old('birth_date')) ?>">
                 </div>
 
                 <div class="col-md-6">
@@ -80,16 +80,16 @@
 
                 <div class="col-md-6">
                     <label class="form-label fs-8 fw-bold">Telepon / Whatsapp</label>
-                    <input type="text" name="phone" class="form-control rounded-3" placeholder="08xxxxxxxxxx" value="<?= old('phone') ?>">
+                    <input type="text" name="phone" class="form-control rounded-3" placeholder="08xxxxxxxxxx" value="<?= esc(old('phone')) ?>">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fs-8 fw-bold">Email</label>
-                    <input type="email" name="email" class="form-control rounded-3" placeholder="guru@wmvaa.sch.id" value="<?= old('email') ?>">
+                    <input type="email" name="email" class="form-control rounded-3" placeholder="guru@wmvaa.sch.id" value="<?= esc(old('email')) ?>">
                 </div>
 
                 <div class="col-12">
                     <label class="form-label fs-8 fw-bold">Alamat Tempat Tinggal</label>
-                    <textarea name="address" class="form-control rounded-3" rows="2"><?= old('address') ?></textarea>
+                    <textarea name="address" class="form-control rounded-3" rows="2"><?= esc(old('address')) ?></textarea>
                 </div>
 
                 <div class="col-12 mt-4 d-flex justify-content-end gap-2">
