@@ -12,7 +12,9 @@ final class ExampleDatabaseTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
 
-    protected $seed = ExampleSeeder::class;
+    protected $migrate   = true;
+    protected $namespace = 'Tests\Support';
+    protected $seed      = ExampleSeeder::class;
 
     public function testModelFindAll(): void
     {

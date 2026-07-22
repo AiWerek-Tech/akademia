@@ -60,7 +60,7 @@ $activeCount = count(array_filter($versions, static fn ($item) => (int) $item['i
                             <div class="d-inline-flex flex-wrap justify-content-end gap-2">
                                 <a href="<?= base_url('curriculum/' . $version['uuid']) ?>" class="btn btn-sm btn-outline-primary">Kelola struktur</a>
                                 <?php if ((int) $version['is_active'] !== 1 && (has_permission('curriculum.manage') || has_permission('curriculum.approve'))): ?>
-                                    <form action="<?= base_url('curriculum/' . $version['uuid'] . '/activate') ?>" method="post" onsubmit="return confirm('Aktifkan kurikulum ini untuk periode <?= esc($version['period_name'] ?? '') ?>?')"><?= csrf_field() ?><button class="btn btn-sm btn-success"><i class="bi bi-check2-circle me-1"></i>Aktifkan</button></form>
+                                    <form action="<?= base_url('curriculum/' . $version['uuid'] . '/activate') ?>" method="post" data-confirm="Aktifkan kurikulum ini untuk periode <?= esc($version['period_name'] ?? '') ?>?" data-confirm-title="Aktifkan kurikulum?" data-confirm-button="Aktifkan"><?= csrf_field() ?><button class="btn btn-sm btn-success"><i class="bi bi-check2-circle me-1"></i>Aktifkan</button></form>
                                 <?php endif; ?>
                             </div>
                         </td>

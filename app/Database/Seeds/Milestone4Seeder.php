@@ -22,17 +22,19 @@ class Milestone4Seeder extends Seeder
         $db->table('feature_flags')->where('code', 'assignments')->update(['enabled' => 1, 'updated_at' => date('Y-m-d H:i:s')]);
         $db->table('feature_flags')->where('code', 'workload')->update(['enabled' => 1, 'updated_at' => date('Y-m-d H:i:s')]);
 
-        // 2. Additional duty types lookup data (null workload)
+        // 2. Additional duty types lookup data (with standard workload hours)
         $duties = [
-            ['code' => 'HEADMASTER', 'name' => 'Kepala Sekolah', 'category' => 'STRUKTURAL', 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 1],
-            ['code' => 'VICE_PRINCIPAL', 'name' => 'Wakil Kepala Sekolah', 'category' => 'STRUKTURAL', 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 2],
-            ['code' => 'HOMEROOM_TEACHER', 'name' => 'Wali Kelas', 'category' => 'STRUKTURAL', 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 3],
-            ['code' => 'COUNSELING_COORDINATOR', 'name' => 'Koordinator BK', 'category' => 'STRUKTURAL', 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 4],
-            ['code' => 'LAB_HEAD', 'name' => 'Kepala Laboratorium', 'category' => 'STRUKTURAL', 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 5],
-            ['code' => 'LIBRARY_HEAD', 'name' => 'Kepala Perpustakaan', 'category' => 'STRUKTURAL', 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 6],
-            ['code' => 'ADMINISTRATIVE_DUTY', 'name' => 'Tugas Administratif', 'category' => 'FUNGSIONAL', 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 7],
-            ['code' => 'COMMITTEE_ROLE', 'name' => 'Panitia/Komite', 'category' => 'KOKURIKULER', 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 8],
-            ['code' => 'OTHER', 'name' => 'Tugas Tambahan Lainnya', 'category' => 'LAINNYA', 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 9],
+            ['code' => 'HEADMASTER', 'name' => 'Kepala Sekolah', 'category' => 'STRUKTURAL', 'default_workload_hours' => 24.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 1],
+            ['code' => 'VICE_PRINCIPAL', 'name' => 'Wakil Kepala Sekolah', 'category' => 'STRUKTURAL', 'default_workload_hours' => 12.00, 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 2],
+            ['code' => 'TREASURER', 'name' => 'Bendahara Sekolah / TU', 'category' => 'STRUKTURAL', 'default_workload_hours' => 12.00, 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 3],
+            ['code' => 'HOMEROOM_TEACHER', 'name' => 'Wali Kelas', 'category' => 'STRUKTURAL', 'default_workload_hours' => 2.00, 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 4],
+            ['code' => 'LAB_HEAD', 'name' => 'Kepala Laboratorium', 'category' => 'STRUKTURAL', 'default_workload_hours' => 2.00, 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 5],
+            ['code' => 'LIBRARY_HEAD', 'name' => 'Kepala Perpustakaan', 'category' => 'STRUKTURAL', 'default_workload_hours' => 2.00, 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 6],
+            ['code' => 'PATHFINDER_DIR', 'name' => 'Director / Pembina Pathfinder', 'category' => 'KOKURIKULER', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 7],
+            ['code' => 'DAPODIK_OPERATOR', 'name' => 'Operator Dapodik', 'category' => 'FUNGSIONAL', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 8],
+            ['code' => 'COUNSELING_COORDINATOR', 'name' => 'Koordinator BK / Chaplain', 'category' => 'STRUKTURAL', 'default_workload_hours' => 2.00, 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 9],
+            ['code' => 'COMMITTEE_ROLE', 'name' => 'Pembina OSIS / Panitia', 'category' => 'KOKURIKULER', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 10],
+            ['code' => 'OTHER', 'name' => 'Tugas Tambahan Lainnya', 'category' => 'LAINNYA', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 11],
         ];
 
         foreach ($duties as $d) {

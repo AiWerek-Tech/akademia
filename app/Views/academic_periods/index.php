@@ -105,7 +105,7 @@
                                                     <i data-lucide="eye" style="width: 14px; height: 14px;"></i> Detail
                                                 </a>
                                                 <?php if ((int)$ap['is_active'] === 0 && $ap['workflow_status'] !== 'ARCHIVED' && has_permission('academic_periods.manage')): ?>
-                                                    <form action="<?= base_url('academic-periods/' . $ap['uuid'] . '/activate') ?>" method="POST" class="d-inline" onsubmit="return confirm('Aktifkan Semester <?= (int)$ap['semester_number'] === 1 ? 'Ganjil' : 'Genap' ?> T.A. <?= esc($ap['year_name']) ?> sekarang? Periode aktif sebelumnya akan dinonaktifkan otomatis.');">
+                                                    <form action="<?= base_url('academic-periods/' . $ap['uuid'] . '/activate') ?>" method="POST" class="d-inline" data-confirm="Aktifkan Semester <?= (int)$ap['semester_number'] === 1 ? 'Ganjil' : 'Genap' ?> T.A. <?= esc($ap['year_name']) ?> sekarang? Periode aktif sebelumnya akan dinonaktifkan otomatis." data-confirm-title="Aktifkan periode?" data-confirm-button="Aktifkan">
                                                         <?= csrf_field() ?>
                                                         <button type="submit" class="btn btn-sm btn-success rounded-3 d-inline-flex align-items-center gap-1">
                                                             <i data-lucide="play-circle" style="width: 14px; height: 14px;"></i> Aktifkan Sekarang

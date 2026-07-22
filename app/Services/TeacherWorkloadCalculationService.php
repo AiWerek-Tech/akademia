@@ -220,4 +220,127 @@ class TeacherWorkloadCalculationService
             self::createSnapshot((int)$t['id'], $versionId, $periodId, $unitId, $actorId);
         }
     }
+
+    /**
+     * Get detailed school-wide workload report matching real school spreadsheet
+     */
+    public static function getDetailedWorkloadReport(int $versionId, int $periodId, ?int $unitId = null): array
+    {
+        $db = \Config\Database::connect();
+
+        // 1. Get all Grade Levels (VII-XII) ordered by number
+        $gradeBuilder = $db->table('grade_levels')->where('is_active', 1)->where('deleted_at IS NULL');
+        if ($unitId !== null) {
+            $gradeBuilder->where('unit_id', $unitId);
+        }
+        $grades = $gradeBuilder->orderBy('grade_number', 'ASC')->get()->getResultArray();
+
+        // 2. Get active teachers for this version
+        $teacherQuery = $db->table('teachers t')
+            ->select('t.*')
+            ->where('t.is_active', 1)
+            ->where('t.deleted_at IS NULL');
+        $teachers = $teacherQuery->orderBy('t.full_name', 'ASC')->get()->getResultArray();
+
+        $rows = [];
+        $summary = [
+            'total_teachers'  => count($teachers),
+            'underload_count' => 0,
+            'optimal_count'   => 0,
+            'overload_count'  => 0,
+            'grand_teaching'  => 0.0,
+            'grand_duties'    => 0.0,
+            'grand_total'     => 0.0,
+        ];
+
+        foreach ($teachers as $t) {
+            $tId = (int)$t['id'];
+
+            // Get teaching assignments grouped by subject & grade
+            $assignments = $db->table('teaching_assignments ta')
+                ->select('ta.*, s.name as subject_name, s.code as subject_code, gl.code as grade_code, gl.id as grade_id')
+                ->join('subjects s', 's.id = ta.subject_id', 'left')
+                ->join('grade_levels gl', 'gl.id = ta.grade_level_id', 'left')
+                ->where('ta.assignment_version_id', $versionId)
+                ->where('ta.teacher_id', $tId)
+                ->where('ta.status', 'ACTIVE')
+                ->get()->getResultArray();
+
+            // Get additional duties
+            $duties = $db->table('teacher_additional_duties tad')
+                ->select('tad.*, adt.name as duty_type_name, adt.code as duty_type_code')
+                ->join('additional_duty_types adt', 'adt.id = tad.duty_type_id', 'left')
+                ->where('tad.assignment_version_id', $versionId)
+                ->where('tad.teacher_id', $tId)
+                ->where('tad.status', 'ACTIVE')
+                ->get()->getResultArray();
+
+            $teachingAssigned = 0.0;
+            $teachingWorkload = 0.0;
+            $gradeAllocations = [];
+            foreach ($grades as $g) {
+                $gradeAllocations[(int)$g['id']] = 0.0;
+            }
+
+            $subjectSummary = [];
+            foreach ($assignments as $a) {
+                $hours = (float)$a['workload_weekly_hours'];
+                $teachingWorkload += $hours;
+                $teachingAssigned += (float)$a['assigned_weekly_hours'];
+                $gId = (int)$a['grade_id'];
+                if (isset($gradeAllocations[$gId])) {
+                    $gradeAllocations[$gId] += $hours;
+                }
+                $subjectSummary[] = $a['subject_name'];
+            }
+
+            $dutyHours = 0.0;
+            $dutyTitles = [];
+            foreach ($duties as $d) {
+                $dHours = (float)($d['workload_hours'] ?? 0.0);
+                $dutyHours += $dHours;
+                $dutyTitles[] = $d['title_override'] ?: $d['duty_type_name'];
+            }
+
+            $totalBeban = $teachingWorkload + $dutyHours;
+            $diffMin24 = $totalBeban - 24.0;
+            $diffMax40 = $totalBeban - 40.0;
+
+            if ($totalBeban < 24.0) {
+                $status = 'UNDERLOAD';
+                $summary['underload_count']++;
+            } elseif ($totalBeban > 40.0) {
+                $status = 'OVERLOAD';
+                $summary['overload_count']++;
+            } else {
+                $status = 'OPTIMAL';
+                $summary['optimal_count']++;
+            }
+
+            $summary['grand_teaching'] += $teachingWorkload;
+            $summary['grand_duties']   += $dutyHours;
+            $summary['grand_total']    += $totalBeban;
+
+            $rows[] = [
+                'teacher_id'        => $tId,
+                'full_name'         => $t['full_name'],
+                'nip'               => $t['nip'] ?? '-',
+                'duties_title'      => implode(', ', $dutyTitles),
+                'subjects_title'    => implode(', ', array_unique($subjectSummary)),
+                'teaching_hours'    => $teachingWorkload,
+                'duty_hours'        => $dutyHours,
+                'total_beban'       => $totalBeban,
+                'diff_min_24'       => $diffMin24,
+                'diff_max_40'       => $diffMax40,
+                'status'            => $status,
+                'grade_allocations' => $gradeAllocations,
+            ];
+        }
+
+        return [
+            'grades'  => $grades,
+            'rows'    => $rows,
+            'summary' => $summary,
+        ];
+    }
 }

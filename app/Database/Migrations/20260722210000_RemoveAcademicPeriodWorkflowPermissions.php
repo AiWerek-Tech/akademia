@@ -15,6 +15,9 @@ class RemoveAcademicPeriodWorkflowPermissions extends Migration
 
     public function up()
     {
+        if (!$this->db->tableExists('permissions')) {
+            return;
+        }
         $rows = $this->db->table('permissions')->select('id')->whereIn('code', $this->codes)->get()->getResultArray();
         $ids = array_map('intval', array_column($rows, 'id'));
         if ($ids !== []) {
@@ -25,6 +28,9 @@ class RemoveAcademicPeriodWorkflowPermissions extends Migration
 
     public function down()
     {
+        if (!$this->db->tableExists('permissions')) {
+            return;
+        }
         $definitions = [
             ['code' => 'academic_periods.validate', 'name' => 'Validate Academic Periods'],
             ['code' => 'academic_periods.review', 'name' => 'Review Academic Periods'],

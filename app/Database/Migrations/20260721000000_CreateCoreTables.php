@@ -562,8 +562,12 @@ class CreateCoreTables extends Migration
         
         // Add indexes manually for login attempts
         $loginAttemptsTable = $this->db->prefixTable('login_attempts');
-        $this->db->query("CREATE INDEX idx_login_attempts_username_time ON {$loginAttemptsTable} (username, attempted_at)");
-        $this->db->query("CREATE INDEX idx_login_attempts_ip_time ON {$loginAttemptsTable} (ip_address, attempted_at)");
+        try {
+            $this->db->query("CREATE INDEX idx_login_attempts_username_time ON {$loginAttemptsTable} (username, attempted_at)");
+            $this->db->query("CREATE INDEX idx_login_attempts_ip_time ON {$loginAttemptsTable} (ip_address, attempted_at)");
+        } catch (\Throwable $e) {
+            // Index already exists
+        }
 
         // 11. feature_flags Table
         $this->forge->addField([

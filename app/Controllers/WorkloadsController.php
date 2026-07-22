@@ -46,6 +46,12 @@ class WorkloadsController extends BaseController
         }
 
         $snapshots = [];
+        $reportData = [
+            'grades'  => [],
+            'rows'    => [],
+            'summary' => ['total_teachers' => 0, 'underload_count' => 0, 'optimal_count' => 0, 'overload_count' => 0, 'grand_teaching' => 0, 'grand_duties' => 0, 'grand_total' => 0],
+        ];
+
         if ($version) {
             $builder = $snapshotModel->select('teacher_workload_snapshots.*, teachers.full_name, teachers.employment_status, teachers.employment_type')
                                      ->join('teachers', 'teachers.id = teacher_workload_snapshots.teacher_id')
@@ -56,6 +62,7 @@ class WorkloadsController extends BaseController
             }
 
             $snapshots = $builder->findAll();
+            $reportData = TeacherWorkloadCalculationService::getDetailedWorkloadReport($version['id'], $periodId, $unitId);
         }
 
         $periods = $periodModel->orderBy('id', 'DESC')->findAll();
@@ -63,6 +70,7 @@ class WorkloadsController extends BaseController
 
         return view('workloads/index', [
             'snapshots'          => $snapshots,
+            'report'             => $reportData,
             'version'            => $version,
             'periods'            => $periods,
             'units'              => $units,

@@ -72,7 +72,7 @@
 
                 <div class="col-12 d-flex gap-2 justify-content-end">
                     <button type="submit" name="decision" value="KEEP_SEPARATE" class="btn btn-outline-secondary rounded-3">Tetapkan Data Terpisah (Keep Separate)</button>
-                    <button type="submit" name="decision" value="MERGE" class="btn btn-danger rounded-3" onclick="return confirm('Apakah Anda yakin ingin menggabungkan (merge) dua data guru ini?')">Gabungkan Data Guru (Merge)</button>
+                    <button type="submit" name="decision" value="MERGE" class="btn btn-danger rounded-3" data-confirm="Apakah Anda yakin ingin menggabungkan (merge) dua data guru ini?" data-confirm-title="Gabungkan data guru?" data-confirm-icon="warning" data-confirm-button="Gabungkan">Gabungkan Data Guru (Merge)</button>
                 </div>
             </form>
         </div>

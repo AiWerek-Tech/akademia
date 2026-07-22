@@ -405,4 +405,195 @@ class CurriculumStructureService
             throw $e;
         }
     }
+
+    /**
+     * Get Matrix view data (Subjects x Grade Levels grid) for a unit
+     */
+    public static function getMatrixView(int $versionId, int $unitId): array
+    {
+        $db = Database::connect();
+
+        // 1. Get Grade Levels for Unit
+        $grades = $db->table('grade_levels')
+            ->where('unit_id', $unitId)
+            ->where('is_active', 1)
+            ->where('deleted_at IS NULL')
+            ->orderBy('grade_number', 'ASC')
+            ->get()->getResultArray();
+
+        // 2. Get All Active Subjects available for Unit
+        $subjects = $db->table('subjects s')
+            ->select('s.*, sua.is_available')
+            ->join('subject_unit_availability sua', 'sua.subject_id = s.id')
+            ->where('sua.unit_id', $unitId)
+            ->where('sua.is_available', 1)
+            ->where('s.is_active', 1)
+            ->where('s.deleted_at IS NULL')
+            ->orderBy('s.category', 'ASC')
+            ->orderBy('s.code', 'ASC')
+            ->get()->getResultArray();
+
+        // 3. Get Existing Structures for this version & unit
+        $structures = $db->table('curriculum_structures cs')
+            ->select('cs.*, s.code as subject_code, s.name as subject_name')
+            ->join('subjects s', 's.id = cs.subject_id', 'left')
+            ->where('cs.curriculum_version_id', $versionId)
+            ->where('cs.unit_id', $unitId)
+            ->where('cs.status', 'ACTIVE')
+            ->where('cs.deleted_at IS NULL')
+            ->get()->getResultArray();
+
+        // Build 2D lookup map: [subject_id][grade_level_id] => structure
+        $matrixMap = [];
+        $gradeTotals = [];
+        foreach ($grades as $g) {
+            $gradeTotals[(int)$g['id']] = 0.0;
+        }
+        $grandTotal = 0.0;
+
+        foreach ($structures as $s) {
+            $subId = (int)$s['subject_id'];
+            $grdId = (int)$s['grade_level_id'];
+            $hours = (float)$s['effective_weekly_hours'];
+
+            $matrixMap[$subId][$grdId] = $s;
+            if (isset($gradeTotals[$grdId])) {
+                $gradeTotals[$grdId] += $hours;
+            } else {
+                $gradeTotals[$grdId] = $hours;
+            }
+            $grandTotal += $hours;
+        }
+
+        return [
+            'grades'       => $grades,
+            'subjects'     => $subjects,
+            'matrix'       => $matrixMap,
+            'grade_totals' => $gradeTotals,
+            'grand_total'  => $grandTotal,
+            'raw_count'    => count($structures),
+        ];
+    }
+
+    /**
+     * Clone all structures from a source version to target version for a unit
+     */
+    public static function cloneFromPreviousVersion(int $targetVersionId, int $unitId, int $sourceVersionId): int
+    {
+        $db = Database::connect();
+        $db->transBegin();
+
+        try {
+            $sourceRows = $db->table('curriculum_structures')
+                ->where('curriculum_version_id', $sourceVersionId)
+                ->where('unit_id', $unitId)
+                ->where('status', 'ACTIVE')
+                ->where('deleted_at IS NULL')
+                ->get()->getResultArray();
+
+            if (empty($sourceRows)) {
+                throw new \RuntimeException('Versi sumber tidak memiliki data struktur kurikulum untuk unit ini.');
+            }
+
+            $count = 0;
+            foreach ($sourceRows as $row) {
+                $data = [
+                    'curriculum_version_id'   => $targetVersionId,
+                    'unit_id'                 => $unitId,
+                    'grade_level_id'          => $row['grade_level_id'],
+                    'classroom_id'            => $row['classroom_id'],
+                    'subject_id'              => $row['subject_id'],
+                    'official_weekly_hours'   => $row['official_weekly_hours'],
+                    'custom_weekly_hours'     => $row['custom_weekly_hours'],
+                    'manual_weekly_hours'     => $row['manual_weekly_hours'],
+                    'effective_source'        => $row['effective_source'],
+                    'category'                => $row['category'],
+                    'block_pattern_json'      => $row['block_pattern_json'],
+                    'minimum_days'            => $row['minimum_days'],
+                    'maximum_daily_hours'     => $row['maximum_daily_hours'],
+                    'counts_in_report'        => $row['counts_in_report'],
+                    'counts_as_teaching_load' => $row['counts_as_teaching_load'],
+                    'required_room_type_id'   => $row['required_room_type_id'],
+                    'schedule_priority'       => $row['schedule_priority'],
+                    'adjustment_reason'       => $row['adjustment_reason'],
+                    'notes'                   => $row['notes'],
+                ];
+
+                try {
+                    self::createStructure($data);
+                    $count++;
+                } catch (\InvalidArgumentException $e) {
+                    // Ignore duplicate key if already exists
+                    continue;
+                }
+            }
+
+            $db->transCommit();
+            return $count;
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * Apply default unit preset (all active subjects x all grade levels)
+     */
+    public static function applyUnitPreset(int $versionId, int $unitId, float $defaultHours = 2.0): int
+    {
+        $db = Database::connect();
+        $db->transBegin();
+
+        try {
+            $grades = $db->table('grade_levels')
+                ->where('unit_id', $unitId)
+                ->where('is_active', 1)
+                ->where('deleted_at IS NULL')
+                ->get()->getResultArray();
+
+            $subjects = $db->table('subjects s')
+                ->join('subject_unit_availability sua', 'sua.subject_id = s.id')
+                ->where('sua.unit_id', $unitId)
+                ->where('sua.is_available', 1)
+                ->where('s.is_active', 1)
+                ->where('s.deleted_at IS NULL')
+                ->get()->getResultArray();
+
+            if (empty($grades) || empty($subjects)) {
+                throw new \RuntimeException('Data tingkat kelas atau mata pelajaran belum tersedia untuk unit ini.');
+            }
+
+            $count = 0;
+            foreach ($subjects as $subject) {
+                foreach ($grades as $grade) {
+                    $data = [
+                        'curriculum_version_id'   => $versionId,
+                        'unit_id'                 => $unitId,
+                        'grade_level_id'          => $grade['id'],
+                        'classroom_id'            => null,
+                        'subject_id'              => $subject['id'],
+                        'official_weekly_hours'   => $defaultHours,
+                        'effective_source'        => 'OFFICIAL',
+                        'category'                => $subject['category'] ?? 'INTRAKURIKULER',
+                        'counts_in_report'        => 1,
+                        'counts_as_teaching_load' => 1,
+                    ];
+
+                    try {
+                        self::createStructure($data);
+                        $count++;
+                    } catch (\InvalidArgumentException $e) {
+                        // Skip if already exists
+                        continue;
+                    }
+                }
+            }
+
+            $db->transCommit();
+            return $count;
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            throw $e;
+        }
+    }
 }

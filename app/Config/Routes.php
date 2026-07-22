@@ -124,6 +124,14 @@ $routes->get('curriculum/imports/template', 'CurriculumImportController::templat
 $routes->post('curriculum/imports/upload', 'CurriculumImportController::upload');
 $routes->get('curriculum/imports/(:segment)', 'CurriculumImportController::showBatch/$1');
 $routes->post('curriculum/imports/(:segment)/apply', 'CurriculumImportController::apply/$1');
+
+// Interactive Curriculum Matrix Routes
+$routes->get('curriculum/(:segment)/matrix', 'CurriculumMatrixController::index/$1');
+$routes->post('curriculum/(:segment)/matrix/update-cell', 'CurriculumMatrixController::updateCell/$1');
+$routes->post('curriculum/(:segment)/matrix/bulk-store', 'CurriculumMatrixController::bulkStore/$1');
+$routes->post('curriculum/(:segment)/matrix/clone-previous', 'CurriculumMatrixController::cloneFromPrevious/$1');
+$routes->post('curriculum/(:segment)/matrix/apply-preset', 'CurriculumMatrixController::applyPreset/$1');
+
 $routes->get('curriculum/(:segment)', 'CurriculumController::show/$1');
 $routes->post('curriculum/(:segment)/structures', 'CurriculumController::storeStructure/$1');
 $routes->post('curriculum/(:segment)/structures/(:segment)/delete', 'CurriculumController::deleteStructure/$1/$2');
@@ -158,3 +166,22 @@ $routes->get('workloads/export', 'WorkloadsController::export');
 $routes->get('duties', 'DutiesController::index');
 $routes->get('duties/create', 'DutiesController::create');
 $routes->post('duties', 'DutiesController::store');
+
+// Scheduling System (Milestone 5)
+$routes->group('schedules', ['filter' => 'permissionFilter:schedules.view'], static function ($routes) {
+    $routes->get('/', 'SchedulesController::index');
+    $routes->post('create', 'SchedulesController::create', ['filter' => 'permissionFilter:schedules.manage']);
+    $routes->post('(:num)/transition', 'SchedulesController::transition/$1', ['filter' => 'permissionFilter:schedules.manage']);
+    $routes->get('(:num)/editor', 'ScheduleEditorController::view/$1', ['filter' => 'permissionFilter:schedules.view']);
+    $routes->post('(:num)/save-entry', 'ScheduleEditorController::saveEntry/$1', ['filter' => 'permissionFilter:schedules.manage']);
+    $routes->post('entries/(:num)/delete', 'ScheduleEditorController::deleteEntry/$1', ['filter' => 'permissionFilter:schedules.manage']);
+    $routes->post('(:num)/generate', 'ScheduleGeneratorController::run/$1', ['filter' => 'permissionFilter:schedules.generate']);
+    $routes->post('candidates/(:num)/apply', 'ScheduleGeneratorController::applyCandidate/$1', ['filter' => 'permissionFilter:schedules.generate']);
+    $routes->get('(:num)/audit', 'ScheduleConflictsController::audit/$1', ['filter' => 'permissionFilter:schedules.validate']);
+    $routes->post('availability/teacher', 'ScheduleAvailabilityController::saveTeacherRule', ['filter' => 'permissionFilter:availability.manage']);
+    $routes->post('constraints/(:num)/weight', 'ScheduleConstraintsController::updateWeight/$1', ['filter' => 'permissionFilter:constraints.manage']);
+    $routes->post('(:num)/import/stage', 'ScheduleImportsController::stage/$1', ['filter' => 'permissionFilter:schedules.import']);
+    $routes->post('import/batches/(:num)/apply', 'ScheduleImportsController::apply/$1', ['filter' => 'permissionFilter:schedules.import']);
+    $routes->get('(:num)/reports/classroom/(:num)', 'ScheduleReportsController::classroomReport/$1/$2', ['filter' => 'permissionFilter:schedules.export']);
+    $routes->get('(:num)/reports/teacher/(:num)', 'ScheduleReportsController::teacherReport/$1/$2', ['filter' => 'permissionFilter:schedules.export']);
+});

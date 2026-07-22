@@ -1,0 +1,33 @@
+# Milestone 5 — Penjadwalan Pelajaran, Slot Waktu, dan Generator Jadwal Checklist
+
+- [x] Phase 1: Database Schema & Seeds
+  - [x] Create migration `20260722300000_CreateMilestone5Tables.php` (21 scheduling tables)
+  - [x] Apply migration & test rollback (`spark migrate` & `spark migrate --g tests`) — PASSED
+  - [x] Seed 14 permissions & 11 scheduling constraints in `Milestone5Seeder.php` — PASSED
+- [x] Phase 2: Models & Core Domain Entities
+  - [x] Created all 21 CodeIgniter Models in `app/Models/`
+- [x] Phase 3: Requirement Sync & Availability Engine
+  - [x] Created `ScheduleRequirementSyncService.php` (syncs approved/locked M4 teaching assignments & M3 curriculum structures)
+  - [x] Created `TeacherAvailabilityService.php`, `ClassroomAvailabilityService.php`, `RoomAvailabilityService.php` (cross-unit availability checking)
+- [x] Phase 4: Conflict Detection & Scoring Engine
+  - [x] Created `ScheduleConflictDetectionService.php` (hard & soft conflict detection, cross-unit teacher overlap)
+  - [x] Created `ScheduleScoringService.php` (evaluates soft scores, daily balance, gap minimization)
+- [x] Phase 5: Generator Engine & Concurrency Workflow
+  - [x] Created `DeterministicGreedyScheduleGenerator.php` (pure deterministic greedy candidate generation & preview/apply)
+  - [x] Created `ScheduleWorkflowService.php` (state transitions: `DRAFT` -> `VALIDATED` -> `REVIEWED` -> `APPROVED` -> `LOCKED` -> `ARCHIVED` with OCC)
+- [x] Phase 6: Import/Export Staging Pipeline
+  - [x] Created `ScheduleImportService.php` (staging, validation,conflict preview, batch apply)
+  - [x] Created `ScheduleExportService.php` (classroom, teacher, room, unit grid exports)
+- [x] Phase 7: Controllers, Routes, Views & Permissions
+  - [x] Created `SchedulesController`, `ScheduleEditorController`, `ScheduleGeneratorController`, `ScheduleConflictsController`, `ScheduleAvailabilityController`, `ScheduleConstraintsController`, `ScheduleImportsController`, `ScheduleReportsController`
+  - [x] Appended protected scheduling routes in `app/Config/Routes.php`
+  - [x] Created scheduling views (`schedules/index.php`, `schedules/editor.php`)
+- [x] Phase 8: Comprehensive Testing & Verification
+  - [x] `tests/database/Milestone5MigrationTest.php` — PASSED (1 test, 21 assertions)
+  - [x] `tests/database/Milestone5SeederTest.php` — PASSED (1 test, 25 assertions)
+  - [x] `tests/database/ScheduleVersionTest.php` — PASSED (1 test, 8 assertions)
+  - [x] `tests/database/ScheduleGeneratorTest.php` — PASSED (1 test, 7 assertions)
+  - [x] `tests/database/ScheduleConflictDetectionTest.php` — PASSED (1 test, 2 assertions)
+  - [x] `tests/database/ScheduleImportExportTest.php` — PASSED (1 test, 6 assertions)
+  - [x] `tests/database/ScheduleSecurityTest.php` — PASSED (1 test, 6 assertions)
+  - [x] **Full PHPUnit Regression Suite**: **152 tests, 523 assertions** — **100% PASSED** (PHP 8.2.20, Memory: 74 MB)

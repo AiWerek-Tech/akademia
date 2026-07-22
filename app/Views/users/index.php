@@ -71,7 +71,7 @@
                                 </td>
                                 <td>
                                     <?php if (has_permission('users.manage') && $usr['username'] !== 'superadmin'): ?>
-                                        <form action="<?= base_url('users/' . $usr['uuid'] . '/reset-password') ?>" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin mereset password pengguna ini secara acak?')">
+                                        <form action="<?= base_url('users/' . $usr['uuid'] . '/reset-password') ?>" method="POST" data-confirm="Apakah Anda yakin ingin mereset password pengguna ini secara acak?" data-confirm-title="Reset password?" data-confirm-icon="warning" data-confirm-button="Reset">
                                             <?= csrf_field() ?>
                                             <button type="submit" class="btn btn-xs btn-outline-warning rounded-pill fs-8 py-1 px-3 d-inline-flex align-items-center gap-1">
                                                 <i data-lucide="key-round" style="width: 14px; height: 14px;"></i> Reset Sandi

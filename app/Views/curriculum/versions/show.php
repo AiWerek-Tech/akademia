@@ -13,9 +13,13 @@ foreach ($units as $unit) { if ((int) $unit['id'] === (int) $filters['unit_id'])
             <p class="text-muted mb-0"><?= esc($version['code']) ?> · <?= esc(($version['year_name'] ?? '') . ' · ' . ($version['period_name'] ?? '-')) ?></p>
         </div>
         <div class="d-flex flex-wrap gap-2">
+            <div class="btn-group" role="group">
+                <a href="<?= base_url('curriculum/' . $version['uuid'] . '?unit_id=' . $filters['unit_id']) ?>" class="btn btn-primary active"><i class="bi bi-list-ul me-1"></i>Tampilan List</a>
+                <a href="<?= base_url('curriculum/' . $version['uuid'] . '/matrix?unit_id=' . $filters['unit_id']) ?>" class="btn btn-outline-primary"><i class="bi bi-grid-3x3-gap-fill me-1"></i>Editor Matriks</a>
+            </div>
             <?php if (has_permission('curriculum.import')): ?><a href="<?= base_url('curriculum/imports') ?>" class="btn btn-outline-success"><i class="bi bi-file-earmark-arrow-up me-1"></i>Import Excel</a><?php endif; ?>
             <?php if (has_permission('curriculum.export')): ?><a href="<?= base_url('curriculum/' . $version['uuid'] . '/export') ?>" class="btn btn-outline-success"><i class="bi bi-download me-1"></i>Ekspor</a><?php endif; ?>
-            <?php if ((int) $version['is_active'] !== 1 && (has_permission('curriculum.manage') || has_permission('curriculum.approve'))): ?><form action="<?= base_url('curriculum/' . $version['uuid'] . '/activate') ?>" method="post" onsubmit="return confirm('Aktifkan kurikulum ini? Versi aktif lain pada periode yang sama akan dinonaktifkan.')"><?= csrf_field() ?><button class="btn btn-success"><i class="bi bi-check2-circle me-1"></i>Aktifkan kurikulum</button></form><?php endif; ?>
+            <?php if ((int) $version['is_active'] !== 1 && (has_permission('curriculum.manage') || has_permission('curriculum.approve'))): ?><form action="<?= base_url('curriculum/' . $version['uuid'] . '/activate') ?>" method="post" data-confirm="Aktifkan kurikulum ini? Versi aktif lain pada periode yang sama akan dinonaktifkan." data-confirm-title="Aktifkan kurikulum?" data-confirm-button="Aktifkan"><?= csrf_field() ?><button class="btn btn-success"><i class="bi bi-check2-circle me-1"></i>Aktifkan kurikulum</button></form><?php endif; ?>
         </div>
     </div>
 
@@ -47,7 +51,7 @@ foreach ($units as $unit) { if ((int) $unit['id'] === (int) $filters['unit_id'])
             <td class="text-end fw-bold text-primary"><?= number_format((float) $structure['effective_weekly_hours'], 1, ',', '.') ?> JP</td>
             <td><?= esc(['OFFICIAL' => 'Jam resmi', 'CUSTOM' => 'Penyesuaian', 'MANUAL' => 'Manual'][$structure['effective_source']] ?? $structure['effective_source']) ?></td>
             <td><?= (int) $structure['counts_in_report'] === 1 ? '<i class="bi bi-check-circle-fill text-success"></i> Ya' : '<span class="text-muted">Tidak</span>' ?></td>
-            <td class="text-end pe-4"><?php if (has_permission('curriculum.manage')): ?><form action="<?= base_url('curriculum/' . $version['uuid'] . '/structures/' . $structure['uuid'] . '/delete') ?>" method="post" class="d-inline" onsubmit="return confirm('Hapus <?= esc($structure['subject_name'] ?? 'mata pelajaran ini') ?> dari struktur?')"><?= csrf_field() ?><button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button></form><?php endif; ?></td>
+            <td class="text-end pe-4"><?php if (has_permission('curriculum.manage')): ?><form action="<?= base_url('curriculum/' . $version['uuid'] . '/structures/' . $structure['uuid'] . '/delete') ?>" method="post" class="d-inline" data-confirm="Hapus <?= esc($structure['subject_name'] ?? 'mata pelajaran ini') ?> dari struktur?" data-confirm-title="Hapus struktur?" data-confirm-icon="warning" data-confirm-button="Hapus"><?= csrf_field() ?><button class="btn btn-sm btn-outline-danger" title="Hapus"><i class="bi bi-trash"></i></button></form><?php endif; ?></td>
         </tr><?php endforeach; endif; ?></tbody></table></div>
     </div>
 

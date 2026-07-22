@@ -186,25 +186,35 @@ $userName = session()->get('username') ?? 'Guest';
                     </li>
                 <?php endif; ?>
 
-                <li class="menu-header">Penugasan & Jadwal [M4-M8]</li>
-                <li class="menu-item disabled opacity-50">
-                    <a href="#" class="menu-link">
-                        <i data-lucide="briefcase"></i>
-                        <span>Penugasan Mengajar</span>
-                    </a>
-                </li>
-                <li class="menu-item disabled opacity-50">
-                    <a href="#" class="menu-link">
-                        <i data-lucide="bar-chart-2"></i>
-                        <span>Beban Kerja Guru</span>
-                    </a>
-                </li>
-                <li class="menu-item disabled opacity-50">
-                    <a href="#" class="menu-link">
-                        <i data-lucide="calendar-days"></i>
-                        <span>Jadwal Pelajaran</span>
-                    </a>
-                </li>
+                <?php if (has_permission('assignments.view') || has_permission('workload.view') || has_permission('schedules.view')): ?>
+                    <li class="menu-header">Penugasan & Jadwal</li>
+                    <?php if (has_permission('assignments.view')): ?>
+                        <li class="menu-item <?= str_contains(current_url(true), 'assignments') ? 'active' : '' ?>">
+                            <a href="<?= base_url('assignments') ?>" class="menu-link">
+                                <i data-lucide="briefcase"></i>
+                                <span>Penugasan Mengajar</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
+                    <?php if (has_permission('workload.view') || has_permission('assignments.view')): ?>
+                        <li class="menu-item <?= str_contains(current_url(true), 'workloads') ? 'active' : '' ?>">
+                            <a href="<?= base_url('workloads') ?>" class="menu-link">
+                                <i data-lucide="bar-chart-2"></i>
+                                <span>Beban Kerja Guru</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
+                    <?php if (has_permission('schedules.view')): ?>
+                        <li class="menu-item <?= str_contains(current_url(true), 'schedules') ? 'active' : '' ?>">
+                            <a href="<?= base_url('schedules') ?>" class="menu-link">
+                                <i data-lucide="calendar-days"></i>
+                                <span>Jadwal Pelajaran</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                <?php endif; ?>
 
                 <?php if (has_permission('users.view') || has_permission('roles.view') || has_permission('audit.view') || has_permission('settings.view')): ?>
                     <li class="menu-header">Sistem</li>

@@ -11,7 +11,7 @@
         </div>
         <div class="d-flex gap-2">
             <?php if (has_permission('teachers.verify') && $teacher['profile_status'] !== 'VERIFIED'): ?>
-                <form method="POST" action="<?= base_url('teachers/' . $teacher['uuid'] . '/verify') ?>" onsubmit="return confirm('Apakah Anda yakin ingin memverifikasi profil guru ini?')">
+                <form method="POST" action="<?= base_url('teachers/' . $teacher['uuid'] . '/verify') ?>" data-confirm="Apakah Anda yakin ingin memverifikasi profil guru ini?" data-confirm-title="Verifikasi guru?" data-confirm-button="Verifikasi">
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-success btn-sm rounded-3">Verifikasi Profil</button>
                 </form>
