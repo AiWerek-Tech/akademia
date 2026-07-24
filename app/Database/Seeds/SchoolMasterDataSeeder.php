@@ -253,7 +253,7 @@ class SchoolMasterDataSeeder extends Seeder
                             'unit_id'            => $cr['unit_id'],
                             'academic_period_id' => $activePeriodId,
                             'grade_level_id'     => $gradeId,
-                            'room_id'            => $roomId,
+                            'default_room_id'    => $roomId,
                             'code'               => $cr['code'],
                             'name'               => $cr['name'],
                             'capacity'           => 32,

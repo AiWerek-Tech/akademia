@@ -4,7 +4,15 @@
 $totalHours = array_sum(array_map(static fn ($item) => (float) $item['effective_weekly_hours'], $structures));
 $selectedUnit = null;
 foreach ($units as $unit) { if ((int) $unit['id'] === (int) $filters['unit_id']) { $selectedUnit = $unit; break; } }
+$planSummary = $planning['summary'];
+$planSettings = $planning['settings'];
 ?>
+<style>
+.planning-step{position:relative;padding-left:2.7rem}.planning-step::before{content:attr(data-step);position:absolute;left:0;top:.05rem;width:2rem;height:2rem;border-radius:.7rem;display:grid;place-items:center;background:#eef2ff;color:#4f46e5;font-weight:800}
+.planning-metric{background:linear-gradient(145deg,#fff,#f8fafc);border:1px solid #e8edf5;border-radius:1rem}
+.capacity-bar{height:.55rem;background:#e9eef5;border-radius:999px;overflow:hidden}.capacity-bar>span{display:block;height:100%;border-radius:inherit}
+.planning-table thead th{white-space:nowrap}.planning-table tbody td{vertical-align:middle}
+</style>
 <div class="container-fluid px-4 py-4">
     <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3 mb-4">
         <div>
@@ -34,6 +42,57 @@ foreach ($units as $unit) { if ((int) $unit['id'] === (int) $filters['unit_id'])
         <div class="col-xl-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="text-muted small mb-1">Unit yang sedang dikelola</div><div class="fw-semibold fs-5"><?= esc(($selectedUnit['code'] ?? '-') . ' · ' . ($selectedUnit['name'] ?? 'Pilih unit')) ?></div><div class="small text-muted">Daftar tingkat, kelas, dan mapel otomatis mengikuti unit ini.</div></div></div></div>
     </div>
 
+    <div class="card border-0 shadow-sm mb-4 overflow-hidden">
+        <div class="card-header bg-white border-0 p-4 pb-2 d-flex flex-column flex-xl-row justify-content-between gap-3">
+            <div>
+                <div class="text-primary fw-bold small text-uppercase mb-1">Pusat Perencanaan Terpadu</div>
+                <h4 class="mb-1">Dari struktur kurikulum sampai jadwal otomatis</h4>
+                <p class="text-muted mb-0">Sistem menghitung kebutuhan jam per kelas, kebutuhan guru, dan kesiapan jadwal dari satu sumber data.</p>
+            </div>
+            <button class="btn btn-outline-primary align-self-xl-start" data-bs-toggle="modal" data-bs-target="#planningSettingsModal">
+                <i class="bi bi-sliders me-1"></i> Atur sistem 5 hari
+            </button>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-xl-3"><div class="planning-metric p-3 h-100"><div class="text-muted small">Kapasitas jadwal</div><div class="fs-4 fw-bold"><?= number_format((float) $planning['weekly_capacity'], 1, ',', '.') ?> JP</div><small class="text-muted"><?= (int) $planSettings['teaching_days_per_week'] ?> hari × <?= number_format((float) $planSettings['daily_jp_capacity'], 1, ',', '.') ?> JP/hari</small></div></div>
+                <div class="col-sm-6 col-xl-3"><div class="planning-metric p-3 h-100"><div class="text-muted small">Kebutuhan guru</div><div class="fs-4 fw-bold text-primary"><?= number_format((float) $planSummary['teacher_demand_hours'], 1, ',', '.') ?> JP</div><small class="text-muted">Sudah memperhitungkan <?= (int) $planSummary['classroom_count'] ?> rombel</small></div></div>
+                <div class="col-sm-6 col-xl-3"><div class="planning-metric p-3 h-100"><div class="text-muted small">Penyesuaian sekolah</div><div class="fs-4 fw-bold text-warning-emphasis"><?= (int) $planSummary['custom_count'] ?></div><small class="text-muted">Mapel memakai jam custom/manual</small></div></div>
+                <div class="col-sm-6 col-xl-3"><div class="planning-metric p-3 h-100"><div class="d-flex justify-content-between"><div class="text-muted small">Jam telah dibagi</div><strong><?= number_format((float) $planSummary['allocation_percent'], 0) ?>%</strong></div><div class="fs-4 fw-bold text-success"><?= number_format((float) $planSummary['allocated_hours'], 1, ',', '.') ?> JP</div><div class="capacity-bar mt-1"><span class="bg-success" style="width:<?= min(100, (float) $planSummary['allocation_percent']) ?>%"></span></div></div></div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-xl-8">
+                    <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="fw-bold mb-0">Kapasitas per tingkat</h6><span class="small text-muted">Batas <?= number_format((float) $planning['weekly_capacity'], 1, ',', '.') ?> JP/minggu</span></div>
+                    <div class="table-responsive border rounded-3">
+                        <table class="table planning-table mb-0">
+                            <thead class="table-light"><tr><th class="ps-3">Tingkat</th><th class="text-center">Rombel</th><th class="text-end">JP resmi</th><th class="text-end">JP berlaku</th><th class="text-end">Kebutuhan guru</th><th style="min-width:180px">Kapasitas</th></tr></thead>
+                            <tbody>
+                            <?php foreach ($planning['grades'] as $gradePlan): ?>
+                                <?php $usedPercent = $gradePlan['capacity'] > 0 ? min(100, ($gradePlan['effective_hours'] / $gradePlan['capacity']) * 100) : 0; ?>
+                                <tr>
+                                    <td class="ps-3"><strong><?= esc($gradePlan['code']) ?></strong><div class="small text-muted"><?= esc($gradePlan['name']) ?> · <?= (int) $gradePlan['subjects'] ?> mapel</div></td>
+                                    <td class="text-center"><?= (int) $gradePlan['classrooms'] ?></td>
+                                    <td class="text-end"><?= number_format((float) $gradePlan['official_hours'], 1, ',', '.') ?></td>
+                                    <td class="text-end fw-bold"><?= number_format((float) $gradePlan['effective_hours'], 1, ',', '.') ?></td>
+                                    <td class="text-end text-primary fw-semibold"><?= number_format((float) $gradePlan['teacher_demand_hours'], 1, ',', '.') ?></td>
+                                    <td><div class="d-flex justify-content-between small mb-1"><span><?= number_format((float) $gradePlan['effective_hours'], 1, ',', '.') ?> JP</span><span class="<?= $gradePlan['remaining_capacity'] < 0 ? 'text-danger' : 'text-muted' ?>"><?= $gradePlan['remaining_capacity'] >= 0 ? 'Sisa ' : 'Lebih ' ?><?= number_format(abs((float) $gradePlan['remaining_capacity']), 1, ',', '.') ?></span></div><div class="capacity-bar"><span class="<?= $gradePlan['remaining_capacity'] < 0 ? 'bg-danger' : ($usedPercent > 85 ? 'bg-warning' : 'bg-primary') ?>" style="width:<?= $usedPercent ?>%"></span></div></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-xl-4">
+                    <h6 class="fw-bold mb-3">Langkah berikutnya</h6>
+                    <div class="planning-step mb-4" data-step="1"><strong>Lengkapi struktur</strong><div class="small text-muted"><?= (int) $planSummary['structure_count'] ?> struktur aktif; <?= (int) $planSummary['missing_block_pattern_count'] ?> belum memiliki pola blok jadwal.</div><a class="small fw-semibold" href="<?= base_url('curriculum/' . $version['uuid'] . '/matrix?unit_id=' . $filters['unit_id']) ?>">Buka editor matriks</a></div>
+                    <div class="planning-step mb-4" data-step="2"><strong>Bagi kepada guru</strong><div class="small text-muted"><?= number_format((float) $planSummary['unallocated_hours'], 1, ',', '.') ?> JP kebutuhan belum dialokasikan.</div><a class="small fw-semibold" href="<?= base_url('assignments') ?>">Kelola pembagian mengajar</a></div>
+                    <div class="planning-step" data-step="3"><strong>Buat jadwal otomatis</strong><div class="small text-muted">Jadwal menggunakan alokasi guru, pola blok, ruang, dan kapasitas 5 hari.</div><a class="small fw-semibold" href="<?= base_url('schedules') ?>">Buka penyusun jadwal</a></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card border-0 shadow-sm mb-4"><div class="card-body"><form method="get" class="row g-3 align-items-end">
         <div class="col-md-5"><label class="form-label fw-semibold">Unit sekolah</label><select name="unit_id" class="form-select" onchange="this.form.submit()"><?php foreach ($units as $unit): ?><option value="<?= (int) $unit['id'] ?>" <?= (int) $filters['unit_id'] === (int) $unit['id'] ? 'selected' : '' ?>><?= esc($unit['code'] . ' · ' . $unit['name']) ?></option><?php endforeach; ?></select></div>
         <div class="col-md-4"><label class="form-label fw-semibold">Tingkat</label><select name="grade_level_id" class="form-select"><option value="">Semua tingkat</option><?php foreach ($grades as $grade): ?><option value="<?= (int) $grade['id'] ?>" <?= (string) ($filters['grade_level_id'] ?? '') === (string) $grade['id'] ? 'selected' : '' ?>><?= esc($grade['code'] . ' · ' . $grade['name']) ?></option><?php endforeach; ?></select></div>
@@ -56,6 +115,25 @@ foreach ($units as $unit) { if ((int) $unit['id'] === (int) $filters['unit_id'])
     </div>
 
     <?php if (!empty($validation['results'])): ?><details class="card border-0 shadow-sm mt-4"><summary class="card-header bg-white py-3 fw-semibold" style="cursor:pointer"><i class="bi bi-shield-check me-2"></i>Catatan pemeriksaan data (<?= (int) $validation['total_results'] ?>)</summary><div class="list-group list-group-flush"><?php foreach ($validation['results'] as $result): ?><div class="list-group-item"><span class="badge bg-<?= in_array($result['severity'], ['ERROR', 'BLOCKER'], true) ? 'danger' : 'warning text-dark' ?> me-2"><?= esc($result['severity']) ?></span><?= esc($result['message']) ?></div><?php endforeach; ?></div></details><?php endif; ?>
+</div>
+
+<div class="modal fade" id="planningSettingsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <form class="modal-content border-0 rounded-4" method="post" action="<?= base_url('curriculum/' . $version['uuid'] . '/planning-settings') ?>">
+            <?= csrf_field() ?>
+            <input type="hidden" name="unit_id" value="<?= (int) $filters['unit_id'] ?>">
+            <div class="modal-header border-0 px-4 pt-4"><div><h5 class="modal-title fw-bold">Parameter Perencanaan Sekolah</h5><div class="text-muted small"><?= esc($selectedUnit['name'] ?? '') ?> · berlaku untuk kurikulum ini</div></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body px-4"><div class="alert alert-primary border-0"><i class="bi bi-info-circle me-2"></i>Aturan ini menjadi dasar peringatan kapasitas, pembagian beban guru, dan generator jadwal.</div><div class="row g-3">
+                <div class="col-md-6"><label class="form-label fw-semibold">Hari belajar per minggu</label><div class="input-group"><input type="number" class="form-control" name="teaching_days_per_week" min="1" max="7" required value="<?= (int) $planSettings['teaching_days_per_week'] ?>"><span class="input-group-text">hari</span></div><div class="form-text">Untuk sekolah Anda gunakan 5 hari.</div></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Kapasitas pelajaran per hari</label><div class="input-group"><input type="number" class="form-control" name="daily_jp_capacity" min="1" max="20" step="0.5" required value="<?= esc($planSettings['daily_jp_capacity']) ?>"><span class="input-group-text">JP</span></div></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Beban minimum guru</label><div class="input-group"><input type="number" class="form-control" name="teacher_minimum_hours" min="0" step="0.5" required value="<?= esc($planSettings['teacher_minimum_hours']) ?>"><span class="input-group-text">JP</span></div></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Beban maksimum guru</label><div class="input-group"><input type="number" class="form-control" name="teacher_maximum_hours" min="1" step="0.5" required value="<?= esc($planSettings['teacher_maximum_hours']) ?>"><span class="input-group-text">JP</span></div></div>
+                <div class="col-12"><div class="form-check form-switch p-3 ps-5 border rounded-3"><input class="form-check-input" type="checkbox" name="allow_custom_hours" value="1" id="allowCustomHours" <?= !empty($planSettings['allow_custom_hours']) ? 'checked' : '' ?>><label class="form-check-label fw-semibold" for="allowCustomHours">Izinkan JP custom sekolah</label><div class="small text-muted">Dipakai untuk tambahan intrakurikuler, muatan lokal, Pathfinder, Kesehatan, SID, Chapel, dan kegiatan tetap lainnya.</div></div></div>
+                <div class="col-12"><label class="form-label fw-semibold">Catatan kebijakan</label><textarea class="form-control" name="notes" rows="3" placeholder="Contoh: sekolah swasta, pembelajaran Senin-Jumat, kegiatan tetap masuk jadwal..."><?= esc($planSettings['notes'] ?? '') ?></textarea></div>
+            </div></div>
+            <div class="modal-footer border-0 px-4 pb-4"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button><button class="btn btn-primary px-4"><i class="bi bi-check2-circle me-1"></i>Simpan & hitung ulang</button></div>
+        </form>
+    </div>
 </div>
 
 <?php if (has_permission('curriculum.manage') && !empty($grades) && !empty($subjects)): ?>

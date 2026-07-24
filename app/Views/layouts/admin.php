@@ -412,7 +412,51 @@ $userName = session()->get('username') ?? 'Guest';
     <!-- Flash Message handler with premium SweetAlert2 styling -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const swalTheme = SpTheme.getSwalTheme();
+            document.addEventListener('submit', function(event) {
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement)) return;
+
+                const trigger = event.submitter;
+                const message = trigger?.dataset.confirm || form.dataset.confirm;
+                if (!message || form.dataset.confirmed === 'true') {
+                    if (form.dataset.confirmed === 'true') delete form.dataset.confirmed;
+                    return;
+                }
+
+                event.preventDefault();
+
+                Swal.fire(SpTheme.mergeSwalOptions({
+                    icon: trigger?.dataset.confirmIcon || form.dataset.confirmIcon || 'question',
+                    title: trigger?.dataset.confirmTitle || form.dataset.confirmTitle || 'Konfirmasi tindakan',
+                    text: message,
+                    showCancelButton: true,
+                    confirmButtonText: trigger?.dataset.confirmButton || form.dataset.confirmButton || 'Ya, lanjutkan',
+                    cancelButtonText: trigger?.dataset.cancelButton || form.dataset.cancelButton || 'Batal',
+                    reverseButtons: true,
+                    focusCancel: true,
+                    buttonsStyling: false,
+                    customClass: {
+                        popup: 'rounded-4',
+                        confirmButton: 'btn btn-primary rounded-3 px-4 ms-2',
+                        cancelButton: 'btn btn-light border rounded-3 px-4'
+                    }
+                })).then(function(result) {
+                    if (!result.isConfirmed) return;
+
+                    const loadingText = trigger?.dataset.loadingText || form.dataset.loadingText;
+                    if (loadingText && trigger) {
+                        trigger.disabled = true;
+                        trigger.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>' + loadingText;
+                    }
+
+                    form.dataset.confirmed = 'true';
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit(trigger || undefined);
+                    } else {
+                        form.submit();
+                    }
+                });
+            });
             
             <?php if (session()->getFlashdata('error')): ?>
                 Swal.fire(SpTheme.mergeSwalOptions({

@@ -9,6 +9,7 @@ use App\Services\CurriculumWorkflowService;
 use App\Services\CurriculumReconciliationService;
 use App\Services\CurriculumResolutionService;
 use App\Services\CurriculumExportService;
+use App\Services\CurriculumPlanningService;
 use App\Services\UnitScopeService;
 use App\Models\SchoolUnitModel;
 use App\Models\AcademicPeriodModel;
@@ -123,6 +124,11 @@ class CurriculumController extends BaseController
 
         $structures = CurriculumStructureService::getStructures($version['id'], $filters);
         $validation = CurriculumValidationService::validateVersion($version['id']);
+        $planning = CurriculumPlanningService::buildOverview(
+            (int) $version['id'],
+            (int) $version['academic_period_id'],
+            (int) $unitId
+        );
 
         $unitModel = new SchoolUnitModel();
         $gradeModel = new GradeLevelModel();
@@ -134,6 +140,7 @@ class CurriculumController extends BaseController
             'version'     => $version,
             'structures'  => $structures['data'],
             'validation'  => $validation,
+            'planning'    => $planning,
             'units'       => UnitScopeService::accessibleUnits(),
             'grades'      => $gradeModel->where('unit_id', $unitId)->where('is_active', 1)->findAll(),
             'subjects'    => $subjectModel->select('subjects.*')->join('subject_unit_availability sua', 'sua.subject_id = subjects.id')->where('sua.unit_id', $unitId)->where('sua.is_available', 1)->where('subjects.is_active', 1)->findAll(),
@@ -141,6 +148,35 @@ class CurriculumController extends BaseController
             'room_types'  => $roomTypeModel->where('is_active', 1)->findAll(),
             'filters'     => $filters,
         ]);
+    }
+
+    public function savePlanningSettings(string $uuid)
+    {
+        if (!has_permission('curriculum.manage')) {
+            return redirect()->to('/curriculum/' . $uuid)->with('error', 'Hak akses ditolak.');
+        }
+
+        $version = CurriculumVersionService::getVersionByUuid($uuid);
+        if (!$version) {
+            return redirect()->to('/curriculum')->with('error', 'Versi kurikulum tidak ditemukan.');
+        }
+
+        try {
+            $unitId = UnitScopeService::resolveUnit($this->request->getPost('unit_id'));
+            CurriculumPlanningService::saveSettings((int) $version['id'], (int) $unitId, [
+                'teaching_days_per_week' => $this->request->getPost('teaching_days_per_week'),
+                'daily_jp_capacity' => $this->request->getPost('daily_jp_capacity'),
+                'teacher_minimum_hours' => $this->request->getPost('teacher_minimum_hours'),
+                'teacher_maximum_hours' => $this->request->getPost('teacher_maximum_hours'),
+                'allow_custom_hours' => $this->request->getPost('allow_custom_hours'),
+                'notes' => $this->request->getPost('notes'),
+            ]);
+
+            return redirect()->to('/curriculum/' . $uuid . '?unit_id=' . $unitId)
+                ->with('success', 'Parameter perencanaan berhasil disimpan dan seluruh indikator telah dihitung ulang.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
     }
 
     public function storeStructure(string $uuid)

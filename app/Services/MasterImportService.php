@@ -263,12 +263,10 @@ class MasterImportService
         $reader->setReadDataOnly(true);
         $spreadsheet = $reader->load($filePath);
         $worksheet = $spreadsheet->getActiveSheet();
-        if ($worksheet->getHighestDataRow() > 10000 || $worksheet->getHighestDataColumn() > 'AZ') {
-            throw new \InvalidArgumentException('File import melebihi batas 10.000 baris atau 52 kolom.');
-        }
         $rowsData = $worksheet->toArray(null, true, true, true);
 
         if (count($rowsData) < 2) {
+            @unlink($filePath);
             throw new \InvalidArgumentException('File spreadsheet kosong atau hanya memiliki header.');
         }
 
@@ -277,6 +275,11 @@ class MasterImportService
             array_shift($rowsData)
         );
         $headerKeys = array_values($headers);
+        if (count(array_filter($headerKeys)) > 52) {
+            @unlink($filePath);
+            throw new \InvalidArgumentException('File import melebihi batas 52 kolom.');
+        }
+
         $definition = self::templateDefinition($type);
         $allowedHeaders = array_keys($definition['columns']);
         $requiredHeaders = array_keys(array_filter(
@@ -302,19 +305,24 @@ class MasterImportService
             throw new \InvalidArgumentException('Header tidak dikenal: ' . implode(', ', $unknownHeaders) . '. Gunakan template terbaru.');
         }
 
+        $nonEmptyRows = array_values(array_filter($rowsData, static function (array $row): bool {
+            return count(array_filter($row, static fn ($value) => trim((string) $value) !== '')) > 0;
+        }));
+        if ($nonEmptyRows === []) {
+            @unlink($filePath);
+            throw new \InvalidArgumentException('File spreadsheet tidak memiliki baris data untuk diimpor.');
+        }
+        if (count($nonEmptyRows) > 10000) {
+            @unlink($filePath);
+            throw new \InvalidArgumentException('File import melebihi batas 10.000 baris data.');
+        }
+
         $db = Database::connect();
         $db->transBegin();
 
         try {
             $batchModel = new MasterImportBatchModel();
             $rowModel   = new MasterImportRowModel();
-
-            $nonEmptyRows = array_values(array_filter($rowsData, static function (array $row): bool {
-                return count(array_filter($row, static fn ($value) => trim((string) $value) !== '')) > 0;
-            }));
-            if ($nonEmptyRows === []) {
-                throw new \InvalidArgumentException('File spreadsheet tidak memiliki baris data untuk diimpor.');
-            }
 
             $batchId = $batchModel->insert([
                 'import_type'     => $type,

@@ -270,6 +270,22 @@ document.getElementById('assignTeacherForm')?.addEventListener('submit', functio
     const form = this;
     const url = form.action;
     const formData = new FormData(form);
+    const submitButton = form.querySelector('[type="submit"]');
+    const originalButtonContent = submitButton?.innerHTML;
+    const showMessage = (options) => Swal.fire(SpTheme.mergeSwalOptions({
+        confirmButtonText: 'Mengerti',
+        buttonsStyling: false,
+        customClass: {
+            popup: 'rounded-4',
+            confirmButton: 'btn btn-primary rounded-3 px-4'
+        },
+        ...options
+    }));
+
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...';
+    }
 
     fetch(url, {
         method: 'POST',
@@ -281,15 +297,36 @@ document.getElementById('assignTeacherForm')?.addEventListener('submit', functio
     .then(res => res.json())
     .then(data => {
         if (data.status === 'success') {
-            alert(data.message);
-            window.location.reload();
+            return showMessage({
+                icon: 'success',
+                title: 'Penugasan tersimpan',
+                text: data.message,
+                timer: 1600,
+                timerProgressBar: true,
+                showConfirmButton: false
+            }).then(() => window.location.reload());
         } else {
-            alert(data.message + (data.errors ? '\n' + Object.values(data.errors).join('\n') : ''));
+            const details = data.errors ? Object.values(data.errors).join('\n') : '';
+            return showMessage({
+                icon: 'error',
+                title: 'Gagal menyimpan',
+                text: data.message + (details ? '\n' + details : '')
+            });
         }
     })
     .catch(err => {
         console.error(err);
-        alert('Terjadi kesalahan jaringan.');
+        return showMessage({
+            icon: 'error',
+            title: 'Koneksi bermasalah',
+            text: 'Terjadi kesalahan jaringan. Periksa koneksi Anda lalu coba kembali.'
+        });
+    })
+    .finally(() => {
+        if (submitButton && document.body.contains(submitButton)) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonContent;
+        }
     });
 });
 </script>

@@ -231,17 +231,20 @@ class CurriculumImportService
         $reader->setReadDataOnly(true);
         $spreadsheet = $reader->load($filePath);
         $worksheet   = $spreadsheet->getActiveSheet();
-        if ($worksheet->getHighestDataRow() > 10000 || Coordinate::columnIndexFromString($worksheet->getHighestDataColumn()) > 52) {
-            throw new \InvalidArgumentException('File import melebihi batas 10.000 baris atau 52 kolom.');
-        }
         $rowsData    = $worksheet->toArray(null, true, true, true);
 
         if (count($rowsData) < 2) {
+            @unlink($filePath);
             throw new \InvalidArgumentException('File spreadsheet kosong atau hanya berisi header.');
         }
 
         $headers = array_map(static fn ($value) => self::normalizeHeader((string) $value), array_shift($rowsData));
         $headerKeys = array_values($headers);
+
+        if (count(array_filter($headerKeys)) > 52) {
+            @unlink($filePath);
+            throw new \InvalidArgumentException('File import melebihi batas 52 kolom.');
+        }
         $duplicates = array_diff_assoc($headerKeys, array_unique($headerKeys));
         if ($duplicates !== []) {
             throw new \InvalidArgumentException('Header ganda ditemukan: ' . implode(', ', array_unique($duplicates)) . '.');

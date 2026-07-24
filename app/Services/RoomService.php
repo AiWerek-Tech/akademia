@@ -159,13 +159,22 @@ class RoomService
             }
 
             $data['shared_between_units'] = $isShared;
-            $data['revision_number']      = ((int)$existing['revision_number']) + 1;
-            $data['updated_by']           = session()->get('user_id');
+            $newRevision                  = ((int)$existing['revision_number']) + 1;
+
+            $allowedFields = [
+                'code', 'name', 'room_type_id', 'unit_id', 'capacity', 'location',
+                'floor', 'shared_between_units', 'facilities_json', 'is_active'
+            ];
+
+            $updateData = array_intersect_key($data, array_flip($allowedFields));
+            $updateData['revision_number'] = $newRevision;
+            $updateData['updated_by']      = session()->get('user_id');
+            $updateData['updated_at']      = date('Y-m-d H:i:s');
 
             $db->table('rooms')
                 ->where('id', $existing['id'])
                 ->where('revision_number', $existing['revision_number'])
-                ->update($data);
+                ->update($updateData);
             if ($db->affectedRows() !== 1) {
                 throw new \RuntimeException('Data ruang telah diubah oleh pengguna lain. Silakan muat ulang halaman.');
             }

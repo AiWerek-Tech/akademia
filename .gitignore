@@ -145,3 +145,4 @@ phpunit.xml.dist.bak
 *.sql
 backups/
 docs/dev-docs/*.sql
+tmp/

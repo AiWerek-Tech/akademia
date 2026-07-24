@@ -417,7 +417,6 @@ class CurriculumStructureService
         $grades = $db->table('grade_levels')
             ->where('unit_id', $unitId)
             ->where('is_active', 1)
-            ->where('deleted_at IS NULL')
             ->orderBy('grade_number', 'ASC')
             ->get()->getResultArray();
 

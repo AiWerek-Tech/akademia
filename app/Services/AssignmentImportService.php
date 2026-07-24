@@ -137,17 +137,20 @@ class AssignmentImportService
         $reader->setReadDataOnly(true);
         $spreadsheet = $reader->load($filePath);
         $worksheet   = $spreadsheet->getActiveSheet();
-        if ($worksheet->getHighestDataRow() > 10000 || $worksheet->getHighestDataColumn() > 'AZ') {
-            throw new \InvalidArgumentException('File import melebihi batas 10.000 baris atau 52 kolom.');
-        }
         $rowsData    = $worksheet->toArray(null, true, true, true);
 
         if (count($rowsData) < 2) {
+            @unlink($filePath);
             throw new \InvalidArgumentException('File spreadsheet kosong atau hanya berisi header.');
         }
 
         $headers    = array_map('trim', array_shift($rowsData));
         $headerKeys = array_values($headers);
+
+        if (count(array_filter($headerKeys)) > 52) {
+            @unlink($filePath);
+            throw new \InvalidArgumentException('File import melebihi batas 52 kolom.');
+        }
         $requiredHeaders = [
             'unit', 'grade', 'classroom', 'subject_code', 'teacher_identifier',
             'assigned_weekly_hours',

@@ -210,10 +210,6 @@ class TeacherService
                 throw new \RuntimeException('Stale Data Error: Data guru ini telah diperbarui oleh pengguna lain. Silakan muat ulang halaman.');
             }
 
-            $data['normalized_name'] = TeacherDuplicateDetectionService::normalizeName($data['full_name'] ?? $existing['full_name']);
-            $data['revision_number'] = ((int)$existing['revision_number']) + 1;
-            $data['updated_by']      = session()->get('user_id');
-
             // Unique check for NIP & NIK
             if (!empty($data['nip']) && $data['nip'] !== $existing['nip']) {
                 $dup = $teacherModel->where('nip', trim($data['nip']))->where('id !=', $existing['id'])->where('deleted_at IS NULL')->first();
@@ -229,10 +225,25 @@ class TeacherService
                 }
             }
 
+            $data['normalized_name'] = TeacherDuplicateDetectionService::normalizeName($data['full_name'] ?? $existing['full_name']);
+            $newRevision             = ((int)$existing['revision_number']) + 1;
+
+            $allowedFields = [
+                'employee_number', 'nip', 'nik', 'full_name', 'normalized_name', 'title_prefix',
+                'degree_suffix', 'gender', 'birth_place', 'birth_date', 'phone', 'email', 'address',
+                'employment_status', 'employment_type', 'hire_date', 'termination_date', 'primary_unit_id',
+                'profile_status', 'is_active'
+            ];
+
+            $updateData = array_intersect_key($data, array_flip($allowedFields));
+            $updateData['revision_number'] = $newRevision;
+            $updateData['updated_by']      = session()->get('user_id');
+            $updateData['updated_at']      = date('Y-m-d H:i:s');
+
             $db->table('teachers')
                 ->where('id', $existing['id'])
                 ->where('revision_number', $existing['revision_number'])
-                ->update($data);
+                ->update($updateData);
             if ($db->affectedRows() !== 1) {
                 throw new \RuntimeException('Data guru telah diubah oleh pengguna lain. Silakan muat ulang halaman.');
             }

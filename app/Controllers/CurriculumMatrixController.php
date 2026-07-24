@@ -36,7 +36,6 @@ class CurriculumMatrixController extends BaseController
         // Previous curriculum versions for cloning
         $previousVersions = Database::connect()->table('curriculum_versions')
             ->where('id !=', $version['id'])
-            ->where('deleted_at IS NULL')
             ->orderBy('created_at', 'DESC')
             ->get()->getResultArray();
 
@@ -77,12 +76,19 @@ class CurriculumMatrixController extends BaseController
         $subjectId    = (int)($json['subject_id'] ?? 0);
         $gradeLevelId = (int)($json['grade_level_id'] ?? 0);
         $weeklyHours  = (float)($json['weekly_hours'] ?? 0);
+        $effectiveSource = strtoupper((string)($json['effective_source'] ?? 'OFFICIAL'));
         $structureUuid = $json['structure_uuid'] ?? null;
 
         if (!$unitId || !$subjectId || !$gradeLevelId) {
             return $this->response->setJSON([
                 'status'  => 'error',
                 'message' => 'Parameter unit, mapel, dan tingkat kelas wajib diisi.',
+            ])->setStatusCode(400);
+        }
+        if (!in_array($effectiveSource, ['OFFICIAL', 'CUSTOM'], true)) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => 'Mode jam harus berupa jam resmi atau JP custom sekolah.',
             ])->setStatusCode(400);
         }
 
@@ -110,34 +116,44 @@ class CurriculumMatrixController extends BaseController
 
             if (!empty($structureUuid)) {
                 // Update existing structure
-                $updated = CurriculumStructureService::updateStructure($structureUuid, [
-                    'official_weekly_hours' => $weeklyHours,
-                    'effective_source'      => 'OFFICIAL',
-                ]);
+                $updateData = [
+                    'effective_source' => $effectiveSource,
+                    $effectiveSource === 'CUSTOM' ? 'custom_weekly_hours' : 'official_weekly_hours' => $weeklyHours,
+                ];
+                if ($effectiveSource === 'CUSTOM') {
+                    $updateData['adjustment_reason'] = 'Penyesuaian JP custom sekolah melalui editor matriks';
+                }
+                $updated = CurriculumStructureService::updateStructure($structureUuid, $updateData);
                 return $this->response->setJSON([
                     'status'         => 'success',
                     'action'         => 'updated',
                     'structure'      => $updated,
                     'weekly_hours'   => (float)$updated['effective_weekly_hours'],
+                    'effective_source' => $updated['effective_source'],
                     'message'        => 'Jam pelajaran berhasil diperbarui.',
                 ]);
             } else {
                 // Create new structure
-                $created = CurriculumStructureService::createStructure([
+                $createData = [
                     'curriculum_version_id' => $version['id'],
                     'unit_id'               => $unitId,
                     'grade_level_id'        => $gradeLevelId,
                     'subject_id'            => $subjectId,
-                    'official_weekly_hours' => $weeklyHours,
-                    'effective_source'      => 'OFFICIAL',
+                    'effective_source'      => $effectiveSource,
                     'counts_in_report'      => 1,
                     'counts_as_teaching_load' => 1,
-                ]);
+                ];
+                $createData[$effectiveSource === 'CUSTOM' ? 'custom_weekly_hours' : 'official_weekly_hours'] = $weeklyHours;
+                if ($effectiveSource === 'CUSTOM') {
+                    $createData['adjustment_reason'] = 'Penyesuaian JP custom sekolah melalui editor matriks';
+                }
+                $created = CurriculumStructureService::createStructure($createData);
                 return $this->response->setJSON([
                     'status'         => 'success',
                     'action'         => 'created',
                     'structure'      => $created,
                     'weekly_hours'   => (float)$created['effective_weekly_hours'],
+                    'effective_source' => $created['effective_source'],
                     'message'        => 'Mata pelajaran berhasil ditambahkan ke tingkat ini.',
                 ]);
             }

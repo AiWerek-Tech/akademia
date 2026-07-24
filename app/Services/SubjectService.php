@@ -189,14 +189,26 @@ class SubjectService
                 }
             }
 
-            $data['normalized_name'] = TeacherDuplicateDetectionService::normalizeName($data['name'] ?? $existing['name']);
-            $data['revision_number'] = ((int)$existing['revision_number']) + 1;
-            $data['updated_by']      = session()->get('user_id');
+            $data['normalized_name']        = TeacherDuplicateDetectionService::normalizeName($data['name'] ?? $existing['name']);
+            $data['counts_in_report']       = isset($data['counts_in_report']) ? (int)$data['counts_in_report'] : 0;
+            $data['counts_as_teaching_load'] = isset($data['counts_as_teaching_load']) ? (int)$data['counts_as_teaching_load'] : 0;
+            $newRevision                    = ((int)$existing['revision_number']) + 1;
+
+            $allowedFields = [
+                'code', 'name', 'short_name', 'category', 'default_report_name',
+                'counts_in_report', 'counts_as_teaching_load', 'normalized_name',
+                'is_active'
+            ];
+
+            $updateData = array_intersect_key($data, array_flip($allowedFields));
+            $updateData['revision_number'] = $newRevision;
+            $updateData['updated_by']      = is_cli() ? 1 : (session()->has('user_id') ? session()->get('user_id') : null);
+            $updateData['updated_at']      = date('Y-m-d H:i:s');
 
             $db->table('subjects')
                 ->where('id', $existing['id'])
                 ->where('revision_number', $existing['revision_number'])
-                ->update($data);
+                ->update($updateData);
             if ($db->affectedRows() !== 1) {
                 throw new \RuntimeException('Data mata pelajaran telah diubah oleh pengguna lain. Silakan muat ulang halaman.');
             }
@@ -204,7 +216,7 @@ class SubjectService
             // Sync availability
             $availModel = new SubjectUnitAvailabilityModel();
             $availModel->where('subject_id', $existing['id']);
-            if (session()->get('logged_in')) {
+            if (!is_cli() && session()->has('logged_in') && session()->get('logged_in')) {
                 $availModel->whereIn('unit_id', UnitScopeService::accessibleUnitIds());
             }
             $availModel->delete();
@@ -213,7 +225,7 @@ class SubjectService
                     'subject_id'   => $existing['id'],
                     'unit_id'      => $uId,
                     'is_available' => 1,
-                    'created_by'   => session()->get('user_id'),
+                    'created_by'   => is_cli() ? 1 : (session()->has('user_id') ? session()->get('user_id') : null),
                 ]);
             }
 

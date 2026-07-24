@@ -137,6 +137,10 @@ $csrfHash = csrf_hash();
                             <option value="EKSTRAKURIKULER">Ekstrakurikuler</option>
                             <option value="OTHER">Lainnya</option>
                         </select>
+                        <select id="matrixSourceMode" class="form-select border-start-0 fw-semibold" style="max-width: 190px;" title="Pilih jenis jam yang akan disimpan">
+                            <option value="OFFICIAL">Input: Jam resmi</option>
+                            <option value="CUSTOM">Input: JP custom sekolah</option>
+                        </select>
                     </div>
                 </div>
 
@@ -242,8 +246,10 @@ $csrfHash = csrf_hash();
                                                    data-grade-id="<?= $grdId ?>"
                                                    data-structure-uuid="<?= $structUuid ?>"
                                                    data-original-val="<?= $hoursVal ?>"
+                                                   data-source="<?= esc($cellData['effective_source'] ?? 'OFFICIAL') ?>"
+                                                   data-original-source="<?= esc($cellData['effective_source'] ?? 'OFFICIAL') ?>"
                                                    <?= !has_permission('curriculum.manage') ? 'disabled' : '' ?>>
-                                            <span class="input-group-text px-1 text-muted" style="font-size: 0.7rem;">JP</span>
+                                            <span class="input-group-text px-1 <?= ($cellData['effective_source'] ?? 'OFFICIAL') === 'CUSTOM' ? 'bg-warning-subtle text-warning-emphasis' : 'text-muted' ?>" style="font-size: 0.7rem;" title="<?= ($cellData['effective_source'] ?? 'OFFICIAL') === 'CUSTOM' ? 'JP custom sekolah' : 'Jam resmi' ?>"><?= ($cellData['effective_source'] ?? 'OFFICIAL') === 'CUSTOM' ? 'C' : 'JP' ?></span>
                                         </div>
                                     </td>
                                 <?php endforeach; ?>
@@ -428,6 +434,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const matrixInputs = document.querySelectorAll('.matrix-input');
     const searchInput = document.getElementById('matrixSearchInput');
     const categoryFilter = document.getElementById('matrixCategoryFilter');
+    const sourceMode = document.getElementById('matrixSourceMode');
     const subjectRows = document.querySelectorAll('.subject-row');
     const copyRowBtns = document.querySelectorAll('.copy-row-btn');
 
@@ -490,9 +497,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const gradeId = inputEl.getAttribute('data-grade-id');
         let structureUuid = inputEl.getAttribute('data-structure-uuid');
         const originalVal = inputEl.getAttribute('data-original-val');
+        const originalSource = inputEl.getAttribute('data-original-source') || 'OFFICIAL';
+        const selectedSource = sourceMode?.value || 'OFFICIAL';
         const newHours = parseFloat(inputEl.value) || 0;
 
-        if (parseFloat(originalVal) === newHours) return;
+        if (parseFloat(originalVal) === newHours && originalSource === selectedSource) return;
 
         showSaveIndicator('loading');
 
@@ -508,6 +517,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 subject_id: subjectId,
                 grade_level_id: gradeId,
                 weekly_hours: newHours,
+                effective_source: selectedSource,
                 structure_uuid: structureUuid
             })
         })
@@ -516,6 +526,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.status === 'success') {
                 showSaveIndicator('success', data.message);
                 inputEl.setAttribute('data-original-val', newHours);
+                inputEl.setAttribute('data-source', data.effective_source || selectedSource);
+                inputEl.setAttribute('data-original-source', data.effective_source || selectedSource);
 
                 if (data.action === 'created' && data.structure) {
                     inputEl.setAttribute('data-structure-uuid', data.structure.uuid);
@@ -526,9 +538,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Styling updates
                 if (newHours > 0) {
-                    inputEl.classList.add('bg-primary-subtle', 'text-primary', 'border-primary');
+                    inputEl.classList.remove('bg-primary-subtle', 'text-primary', 'border-primary', 'bg-warning-subtle', 'text-warning-emphasis', 'border-warning');
+                    inputEl.classList.add(...(selectedSource === 'CUSTOM'
+                        ? ['bg-warning-subtle', 'text-warning-emphasis', 'border-warning']
+                        : ['bg-primary-subtle', 'text-primary', 'border-primary']));
+                    const sourceBadge = inputEl.nextElementSibling;
+                    if (sourceBadge) {
+                        sourceBadge.textContent = selectedSource === 'CUSTOM' ? 'C' : 'JP';
+                        sourceBadge.title = selectedSource === 'CUSTOM' ? 'JP custom sekolah' : 'Jam resmi';
+                        sourceBadge.classList.toggle('bg-warning-subtle', selectedSource === 'CUSTOM');
+                        sourceBadge.classList.toggle('text-warning-emphasis', selectedSource === 'CUSTOM');
+                    }
                 } else {
-                    inputEl.classList.remove('bg-primary-subtle', 'text-primary', 'border-primary');
+                    inputEl.classList.remove('bg-primary-subtle', 'text-primary', 'border-primary', 'bg-warning-subtle', 'text-warning-emphasis', 'border-warning');
                 }
 
                 recalculateTotals();
