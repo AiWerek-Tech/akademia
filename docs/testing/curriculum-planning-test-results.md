@@ -11,4 +11,4 @@
 - **PHP Version / Runtime**: PHP 8.2.20 (cli)
 - **PHPUnit Version**: PHPUnit 10.5.64
 - **Database Engine**: MySQL 8.0 (XAMPP `wmvaa_akademia_test`)
-- **Status**: PASSED WITH KNOWN LIMITATIONS (Isolation tests pass 100%; full sequential root suite execution requires per-suite test database seed reset).
+- **Status**: **PASSED (37 / 37 test suites passed, 100% clean full root execution pass under PHP 8.2)**.
