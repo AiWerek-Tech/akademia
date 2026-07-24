@@ -13,12 +13,13 @@ class CurriculumPlanningSettingModel extends Model
     protected $allowedFields = [
         'curriculum_version_id',
         'unit_id',
+        'workload_policy_id',
         'teaching_days_per_week',
+        'selected_day_codes_json',
         'daily_jp_capacity',
-        'teacher_minimum_hours',
-        'teacher_maximum_hours',
         'allow_custom_hours',
         'notes',
+        'revision_number',
         'created_by',
         'updated_by',
     ];

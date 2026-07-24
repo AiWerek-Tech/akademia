@@ -1,107 +1,31 @@
-# Database Schema - WMVAA Akademia
+# Database Schema Reference
 
-This document outlines the database schema draft for **WMVAA Akademia**. It defines entities, relations, indices, and constraints.
+## Core Tables (Milestone 0–2)
+- `school_units`: `id`, `code`, `name`, `is_active`, `created_at`, `updated_at`.
+- `academic_years`: `id`, `name`, `start_date`, `end_date`, `status`, `is_active`.
+- `academic_periods`: `id`, `academic_year_id`, `semester_number`, `name`, `workflow_status`, `is_active`.
+- `users`: `id`, `username`, `email`, `password_hash`, `full_name`, `is_active`.
+- `teachers`: `id`, `nip`, `nik`, `full_name`, `email`, `phone`, `employment_status`, `is_active`.
+- `subjects`: `id`, `code`, `name`, `category`, `is_active`.
+- `grade_levels`: `id`, `unit_id`, `code`, `name`, `grade_number`, `is_active`.
+- `classrooms`: `id`, `academic_period_id`, `unit_id`, `grade_level_id`, `code`, `name`, `is_active`.
 
----
+## Curriculum & Workload Tables (Milestone 3–4)
+- `curriculum_versions`: `id`, `uuid`, `academic_period_id`, `code`, `name`, `workflow_status`, `is_active`.
+- `curriculum_structures`: `id`, `uuid`, `curriculum_version_id`, `unit_id`, `grade_level_id`, `subject_id`, `official_weekly_hours`, `custom_weekly_hours`, `effective_source`, `effective_weekly_hours`, `adjustment_reason`, `revision_number`.
+- `workload_policies`: `id`, `academic_period_id`, `unit_id`, `minimum_teaching_hours`, `target_total_hours`, `maximum_total_hours`, `is_active`.
 
-## 1. Key Database Rules
-
-- **Engine**: InnoDB (support for Foreign Keys and Transactions).
-- **Charset**: `utf8mb4_unicode_ci`.
-- **Soft Delete**: `deleted_at` field present on transactional entities.
-- **Audit Columns**: `created_at`, `updated_at`, `created_by`, `updated_by` are mandatory.
-- **UUIDs**: UUIDs used for external references (URLs, PDFs) to prevent ID scraping.
-- **IDs**: Auto-incrementing BIGINT as primary key internally.
-
----
-
-## 2. Preliminary Schema Definition (Milestone 0)
-
-### A. Organization & Period
-
-```sql
--- 1. School Units
-CREATE TABLE `school_units` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `code` VARCHAR(20) UNIQUE NOT NULL,       -- 'SMP', 'SMA'
-  `name` VARCHAR(100) NOT NULL,
-  `level` VARCHAR(20) NOT NULL,              -- 'SMP', 'SMA'
-  `npsn` VARCHAR(30) UNIQUE,
-  `address` TEXT,
-  `phone` VARCHAR(30),
-  `email` VARCHAR(100),
-  `logo_path` VARCHAR(255),
-  `is_active` TINYINT(1) DEFAULT 1,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
-
--- 2. Academic Years
-CREATE TABLE `academic_years` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(20) UNIQUE NOT NULL,        -- '2026/2027'
-  `start_date` DATE NOT NULL,
-  `end_date` DATE NOT NULL,
-  `is_active` TINYINT(1) DEFAULT 0,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
-
--- 3. Academic Periods (Consolidated Semester and Period Representation)
-CREATE TABLE `academic_periods` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `academic_year_id` INT NOT NULL,
-  `semester_number` INT NOT NULL,             -- 1 (Ganjil), 2 (Genap)
-  `name` VARCHAR(50) NOT NULL,                -- '2026/2027 Ganjil'
-  `start_date` DATE NOT NULL,
-  `end_date` DATE NOT NULL,
-  `workflow_status` VARCHAR(20) DEFAULT 'DRAFT', -- 'DRAFT', 'VALIDATED', 'REVIEWED', 'APPROVED', 'LOCKED'
-  `is_active` TINYINT(1) DEFAULT 0,
-  `approved_at` TIMESTAMP NULL,
-  `locked_at` TIMESTAMP NULL,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (`academic_year_id`) REFERENCES `academic_years` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB;
-```
-
-### B. Users & Permissions
-
-```sql
--- 4. Users Table
-CREATE TABLE `users` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `uuid` VARCHAR(36) UNIQUE NOT NULL,
-  `username` VARCHAR(50) UNIQUE NOT NULL,
-  `password_hash` VARCHAR(255) NOT NULL,
-  `email` VARCHAR(100) UNIQUE NOT NULL,
-  `full_name` VARCHAR(100) NOT NULL,
-  `is_active` TINYINT(1) DEFAULT 1,
-  `last_login` TIMESTAMP NULL,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
-
--- 5. Roles
-CREATE TABLE `roles` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(50) UNIQUE NOT NULL,
-  `description` TEXT,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
-
--- 6. Permissions
-CREATE TABLE `permissions` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(100) UNIQUE NOT NULL,
-  `description` TEXT,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
-```
-
----
-
-## 3. General Indices & optimization
-- Index `unit_id` across classrooms and schedules to allow faster lookups.
-- Composite index on `academic_period_id` and `teacher_id` for quick assignment lookups.
-- UUID columns indexed uniquely.
+## Curriculum Planning Enhancement Table (Enhancement Migration)
+- `curriculum_planning_settings`:
+  - `id` (`BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY`)
+  - `curriculum_version_id` (`BIGINT UNSIGNED NOT NULL`, FK `curriculum_versions.id`)
+  - `unit_id` (`BIGINT UNSIGNED NOT NULL`, FK `school_units.id`)
+  - `workload_policy_id` (`BIGINT UNSIGNED NULLABLE`, FK `workload_policies.id`)
+  - `teaching_days_per_week` (`TINYINT UNSIGNED DEFAULT 5`)
+  - `selected_day_codes_json` (`TEXT NULLABLE`)
+  - `daily_jp_capacity` (`DECIMAL(5,2) DEFAULT 9.00`)
+  - `allow_custom_hours` (`TINYINT(1) DEFAULT 1`)
+  - `notes` (`TEXT NULLABLE`)
+  - `revision_number` (`INT UNSIGNED DEFAULT 1`)
+  - `created_at`, `updated_at`, `created_by`, `updated_by`
+  - Unique Key: `uq_curriculum_planning_scope` on `(curriculum_version_id, unit_id)`

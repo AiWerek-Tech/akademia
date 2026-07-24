@@ -220,11 +220,15 @@ class CoreSeeder extends Seeder
             }
         }
 
-        // Truncate role_permissions and insert new ones
-        $db->table('role_permissions')->truncate();
         foreach ($mapping as $m) {
-            $m['created_at'] = date('Y-m-d H:i:s');
-            $db->table('role_permissions')->insert($m);
+            $exists = $db->table('role_permissions')
+                ->where('role_id', $m['role_id'])
+                ->where('permission_id', $m['permission_id'])
+                ->get()->getRowArray();
+            if (!$exists) {
+                $m['created_at'] = date('Y-m-d H:i:s');
+                $db->table('role_permissions')->insert($m);
+            }
         }
 
         // 4. Seed feature_flags

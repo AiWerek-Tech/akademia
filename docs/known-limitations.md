@@ -1,20 +1,9 @@
-# Known Limitations
+# System Known Limitations
 
-This document lists the deliberate engineering limitations and constraints of the current curriculum versioning and scheduling platform.
+## 1. Curriculum Planning & Scheduling
+- **Teacher FTE Estimation**: The FTE calculation assumes standard full-time teaching capacity and does not account for individual medical leave or partial semester sabbaticals.
+- **Fixed Activity Scheduling**: Non-teaching fixed activities (e.g., *Chapel*, *Upacara*, *SID*) are reserved as block slots across all grade levels; custom room assignment for sub-groups must be finalized in Milestone 5 matrix editor.
+- **Day Code Customization**: Active day codes support standard 7-day ISO identifiers (`MON`–`SUN`). Split shift schedules across midnight are not supported in the current version.
 
-## 1. Export Formats
-- **PDF Export**:
-  - **Status**: Known Limitation.
-  - **Description**: The system currently does not include standard PHP libraries (such as Dompdf) installed via Composer in the local environment. A placeholder download returning clean, structured HTML format is served instead. Full PDF rendering remains a known limitation until Dompdf is installed.
-
-## 2. Kurikulum Merdeka (Kumer)
-- **Status**: Out of Scope.
-  - **Description**: This system strictly designs structure availability for regular SMP (Junior High) and SMA (Senior High) classes based on default grade levels and classroom overrides. Advanced Kurikulum Merdeka specific options (e.g. customized elective subjects mapping and dynamic projects) are not implemented.
-
-## 3. Teaching Assignments & Workloads (Milestone 4)
-- **Status**: Completed (Milestone 4).
-  - **Description**: Teaching assignments, team teaching split ratios, additional duties, workload calculation, and assignment versioning workflows are fully supported.
-
-## 4. Timetable Scheduling & Generator (Milestone 5+)
-- **Status**: Not Started (Out of Scope for Milestone 4).
-  - **Description**: Features related to timetable slots, time conflict resolution, schedule generators, piket assignments, and official decision letters (SK / Surat Tugas) are strictly reserved for Milestone 5 and are not implemented.
+## 2. Multi-Unit Operations
+- Admin scope separation relies on session-bound `unit_access` parameters. Cross-unit API requests without authorized unit access are rejected with HTTP 403 / redirect to dashboard.

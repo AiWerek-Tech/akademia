@@ -165,11 +165,12 @@ class CurriculumController extends BaseController
             $unitId = UnitScopeService::resolveUnit($this->request->getPost('unit_id'));
             CurriculumPlanningService::saveSettings((int) $version['id'], (int) $unitId, [
                 'teaching_days_per_week' => $this->request->getPost('teaching_days_per_week'),
-                'daily_jp_capacity' => $this->request->getPost('daily_jp_capacity'),
-                'teacher_minimum_hours' => $this->request->getPost('teacher_minimum_hours'),
-                'teacher_maximum_hours' => $this->request->getPost('teacher_maximum_hours'),
-                'allow_custom_hours' => $this->request->getPost('allow_custom_hours'),
-                'notes' => $this->request->getPost('notes'),
+                'selected_day_codes'     => $this->request->getPost('selected_day_codes'),
+                'daily_jp_capacity'      => $this->request->getPost('daily_jp_capacity'),
+                'workload_policy_id'     => $this->request->getPost('workload_policy_id'),
+                'allow_custom_hours'     => $this->request->getPost('allow_custom_hours'),
+                'revision_number'        => $this->request->getPost('revision_number'),
+                'notes'                  => $this->request->getPost('notes'),
             ]);
 
             return redirect()->to('/curriculum/' . $uuid . '?unit_id=' . $unitId)
