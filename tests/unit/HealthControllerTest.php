@@ -4,7 +4,7 @@ namespace Tests;
 
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\ControllerTestTrait;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Controllers\Health;
 
 /**
@@ -13,7 +13,7 @@ use App\Controllers\Health;
 final class HealthControllerTest extends CIUnitTestCase
 {
     use ControllerTestTrait;
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     public function testHealthIndexReturnsSuccess(): void
     {

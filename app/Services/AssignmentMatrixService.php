@@ -64,7 +64,7 @@ class AssignmentMatrixService
         }
 
         // 4. Fetch assignments for this version
-        $assignmentModel->where('assignment_version_id', $versionId);
+        $assignmentModel->where('assignment_version_id', $versionId)->where('status', 'ACTIVE');
         if ($unitId !== null) {
             $assignmentModel->where('unit_id', $unitId);
         }
@@ -104,6 +104,12 @@ class AssignmentMatrixService
             $availableSubjectIds = array_unique($availableSubjectIds);
 
             foreach ($availableSubjectIds as $subId) {
+                $subjectObj = $subjectsById[$subId] ?? null;
+                // Skip non-teaching load / routine activity subjects from the Teacher Assignment Matrix
+                if ($subjectObj && isset($subjectObj['counts_as_teaching_load']) && (int)$subjectObj['counts_as_teaching_load'] === 0) {
+                    continue;
+                }
+
                 // Resolve structure using override or fallback to grade default
                 $structureRow = null;
                 if (isset($classroomOverrides[$classId][$subId])) {
@@ -127,12 +133,14 @@ class AssignmentMatrixService
                     $assignedJP += (float)$a['assigned_weekly_hours'];
                     $tId = (int)$a['teacher_id'];
                     $assignedTeachers[] = [
+                        'assignment_id'         => (int)$a['id'],
                         'id'                    => $tId,
                         'full_name'             => $teachersById[$tId]['full_name'] ?? "ID {$tId}",
                         'assigned_weekly_hours' => (float)$a['assigned_weekly_hours'],
                         'workload_weekly_hours' => (float)$a['workload_weekly_hours'],
                         'assignment_role'       => $a['assignment_role'],
-                        'is_primary'            => (int)$a['is_primary_teacher'] === 1
+                        'is_primary'            => (int)$a['is_primary_teacher'] === 1,
+                        'revision_number'       => (int)($a['revision_number'] ?? 1),
                     ];
                 }
 

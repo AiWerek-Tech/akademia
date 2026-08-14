@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Services\TeacherWorkloadCalculationService;
 use App\Models\WorkloadPolicyModel;
 use App\Models\TeachingAssignmentModel;
@@ -20,7 +20,7 @@ use Config\Database;
  */
 final class WorkloadCalculationTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

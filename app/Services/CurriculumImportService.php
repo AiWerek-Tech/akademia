@@ -69,7 +69,7 @@ class CurriculumImportService
         $sheet->getColumnDimension('R')->setWidth(34);
         $sheet->getColumnDimension('T')->setWidth(34);
 
-        self::addListValidation($sheet, 'F2:F501', 'INTRAKURIKULER,MUATAN_LOKAL,KOKURIKULER,EKSTRAKURIKULER,KEGIATAN_TETAP,PENGEMBANGAN_DIRI,OTHER');
+        self::addListValidation($sheet, 'F2:F501', 'INTRAKURIKULER,MUATAN_LOKAL,KOKURIKULER,EKSTRAKURIKULER,PENGEMBANGAN_DIRI,OTHER');
         self::addListValidation($sheet, 'J2:J501', 'OFFICIAL,CUSTOM,MANUAL');
         self::addListValidation($sheet, 'N2:O501', '1,0');
 
@@ -90,7 +90,7 @@ class CurriculumImportService
             ['classroom_optional', 'Kode kelas jika override (Opsional)', '7A, X-IPA-1 (Kosongkan jika default tingkat)'],
             ['subject_code', 'Kode unik mata pelajaran (Wajib)', 'MAT-SMP, IPA-SMP'],
             ['subject_name', 'Nama mata pelajaran (opsional, hanya sebagai informasi)', 'Matematika'],
-            ['category', 'Kategori kegiatan (Wajib)', 'INTRAKURIKULER, MUATAN_LOKAL, KOKURIKULER, EKSTRAKURIKULER, KEGIATAN_TETAP, PENGEMBANGAN_DIRI, OTHER'],
+            ['category', 'Kategori kegiatan (Wajib)', 'INTRAKURIKULER, MUATAN_LOKAL, KOKURIKULER, EKSTRAKURIKULER, PENGEMBANGAN_DIRI, OTHER'],
             ['official_weekly_hours', 'Jam resmi mingguan (Wajib jika OFFICIAL)', '4'],
             ['custom_weekly_hours', 'Jam custom mingguan (Wajib jika CUSTOM)', '2'],
             ['manual_weekly_hours', 'Jam manual mingguan (Wajib jika MANUAL)', '3'],
@@ -406,7 +406,7 @@ class CurriculumImportService
             'notes'                   => trim($row['notes'] ?? ''),
         ];
 
-        $allowedCategories = ['INTRAKURIKULER', 'MUATAN_LOKAL', 'KOKURIKULER', 'EKSTRAKURIKULER', 'KEGIATAN_TETAP', 'PENGEMBANGAN_DIRI', 'OTHER'];
+        $allowedCategories = ['INTRAKURIKULER', 'MUATAN_LOKAL', 'KOKURIKULER', 'EKSTRAKURIKULER', 'PENGEMBANGAN_DIRI', 'OTHER'];
         if (!in_array($normData['category'], $allowedCategories, true)) {
             $messages[] = "Kategori '{$normData['category']}' tidak valid.";
             $status = 'ERROR';

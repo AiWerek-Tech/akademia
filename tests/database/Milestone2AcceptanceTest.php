@@ -4,7 +4,7 @@ namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Models\TeacherModel;
 use App\Models\SubjectModel;
 use App\Models\RoomModel;
@@ -33,7 +33,7 @@ use Config\Database;
 final class Milestone2AcceptanceTest extends CIUnitTestCase
 {
     use FeatureTestTrait;
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

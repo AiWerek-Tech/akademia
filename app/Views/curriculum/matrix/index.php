@@ -10,6 +10,14 @@ foreach ($units as $u) {
 }
 $csrfTokenName = csrf_token();
 $csrfHash = csrf_hash();
+$trimPreview = $trim_preview ?? ['plans' => []];
+$hasOverCapacity = false;
+foreach (($trimPreview['plans'] ?? []) as $plan) {
+    if (($plan['status'] ?? '') === 'OVER') {
+        $hasOverCapacity = true;
+        break;
+    }
+}
 ?>
 
 <div class="container-fluid px-4 py-4">
@@ -148,6 +156,9 @@ $csrfHash = csrf_hash();
                 <div class="col-md-4 text-md-end">
                     <?php if (has_permission('curriculum.manage')): ?>
                         <div class="d-flex flex-wrap justify-content-md-end gap-2">
+                            <button type="button" class="btn btn-sm btn-warning fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#reconciliationAssistantModal" <?= $hasOverCapacity ? '' : 'disabled' ?> title="<?= $hasOverCapacity ? 'Buka rekomendasi pemotongan jam' : 'Semua tingkat sudah dalam batas kapasitas' ?>">
+                                <i class="bi bi-lightning-charge-fill me-1"></i>Asisten Rekonsiliasi
+                            </button>
                             <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#bulkStoreModal">
                                 <i class="bi bi-plus-square-fill me-1"></i>Tambah Massal
                             </button>
@@ -217,8 +228,8 @@ $csrfHash = csrf_hash();
                                 </td>
                                 <td class="text-center p-1">
                                     <?php if (has_permission('curriculum.manage')): ?>
-                                        <button type="button" 
-                                                class="btn btn-sm btn-light border text-primary px-1 py-0 copy-row-btn" 
+                                        <button type="button"
+                                                class="btn btn-sm btn-light border text-primary px-1 py-0 copy-row-btn"
                                                 title="Isi nilai sel pertama ke semua tingkat untuk mapel ini"
                                                 data-subject-id="<?= (int)$sub['id'] ?>">
                                             <i class="bi bi-lightning-fill"></i>
@@ -232,25 +243,32 @@ $csrfHash = csrf_hash();
                                         $cellData = $matrix['matrix'][$subId][$grdId] ?? null;
                                         $hoursVal = $cellData ? (float)$cellData['effective_weekly_hours'] : '';
                                         $structUuid = $cellData ? $cellData['uuid'] : '';
+                                        $isUnapprovedElective = $cellData && isset($cellData['is_approved_elective']) && (int)$cellData['is_approved_elective'] === 0;
                                     ?>
-                                    <td class="p-1 text-center position-relative cell-container">
+                                    <td class="p-1 text-center position-relative cell-container <?= $isUnapprovedElective ? 'bg-light bg-opacity-75' : '' ?>">
                                         <div class="input-group input-group-sm">
-                                            <input type="number" 
-                                                   step="0.5" 
-                                                   min="0" 
-                                                   max="40" 
-                                                   class="form-control text-center fw-bold matrix-input <?= $hoursVal !== '' && (float)$hoursVal > 0 ? 'bg-primary-subtle text-primary border-primary' : '' ?>" 
-                                                   value="<?= $hoursVal ?>" 
+                                            <input type="number"
+                                                   step="0.5"
+                                                   min="0"
+                                                   max="40"
+                                                   class="form-control text-center fw-bold matrix-input <?= $isUnapprovedElective ? 'bg-secondary-subtle text-muted text-decoration-line-through border-secondary' : ($hoursVal !== '' && (float)$hoursVal > 0 ? 'bg-primary-subtle text-primary border-primary' : '') ?>"
+                                                   value="<?= $hoursVal ?>"
                                                    placeholder="0"
                                                    data-subject-id="<?= $subId ?>"
                                                    data-grade-id="<?= $grdId ?>"
                                                    data-structure-uuid="<?= $structUuid ?>"
+                                                   data-approved="<?= $isUnapprovedElective ? '0' : '1' ?>"
                                                    data-original-val="<?= $hoursVal ?>"
                                                    data-source="<?= esc($cellData['effective_source'] ?? 'OFFICIAL') ?>"
                                                    data-original-source="<?= esc($cellData['effective_source'] ?? 'OFFICIAL') ?>"
                                                    <?= !has_permission('curriculum.manage') ? 'disabled' : '' ?>>
-                                            <span class="input-group-text px-1 <?= ($cellData['effective_source'] ?? 'OFFICIAL') === 'CUSTOM' ? 'bg-warning-subtle text-warning-emphasis' : 'text-muted' ?>" style="font-size: 0.7rem;" title="<?= ($cellData['effective_source'] ?? 'OFFICIAL') === 'CUSTOM' ? 'JP custom sekolah' : 'Jam resmi' ?>"><?= ($cellData['effective_source'] ?? 'OFFICIAL') === 'CUSTOM' ? 'C' : 'JP' ?></span>
+                                            <span class="input-group-text px-1 <?= $isUnapprovedElective ? 'bg-secondary text-white' : (($cellData['effective_source'] ?? 'OFFICIAL') === 'CUSTOM' ? 'bg-warning-subtle text-warning-emphasis' : 'text-muted') ?>" style="font-size: 0.7rem;" title="<?= $isUnapprovedElective ? 'Mapel Pilihan Belum Disetujui di Rancangan Mapel (JP tidak dihitung)' : (($cellData['effective_source'] ?? 'OFFICIAL') === 'CUSTOM' ? 'JP custom sekolah' : 'Jam resmi') ?>"><?= $isUnapprovedElective ? '×' : (($cellData['effective_source'] ?? 'OFFICIAL') === 'CUSTOM' ? 'C' : 'JP') ?></span>
                                         </div>
+                                        <?php if ($isUnapprovedElective): ?>
+                                            <div class="badge text-bg-secondary opacity-75 border rounded-pill shadow-xs mt-0.5" style="font-size: 0.65rem;" title="Mapel pilihan belum disetujui untuk dikirim ke jadwal, JP tidak dihitung">
+                                                Belum Disetujui (0 JP)
+                                            </div>
+                                        <?php endif; ?>
                                     </td>
                                 <?php endforeach; ?>
                             </tr>
@@ -258,11 +276,61 @@ $csrfHash = csrf_hash();
                     <?php endif; ?>
                 </tbody>
                 <tfoot class="table-light sticky-bottom fw-bold" style="z-index: 4;">
-                    <tr>
-                        <td colspan="5" class="text-end text-uppercase pe-3 fs-6">Total Jam per Minggu:</td>
+                    <!-- Row 1: Jam Resmi -->
+                    <tr class="bg-light border-top">
+                        <td colspan="5" class="text-end text-muted small pe-3">Jam Resmi (Pemerintah):</td>
                         <?php foreach ($matrix['grades'] as $g): ?>
-                            <td class="text-center text-primary fs-6" id="totalGrade_<?= (int)$g['id'] ?>">
+                            <td class="text-center text-secondary small" id="totalOfficial_<?= (int)$g['id'] ?>">
+                                <?= number_format($matrix['official_totals'][(int)$g['id']] ?? 0, 1, ',', '.') ?> JP
+                            </td>
+                        <?php endforeach; ?>
+                    </tr>
+                    <!-- Row 2: Custom / Kegiatan Tetap -->
+                    <tr class="bg-light">
+                        <td colspan="5" class="text-end text-muted small pe-3">Kegiatan Tetap & Custom Sekolah:</td>
+                        <?php foreach ($matrix['grades'] as $g): ?>
+                            <td class="text-center text-warning-emphasis small" id="totalCustom_<?= (int)$g['id'] ?>">
+                                <?= number_format($matrix['custom_totals'][(int)$g['id']] ?? 0, 1, ',', '.') ?> JP
+                            </td>
+                        <?php endforeach; ?>
+                    </tr>
+                    <!-- Row 3: Total Jam Efektif -->
+                    <tr class="table-primary border-top border-bottom">
+                        <td colspan="5" class="text-end text-uppercase pe-3 fs-7 text-dark">Total Jam Efektif (JP):</td>
+                        <?php foreach ($matrix['grades'] as $g): ?>
+                            <td class="text-center text-primary fs-7 fw-bold" id="totalGrade_<?= (int)$g['id'] ?>">
                                 <?= number_format($matrix['grade_totals'][(int)$g['id']] ?? 0, 1, ',', '.') ?> JP
+                            </td>
+                        <?php endforeach; ?>
+                    </tr>
+                    <!-- Row 4: Status Kapasitas Akademik Sekolah -->
+                    <tr class="bg-white">
+                        <td colspan="5" class="text-end pe-3 fs-8 text-muted">
+                            Status Kapasitas Sekolah (Max <?= number_format($matrix['max_capacity'], 1, ',', '.') ?> JP · <?= (int)$matrix['minutes_per_jp'] ?>m/JP):
+                        </td>
+                        <?php foreach ($matrix['grades'] as $g): ?>
+                            <?php
+                                $gId = (int)$g['id'];
+                                $bd = $matrix['breakdown_by_grade'][$gId] ?? null;
+                                $status = $bd['status'] ?? 'BALANCED';
+                                $diff = $bd['diff'] ?? 0.0;
+                                $eff = $bd['effective_total'] ?? 0.0;
+                                $maxCap = $bd['max_capacity'] ?? 45.0;
+                            ?>
+                            <td class="text-center p-2" id="statusContainer_<?= $gId ?>">
+                                <?php if ($status === 'BALANCED'): ?>
+                                    <span class="badge bg-success text-white px-2 py-1 w-100" id="statusBadge_<?= $gId ?>" title="Kapasitas pas 100%">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Pas (<?= number_format($eff, 1, ',', '.') ?>/<?= number_format($maxCap, 1, ',', '.') ?> JP)
+                                    </span>
+                                <?php elseif ($status === 'OVER'): ?>
+                                    <span class="badge bg-danger text-white px-2 py-1 w-100" id="statusBadge_<?= $gId ?>" title="Melebihi kapasitas maksimal <?= number_format($maxCap, 1) ?> JP">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Melebihi +<?= number_format($diff, 1, ',', '.') ?> JP
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info px-2 py-1 w-100" id="statusBadge_<?= $gId ?>" title="Sisa kapasitas <?= number_format(abs($diff), 1) ?> JP">
+                                        <i class="bi bi-info-circle-fill me-1"></i>Sisa <?= number_format(abs($diff), 1, ',', '.') ?> JP
+                                    </span>
+                                <?php endif; ?>
                             </td>
                         <?php endforeach; ?>
                     </tr>
@@ -419,6 +487,61 @@ $csrfHash = csrf_hash();
                 </div>
             </form>
         </div>
+<!-- ==================================================================== -->
+<!-- MODAL 4: Asisten Rekonsiliasi Jam & Rekomendasi Pemotongan -->
+<!-- ==================================================================== -->
+<div class="modal fade" id="reconciliationAssistantModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content border-0 shadow rounded-4" id="assistantTrimForm" method="post" action="<?= base_url('curriculum/' . $version['uuid'] . '/matrix/auto-trim') ?>">
+            <?= csrf_field() ?>
+            <input type="hidden" name="unit_id" value="<?= (int)$selected_unit_id ?>">
+            <input type="hidden" name="grade_level_id" id="assistantGradeHidden" value="">
+            <div class="modal-header bg-warning text-dark px-4 pt-4">
+                <div>
+                    <h5 class="modal-title fw-bold"><i class="bi bi-lightning-charge-fill me-2"></i>Asisten Rekonsiliasi Jam & Pemotongan Cerdas</h5>
+                    <div class="small text-dark opacity-75">Solusi instan untuk menyeimbangkan kelebihan jam resmi vs kegiatan custom sekolah.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4">
+                <div class="alert alert-info border-0 rounded-3 mb-4">
+                    <i class="bi bi-info-circle me-2"></i>Anda dapat melakukan pemotongan jam otomatis melalui asisten ini <strong>atau secara manual langsung pada tabel matriks</strong> hingga indikator status berwarna hijau 🟢.
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Pilih Tingkat Kelas</label>
+                        <select id="assistantGradeSelect" class="form-select rounded-3">
+                            <?php foreach ($matrix['grades'] as $g): ?>
+                                <?php
+                                    $gId = (int)$g['id'];
+                                    $bd = $matrix['breakdown_by_grade'][$gId] ?? null;
+                                    $statusText = ($bd['status'] ?? '') === 'OVER' ? (' (Kelebihan +' . number_format($bd['diff'], 1) . ' JP)') : ' (Aman)';
+                                ?>
+                                <option value="<?= $gId ?>"><?= esc($g['code'] . ' · ' . $g['name']) ?><?= $statusText ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Target Kapasitas Maksimal</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control rounded-3" value="<?= number_format($matrix['max_capacity'], 1) ?> JP" readonly>
+                            <span class="input-group-text"><?= (int)$matrix['minutes_per_jp'] ?> mnt/JP</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="assistantBreakdownContainer">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+            <div class="modal-footer bg-light px-4 pb-4">
+                <button type="button" class="btn btn-secondary rounded-3 px-4" data-bs-dismiss="modal">Tutup</button>
+                <button type="submit" class="btn btn-warning fw-bold text-dark rounded-3 px-4" id="assistantApplyBtn" disabled>
+                    <i class="bi bi-magic me-1"></i>Terapkan Rekomendasi
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 <?php endif; ?>
@@ -427,7 +550,7 @@ $csrfHash = csrf_hash();
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const updateUrl = '<?= base_url('curriculum/' . $version['uuid'] . '/matrix/update-cell') ?>';
-    const csrfToken = '<?= $csrfHash ?>';
+    let currentCsrfToken = '<?= $csrfHash ?>';
     const unitId = <?= (int)$selected_unit_id ?>;
     const saveIndicator = document.getElementById('saveStatusIndicator');
 
@@ -437,6 +560,86 @@ document.addEventListener('DOMContentLoaded', function () {
     const sourceMode = document.getElementById('matrixSourceMode');
     const subjectRows = document.querySelectorAll('.subject-row');
     const copyRowBtns = document.querySelectorAll('.copy-row-btn');
+    const trimPreview = <?= json_encode($trimPreview, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    const assistantGradeSelect = document.getElementById('assistantGradeSelect');
+    const assistantGradeHidden = document.getElementById('assistantGradeHidden');
+    const assistantBreakdownContainer = document.getElementById('assistantBreakdownContainer');
+    const assistantApplyBtn = document.getElementById('assistantApplyBtn');
+
+    function formatJp(value) {
+        return (parseFloat(value) || 0).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    }
+
+    function renderAssistantPlan() {
+        if (!assistantGradeSelect || !assistantBreakdownContainer) return;
+
+        const gradeId = assistantGradeSelect.value;
+        const plan = trimPreview?.plans?.[gradeId];
+        if (assistantGradeHidden) assistantGradeHidden.value = gradeId;
+
+        if (!plan) {
+            assistantBreakdownContainer.innerHTML = '<div class="alert alert-secondary border-0 rounded-3">Data rekonsiliasi tingkat ini belum tersedia.</div>';
+            if (assistantApplyBtn) assistantApplyBtn.disabled = true;
+            return;
+        }
+
+        const afterTotal = (parseFloat(plan.effective_total) || 0) - (parseFloat(plan.overage) || 0);
+        const recs = plan.recommendations || [];
+        const hiddenInputs = recs.map(rec => `<input type="hidden" name="adjustments[${rec.subject_id}]" value="${rec.new_hours}">`).join('');
+        const rows = recs.map(rec => `
+            <tr>
+                <td>
+                    <div class="fw-semibold">${escapeHtml(rec.subject_name || '-')}</div>
+                    <div class="small text-muted">${escapeHtml(rec.subject_code || '')} · ${escapeHtml(rec.category || 'OFFICIAL')}</div>
+                </td>
+                <td class="text-end">${formatJp(rec.current_hours)} JP</td>
+                <td class="text-end text-danger">-${formatJp(rec.trim_hours)} JP</td>
+                <td class="text-end fw-bold text-success">${formatJp(rec.new_hours)} JP</td>
+            </tr>
+        `).join('');
+
+        assistantBreakdownContainer.innerHTML = `
+            ${hiddenInputs}
+            <div class="row g-3 mb-3">
+                <div class="col-md-3"><div class="p-3 bg-light rounded-3 h-100"><div class="small text-muted">Jam resmi</div><div class="fs-5 fw-bold">${formatJp(plan.official_total)} JP</div></div></div>
+                <div class="col-md-3"><div class="p-3 bg-light rounded-3 h-100"><div class="small text-muted">Custom sekolah</div><div class="fs-5 fw-bold text-warning-emphasis">${formatJp(plan.custom_total)} JP</div></div></div>
+                <div class="col-md-3"><div class="p-3 bg-light rounded-3 h-100"><div class="small text-muted">Total sekarang</div><div class="fs-5 fw-bold ${plan.status === 'OVER' ? 'text-danger' : 'text-success'}">${formatJp(plan.effective_total)} JP</div></div></div>
+                <div class="col-md-3"><div class="p-3 bg-light rounded-3 h-100"><div class="small text-muted">Target sesudah</div><div class="fs-5 fw-bold text-primary">${formatJp(afterTotal)} / ${formatJp(plan.max_capacity)} JP</div></div></div>
+            </div>
+            ${plan.status !== 'OVER'
+                ? `<div class="alert alert-success border-0 rounded-3 mb-0"><i class="bi bi-check-circle me-1"></i>${escapeHtml(plan.message || 'Kapasitas sudah aman.')}</div>`
+                : recs.length === 0
+                    ? `<div class="alert alert-warning border-0 rounded-3 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>${escapeHtml(plan.message || 'Belum ada rekomendasi pemotongan.')}</div>`
+                    : `<div class="alert alert-danger border-0 rounded-3"><strong>Kelebihan ${formatJp(plan.overage)} JP.</strong> Rekomendasi berikut akan memotong jam resmi agar total sesuai kapasitas sekolah.</div>
+                       <div class="table-responsive border rounded-3">
+                           <table class="table table-sm align-middle mb-0">
+                               <thead class="table-light"><tr><th>Mata pelajaran resmi</th><th class="text-end">Saat ini</th><th class="text-end">Potong</th><th class="text-end">Sesudah</th></tr></thead>
+                               <tbody>${rows}</tbody>
+                           </table>
+                       </div>`
+            }
+        `;
+
+        if (assistantApplyBtn) {
+            assistantApplyBtn.disabled = !(plan.status === 'OVER' && plan.can_apply && recs.length > 0);
+        }
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    if (assistantGradeSelect) {
+        const firstOver = Object.values(trimPreview?.plans || {}).find(plan => plan.status === 'OVER');
+        if (firstOver) assistantGradeSelect.value = String(firstOver.grade_id);
+        assistantGradeSelect.addEventListener('change', renderAssistantPlan);
+        renderAssistantPlan();
+    }
 
     // 1. Live Matrix Inputs Handling
     matrixInputs.forEach(input => {
@@ -510,7 +713,7 @@ document.addEventListener('DOMContentLoaded', function () {
             headers: {
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': csrfToken
+                'X-CSRF-TOKEN': currentCsrfToken
             },
             body: JSON.stringify({
                 unit_id: unitId,
@@ -523,6 +726,9 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .then(response => response.json())
         .then(data => {
+            if (data.csrf_hash) {
+                currentCsrfToken = data.csrf_hash;
+            }
             if (data.status === 'success') {
                 showSaveIndicator('success', data.message);
                 inputEl.setAttribute('data-original-val', newHours);
@@ -553,7 +759,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     inputEl.classList.remove('bg-primary-subtle', 'text-primary', 'border-primary', 'bg-warning-subtle', 'text-warning-emphasis', 'border-warning');
                 }
 
-                recalculateTotals();
+                recalculateTotals(data.matrix_totals || null);
             } else {
                 showSaveIndicator('error', data.message || 'Gagal menyimpan.');
                 inputEl.value = originalVal;
@@ -583,34 +789,95 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function recalculateTotals() {
+    const maxCapacity = <?= (float)($matrix['max_capacity'] ?? 45.0) ?>;
+    const minutesPerJp = <?= (int)($matrix['minutes_per_jp'] ?? 40) ?>;
+
+    function recalculateTotals(serverTotals = null) {
         const grades = <?= json_encode(array_column($matrix['grades'], 'id')) ?>;
         let grandTotal = 0;
         let filledCount = 0;
 
         grades.forEach(gId => {
-            const inputs = document.querySelectorAll(`.matrix-input[data-grade-id="${gId}"]`);
-            let sum = 0;
-            inputs.forEach(inp => {
-                const val = parseFloat(inp.value) || 0;
-                sum += val;
-                if (val > 0) filledCount++;
-            });
-            const colTotalEl = document.getElementById(`totalGrade_${gId}`);
-            if (colTotalEl) {
-                colTotalEl.innerText = sum.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' JP';
+            let effSum = 0;
+            let offSum = 0;
+            let cusSum = 0;
+            let status = 'BALANCED';
+            let diff = 0;
+
+            if (serverTotals && serverTotals.grade_totals && serverTotals.grade_totals[gId] !== undefined) {
+                effSum = parseFloat(serverTotals.grade_totals[gId]) || 0;
+                offSum = parseFloat(serverTotals.official_totals[gId]) || 0;
+                cusSum = parseFloat(serverTotals.custom_totals[gId]) || 0;
+                if (serverTotals.breakdown_by_grade && serverTotals.breakdown_by_grade[gId]) {
+                    diff = parseFloat(serverTotals.breakdown_by_grade[gId].diff) || 0;
+                } else {
+                    diff = effSum - maxCapacity;
+                }
+            } else {
+                const inputs = document.querySelectorAll(`.matrix-input[data-grade-id="${gId}"]`);
+                inputs.forEach(inp => {
+                    const val = parseFloat(inp.value) || 0;
+                    const src = inp.getAttribute('data-source') || 'OFFICIAL';
+                    const isApproved = inp.getAttribute('data-approved') !== '0';
+
+                    if (val > 0 && isApproved) {
+                        filledCount++;
+                        effSum += val;
+                        if (src === 'CUSTOM') {
+                            cusSum += val;
+                        } else {
+                            offSum += val;
+                        }
+                    }
+                });
+                diff = effSum - maxCapacity;
             }
-            grandTotal += sum;
+
+            // Update footer totals
+            const elOff = document.getElementById(`totalOfficial_${gId}`);
+            if (elOff) elOff.innerText = offSum.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' JP';
+
+            const elCus = document.getElementById(`totalCustom_${gId}`);
+            if (elCus) elCus.innerText = cusSum.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' JP';
+
+            const elGrade = document.getElementById(`totalGrade_${gId}`);
+            if (elGrade) elGrade.innerText = effSum.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' JP';
+
+            // Update status badge
+            const statusContainer = document.getElementById(`statusContainer_${gId}`);
+            if (statusContainer) {
+                if (Math.abs(diff) < 0.01) {
+                    statusContainer.innerHTML = `<span class="badge bg-success text-white px-2 py-1 w-100" id="statusBadge_${gId}" title="Kapasitas pas 100%"><i class="bi bi-check-circle-fill me-1"></i>Pas (${effSum.toFixed(1)}/${maxCapacity.toFixed(1)} JP)</span>`;
+                } else if (diff > 0) {
+                    statusContainer.innerHTML = `<span class="badge bg-danger text-white px-2 py-1 w-100" id="statusBadge_${gId}" title="Melebihi kapasitas maksimal ${maxCapacity.toFixed(1)} JP"><i class="bi bi-exclamation-triangle-fill me-1"></i>Melebihi +${diff.toFixed(1)} JP</span>`;
+                } else {
+                    statusContainer.innerHTML = `<span class="badge bg-info-subtle text-info-emphasis border border-info px-2 py-1 w-100" id="statusBadge_${gId}" title="Sisa kapasitas ${Math.abs(diff).toFixed(1)} JP"><i class="bi bi-info-circle-fill me-1"></i>Sisa ${Math.abs(diff).toFixed(1)} JP</span>`;
+                }
+            }
+
+            grandTotal += effSum;
         });
+
+        if (serverTotals && serverTotals.grand_total !== undefined) {
+            grandTotal = parseFloat(serverTotals.grand_total) || grandTotal;
+        }
 
         const kpiGrandTotal = document.getElementById('kpiGrandTotal');
         if (kpiGrandTotal) {
             kpiGrandTotal.innerHTML = grandTotal.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' <span class="fs-6 text-muted">JP</span>';
         }
 
+        const allInputs = document.querySelectorAll('.matrix-input');
+        let totalActiveCount = 0;
+        allInputs.forEach(inp => {
+            if ((parseFloat(inp.value) || 0) > 0 && inp.getAttribute('data-approved') !== '0') {
+                totalActiveCount++;
+            }
+        });
+
         const kpiStructureCount = document.getElementById('kpiStructureCount');
         if (kpiStructureCount) {
-            kpiStructureCount.innerText = filledCount;
+            kpiStructureCount.innerText = totalActiveCount;
         }
     }
 });

@@ -6,6 +6,10 @@ $selectedUnit = null;
 foreach ($units as $unit) { if ((int) $unit['id'] === (int) $filters['unit_id']) { $selectedUnit = $unit; break; } }
 $planSummary = $planning['summary'];
 $planSettings = $planning['settings'];
+$dayLabels = ['MON' => 'Senin', 'TUE' => 'Selasa', 'WED' => 'Rabu', 'THU' => 'Kamis', 'FRI' => 'Jumat', 'SAT' => 'Sabtu', 'SUN' => 'Minggu'];
+$activeDayCodes = $planSettings['selected_day_codes'] ?? ['MON', 'TUE', 'WED', 'THU', 'FRI'];
+$dailyCapacities = $planSettings['daily_jp_capacities'] ?? [];
+$capacitySummary = implode(' + ', array_map(static fn ($code) => ($dayLabels[$code] ?? $code) . ' ' . number_format((float) ($dailyCapacities[$code] ?? $planSettings['daily_jp_capacity'] ?? 0), 1, ',', '.') . ' JP', $activeDayCodes));
 ?>
 <style>
 .planning-step{position:relative;padding-left:2.7rem}.planning-step::before{content:attr(data-step);position:absolute;left:0;top:.05rem;width:2rem;height:2rem;border-radius:.7rem;display:grid;place-items:center;background:#eef2ff;color:#4f46e5;font-weight:800}
@@ -93,6 +97,13 @@ $planSettings = $planning['settings'];
         </div>
     </div>
 
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const capacityHint = document.querySelector('.planning-metric small.text-muted');
+        if (capacityHint) capacityHint.textContent = <?= json_encode($capacitySummary, JSON_UNESCAPED_UNICODE) ?>;
+    });
+    </script>
+
     <div class="card border-0 shadow-sm mb-4"><div class="card-body"><form method="get" class="row g-3 align-items-end">
         <div class="col-md-5"><label class="form-label fw-semibold">Unit sekolah</label><select name="unit_id" class="form-select" onchange="this.form.submit()"><?php foreach ($units as $unit): ?><option value="<?= (int) $unit['id'] ?>" <?= (int) $filters['unit_id'] === (int) $unit['id'] ? 'selected' : '' ?>><?= esc($unit['code'] . ' · ' . $unit['name']) ?></option><?php endforeach; ?></select></div>
         <div class="col-md-4"><label class="form-label fw-semibold">Tingkat</label><select name="grade_level_id" class="form-select"><option value="">Semua tingkat</option><?php foreach ($grades as $grade): ?><option value="<?= (int) $grade['id'] ?>" <?= (string) ($filters['grade_level_id'] ?? '') === (string) $grade['id'] ? 'selected' : '' ?>><?= esc($grade['code'] . ' · ' . $grade['name']) ?></option><?php endforeach; ?></select></div>
@@ -124,10 +135,34 @@ $planSettings = $planning['settings'];
             <input type="hidden" name="unit_id" value="<?= (int) $filters['unit_id'] ?>">
             <div class="modal-header border-0 px-4 pt-4"><div><h5 class="modal-title fw-bold">Parameter Perencanaan Sekolah</h5><div class="text-muted small"><?= esc($selectedUnit['name'] ?? '') ?> · berlaku untuk kurikulum ini</div></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body px-4"><div class="alert alert-primary border-0"><i class="bi bi-info-circle me-2"></i>Aturan ini menjadi dasar peringatan kapasitas, pembagian beban guru, dan generator jadwal.</div><div class="row g-3">
-                <div class="col-md-6"><label class="form-label fw-semibold">Hari belajar per minggu</label><div class="input-group"><input type="number" class="form-control" name="teaching_days_per_week" min="1" max="7" required value="<?= (int) $planSettings['teaching_days_per_week'] ?>"><span class="input-group-text">hari</span></div><div class="form-text">Untuk sekolah Anda gunakan 5 hari.</div></div>
-                <div class="col-md-6"><label class="form-label fw-semibold">Kapasitas pelajaran per hari</label><div class="input-group"><input type="number" class="form-control" name="daily_jp_capacity" min="1" max="20" step="0.5" required value="<?= esc($planSettings['daily_jp_capacity']) ?>"><span class="input-group-text">JP</span></div></div>
-                <div class="col-md-6"><label class="form-label fw-semibold">Beban minimum guru</label><div class="input-group"><input type="number" class="form-control" name="teacher_minimum_hours" min="0" step="0.5" required value="<?= esc($planSettings['teacher_minimum_hours']) ?>"><span class="input-group-text">JP</span></div></div>
-                <div class="col-md-6"><label class="form-label fw-semibold">Beban maksimum guru</label><div class="input-group"><input type="number" class="form-control" name="teacher_maximum_hours" min="1" step="0.5" required value="<?= esc($planSettings['teacher_maximum_hours']) ?>"><span class="input-group-text">JP</span></div></div>
+                <div class="col-md-3"><label class="form-label fw-semibold">Hari belajar per minggu</label><div class="input-group"><input type="number" class="form-control" name="teaching_days_per_week" min="1" max="7" required value="<?= (int) $planSettings['teaching_days_per_week'] ?>"><span class="input-group-text">hari</span></div><div class="form-text">Gunakan 5 hari.</div></div>
+                <div class="col-md-3"><label class="form-label fw-semibold">Default JP per hari</label><div class="input-group"><input type="number" class="form-control" name="daily_jp_capacity" min="1" max="20" step="0.5" required value="<?= esc($planSettings['daily_jp_capacity']) ?>"><span class="input-group-text">JP</span></div><div class="form-text">Nilai awal per hari.</div></div>
+                <div class="col-md-3"><label class="form-label fw-semibold">Durasi 1 JP (menit)</label><div class="input-group"><input type="number" class="form-control" name="minutes_per_jp" min="15" max="120" required value="<?= (int)($planSettings['minutes_per_jp'] ?? 40) ?>"><span class="input-group-text">menit</span></div><div class="form-text">SMP: 40 mnt, SMA: 45 mnt.</div></div>
+                <div class="col-md-3"><label class="form-label fw-semibold">Waktu Mulai JP 1</label><input type="time" class="form-control" name="start_time_jp1" required value="<?= esc($planSettings['start_time_jp1'] ?? '07:30') ?>"><div class="form-text">Jam mulai JP 1 (e.g. 07.30).</div></div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Kapasitas JP per hari aktif</label>
+                    <div class="row g-2">
+                        <?php
+                        $dayOrder = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+                        foreach ($dayLabels as $dayCode => $dayName):
+                        ?>
+                            <?php
+                            $isActiveDay = in_array($dayCode, $activeDayCodes, true);
+                            $val = $isActiveDay ? esc($dailyCapacities[$dayCode] ?? $planSettings['daily_jp_capacity'] ?? 9) : '0';
+                            ?>
+                            <div class="col-6 col-md-3 col-xl">
+                                <label class="form-label small text-muted mb-1"><?= esc($dayName) ?></label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" class="form-control day-capacity-input" data-day-code="<?= esc($dayCode) ?>" name="daily_jp_capacities[<?= esc($dayCode) ?>]" min="0" max="20" step="0.5" value="<?= $val ?>" <?= $isActiveDay ? '' : 'disabled' ?>>
+                                    <span class="input-group-text">JP</span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="form-text">Untuk sistem 5 hari default: Senin-Kamis 9 JP, Jumat 7 JP. Sabtu & Minggu bernilai 0 JP (tidak dihitung).</div>
+                </div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Beban minimum guru</label><div class="input-group"><input type="number" class="form-control" name="teacher_minimum_hours" min="0" step="0.5" required value="<?= esc($planSettings['teacher_minimum_hours'] ?? 24.0) ?>"><span class="input-group-text">JP</span></div></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Beban maksimum guru</label><div class="input-group"><input type="number" class="form-control" name="teacher_maximum_hours" min="1" step="0.5" required value="<?= esc($planSettings['teacher_maximum_hours'] ?? 40.0) ?>"><span class="input-group-text">JP</span></div></div>
                 <div class="col-12"><div class="form-check form-switch p-3 ps-5 border rounded-3"><input class="form-check-input" type="checkbox" name="allow_custom_hours" value="1" id="allowCustomHours" <?= !empty($planSettings['allow_custom_hours']) ? 'checked' : '' ?>><label class="form-check-label fw-semibold" for="allowCustomHours">Izinkan JP custom sekolah</label><div class="small text-muted">Dipakai untuk tambahan intrakurikuler, muatan lokal, Pathfinder, Kesehatan, SID, Chapel, dan kegiatan tetap lainnya.</div></div></div>
                 <div class="col-12"><label class="form-label fw-semibold">Catatan kebijakan</label><textarea class="form-control" name="notes" rows="3" placeholder="Contoh: sekolah swasta, pembelajaran Senin-Jumat, kegiatan tetap masuk jadwal..."><?= esc($planSettings['notes'] ?? '') ?></textarea></div>
             </div></div>
@@ -136,6 +171,36 @@ $planSettings = $planning['settings'];
     </div>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const daysInput = document.querySelector('input[name="teaching_days_per_week"]');
+    const dayOrder = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    const defaultDailyCap = document.querySelector('input[name="daily_jp_capacity"]');
+
+    if (daysInput) {
+        daysInput.addEventListener('input', function() {
+            const count = parseInt(this.value) || 5;
+            const defVal = parseFloat(defaultDailyCap?.value) || 9;
+
+            dayOrder.forEach((code, idx) => {
+                const inp = document.querySelector(`.day-capacity-input[data-day-code="${code}"]`);
+                if (inp) {
+                    if (idx < count) {
+                        inp.disabled = false;
+                        if (parseFloat(inp.value) === 0 || inp.value === '0') {
+                            inp.value = (code === 'FRI' && defVal >= 8) ? 7 : defVal;
+                        }
+                    } else {
+                        inp.disabled = true;
+                        inp.value = '0';
+                    }
+                }
+            });
+        });
+    }
+});
+</script>
+
 <?php if (has_permission('curriculum.manage') && !empty($grades) && !empty($subjects)): ?>
 <div class="modal fade" id="addStructureModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content"><form action="<?= base_url('curriculum/' . $version['uuid'] . '/structures') ?>" method="post" id="structureForm"><?= csrf_field() ?><input type="hidden" name="unit_id" value="<?= (int) $filters['unit_id'] ?>">
     <div class="modal-header"><div><h5 class="modal-title">Tambah mata pelajaran</h5><div class="small text-muted"><?= esc($selectedUnit['name'] ?? '') ?></div></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
@@ -143,7 +208,7 @@ $planSettings = $planning['settings'];
         <div class="col-md-6"><label class="form-label fw-semibold">Tingkat <span class="text-danger">*</span></label><select name="grade_level_id" class="form-select" required><option value="">Pilih tingkat</option><?php foreach ($grades as $grade): ?><option value="<?= (int) $grade['id'] ?>"><?= esc($grade['code'] . ' · ' . $grade['name']) ?></option><?php endforeach; ?></select></div>
         <div class="col-md-6"><label class="form-label fw-semibold">Kelas khusus <span class="text-muted fw-normal">(opsional)</span></label><select name="classroom_id" class="form-select"><option value="">Berlaku untuk semua kelas</option><?php foreach ($classrooms as $classroom): ?><option value="<?= (int) $classroom['id'] ?>"><?= esc($classroom['name']) ?></option><?php endforeach; ?></select><div class="form-text">Kosongkan untuk menerapkan ke seluruh kelas pada tingkat.</div></div>
         <div class="col-12"><label class="form-label fw-semibold">Mata pelajaran <span class="text-danger">*</span></label><select name="subject_id" class="form-select" required><option value="">Pilih mata pelajaran</option><?php foreach ($subjects as $subject): ?><option value="<?= (int) $subject['id'] ?>"><?= esc($subject['code'] . ' · ' . $subject['name']) ?></option><?php endforeach; ?></select></div>
-        <div class="col-md-6"><label class="form-label fw-semibold">Kategori</label><select name="category" class="form-select"><option value="INTRAKURIKULER">Intrakurikuler</option><option value="MUATAN_LOKAL">Muatan lokal</option><option value="KOKURIKULER">Kokurikuler</option><option value="EKSTRAKURIKULER">Ekstrakurikuler</option><option value="KEGIATAN_TETAP">Kegiatan tetap</option><option value="PENGEMBANGAN_DIRI">Pengembangan diri</option><option value="OTHER">Lainnya</option></select></div>
+        <div class="col-md-6"><label class="form-label fw-semibold">Kategori</label><select name="category" class="form-select"><option value="INTRAKURIKULER">Intrakurikuler</option><option value="MUATAN_LOKAL">Muatan lokal</option><option value="KOKURIKULER">Kokurikuler</option><option value="EKSTRAKURIKULER">Ekstrakurikuler</option><option value="PENGEMBANGAN_DIRI">Pengembangan diri</option><option value="OTHER">Lainnya</option></select></div>
         <div class="col-md-6"><label class="form-label fw-semibold">Sumber jam <span class="text-danger">*</span></label><select name="effective_source" id="effectiveSource" class="form-select" required><option value="OFFICIAL">Jam resmi</option><option value="CUSTOM">Penyesuaian sekolah</option><option value="MANUAL">Input manual</option></select></div>
         <div class="col-md-6"><label class="form-label fw-semibold" id="weeklyHoursLabel">Jam resmi per minggu <span class="text-danger">*</span></label><div class="input-group"><input type="number" step="0.5" min="0.5" max="60" name="weekly_hours" class="form-control" required><span class="input-group-text">JP</span></div></div>
         <div class="col-md-6" id="reasonGroup" hidden><label class="form-label fw-semibold">Alasan penyesuaian <span class="text-danger">*</span></label><input type="text" name="adjustment_reason" id="adjustmentReason" class="form-control" maxlength="255" placeholder="Contoh: tambahan muatan lokal"></div>

@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Models\TeachingAssignmentModel;
 use App\Models\AssignmentVersionModel;
 use App\Services\AssignmentValidationService;
@@ -18,7 +18,7 @@ use Config\Database;
  */
 final class TeachingAssignmentTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Services\CurriculumVersionService;
 use App\Services\CurriculumStructureService;
+use App\Services\CurriculumCapacityReconciliationService;
 use App\Services\CurriculumValidationService;
 use App\Services\UnitScopeService;
 use Config\Database;
@@ -30,7 +31,33 @@ class CurriculumMatrixController extends BaseController
             return redirect()->to('/curriculum')->with('error', $e->getMessage());
         }
 
+        // Auto-switch to unit's corresponding curriculum version if user selected a different unit in matrix view
+        $selectedUnit = Database::connect()->table('school_units')->where('id', $unitId)->get()->getRowArray();
+        if ($selectedUnit) {
+            $unitCode = strtoupper((string)$selectedUnit['code']);
+            $versionText = strtoupper((string)$version['code'] . ' ' . (string)$version['name']);
+
+            if (
+                ($unitCode === 'SMA' && str_contains($versionText, 'SMP') && !str_contains($versionText, 'SMA')) ||
+                ($unitCode === 'SMP' && str_contains($versionText, 'SMA') && !str_contains($versionText, 'SMP'))
+            ) {
+                $targetVersion = Database::connect()->table('curriculum_versions')
+                    ->where('academic_period_id', $version['academic_period_id'])
+                    ->where('id !=', $version['id'])
+                    ->groupStart()
+                        ->like('code', $unitCode, 'both')
+                        ->orLike('name', $unitCode, 'both')
+                    ->groupEnd()
+                    ->get()->getRowArray();
+
+                if ($targetVersion && !empty($targetVersion['uuid'])) {
+                    return redirect()->to('/curriculum/' . $targetVersion['uuid'] . '/matrix?unit_id=' . $unitId);
+                }
+            }
+        }
+
         $matrixData = CurriculumStructureService::getMatrixView($version['id'], $unitId);
+        $trimPreview = CurriculumCapacityReconciliationService::buildTrimPreview($version['id'], $unitId);
         $validation = CurriculumValidationService::validateVersion($version['id']);
 
         // Previous curriculum versions for cloning
@@ -44,6 +71,7 @@ class CurriculumMatrixController extends BaseController
         return view('curriculum/matrix/index', [
             'version'          => $version,
             'matrix'           => $matrixData,
+            'trim_preview'     => $trimPreview,
             'validation'       => $validation,
             'units'            => $units,
             'selected_unit_id' => $unitId,
@@ -95,45 +123,40 @@ class CurriculumMatrixController extends BaseController
         try {
             UnitScopeService::assertUnit($unitId);
 
+            $action = 'ignored';
+            $weeklyHoursRes = 0.0;
+            $effectiveSourceRes = $effectiveSource;
+            $structureRes = null;
+            $messageRes = '';
+
             if ($weeklyHours <= 0) {
-                // If hours set to 0 and structure exists, delete structure
                 if (!empty($structureUuid)) {
                     CurriculumStructureService::deleteStructure($structureUuid, 'Hapus via Matrix Editor (Jam = 0)');
-                    return $this->response->setJSON([
-                        'status'       => 'success',
-                        'action'       => 'deleted',
-                        'message'      => 'Mata pelajaran dihapus dari tingkat ini.',
-                        'weekly_hours' => 0,
-                    ]);
+                    $action = 'deleted';
+                    $messageRes = 'Mata pelajaran dihapus dari tingkat ini.';
+                } else {
+                    $action = 'ignored';
+                    $messageRes = 'Nilai 0 tidak disimpan.';
                 }
-                return $this->response->setJSON([
-                    'status'       => 'success',
-                    'action'       => 'ignored',
-                    'message'      => 'Nilai 0 tidak disimpan.',
-                    'weekly_hours' => 0,
-                ]);
-            }
-
-            if (!empty($structureUuid)) {
-                // Update existing structure
+            } else if (!empty($structureUuid)) {
                 $updateData = [
                     'effective_source' => $effectiveSource,
                     $effectiveSource === 'CUSTOM' ? 'custom_weekly_hours' : 'official_weekly_hours' => $weeklyHours,
                 ];
                 if ($effectiveSource === 'CUSTOM') {
+                    $updateData['official_weekly_hours'] = null;
                     $updateData['adjustment_reason'] = 'Penyesuaian JP custom sekolah melalui editor matriks';
+                } else {
+                    $updateData['custom_weekly_hours'] = null;
+                    $updateData['manual_weekly_hours'] = null;
+                    $updateData['adjustment_reason'] = null;
                 }
-                $updated = CurriculumStructureService::updateStructure($structureUuid, $updateData);
-                return $this->response->setJSON([
-                    'status'         => 'success',
-                    'action'         => 'updated',
-                    'structure'      => $updated,
-                    'weekly_hours'   => (float)$updated['effective_weekly_hours'],
-                    'effective_source' => $updated['effective_source'],
-                    'message'        => 'Jam pelajaran berhasil diperbarui.',
-                ]);
+                $structureRes = CurriculumStructureService::updateStructure($structureUuid, $updateData);
+                $action = 'updated';
+                $weeklyHoursRes = (float)$structureRes['effective_weekly_hours'];
+                $effectiveSourceRes = $structureRes['effective_source'];
+                $messageRes = 'Jam pelajaran berhasil diperbarui.';
             } else {
-                // Create new structure
                 $createData = [
                     'curriculum_version_id' => $version['id'],
                     'unit_id'               => $unitId,
@@ -147,20 +170,37 @@ class CurriculumMatrixController extends BaseController
                 if ($effectiveSource === 'CUSTOM') {
                     $createData['adjustment_reason'] = 'Penyesuaian JP custom sekolah melalui editor matriks';
                 }
-                $created = CurriculumStructureService::createStructure($createData);
-                return $this->response->setJSON([
-                    'status'         => 'success',
-                    'action'         => 'created',
-                    'structure'      => $created,
-                    'weekly_hours'   => (float)$created['effective_weekly_hours'],
-                    'effective_source' => $created['effective_source'],
-                    'message'        => 'Mata pelajaran berhasil ditambahkan ke tingkat ini.',
-                ]);
+                $structureRes = CurriculumStructureService::createStructure($createData);
+                $action = 'created';
+                $weeklyHoursRes = (float)$structureRes['effective_weekly_hours'];
+                $effectiveSourceRes = $structureRes['effective_source'];
+                $messageRes = 'Mata pelajaran berhasil ditambahkan ke tingkat ini.';
             }
+
+            // Fetch fresh server matrix totals to ensure 100% precision
+            $matrixData = CurriculumStructureService::getMatrixView($version['id'], $unitId);
+
+            return $this->response->setJSON([
+                'status'           => 'success',
+                'action'           => $action,
+                'structure'        => $structureRes,
+                'weekly_hours'     => $weeklyHoursRes,
+                'effective_source' => $effectiveSourceRes,
+                'message'          => $messageRes,
+                'matrix_totals'    => [
+                    'grade_totals'       => $matrixData['grade_totals'],
+                    'official_totals'    => $matrixData['official_totals'],
+                    'custom_totals'      => $matrixData['custom_totals'],
+                    'breakdown_by_grade' => $matrixData['breakdown_by_grade'],
+                    'grand_total'        => $matrixData['grand_total'],
+                ],
+                'csrf_hash'        => csrf_hash(),
+            ]);
         } catch (\Throwable $e) {
             return $this->response->setJSON([
-                'status'  => 'error',
-                'message' => $e->getMessage(),
+                'status'    => 'error',
+                'message'   => $e->getMessage(),
+                'csrf_hash' => csrf_hash(),
             ])->setStatusCode(400);
         }
     }
@@ -271,6 +311,75 @@ class CurriculumMatrixController extends BaseController
 
             return redirect()->to('/curriculum/' . $uuid . '/matrix?unit_id=' . $unitId)
                 ->with('success', "Berhasil menerapkan preset unit sekolah ({$addedCount} struktur dibuat).");
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Auto Trim: Adjust specific subject hours to match exact max capacity
+     */
+    public function autoTrim(string $uuid)
+    {
+        if (!has_permission('curriculum.manage')) {
+            return redirect()->back()->with('error', 'Hak akses ditolak.');
+        }
+
+        $version = CurriculumVersionService::getVersionByUuid($uuid);
+        if (!$version) {
+            return redirect()->to('/curriculum')->with('error', 'Versi kurikulum tidak ditemukan.');
+        }
+
+        $unitId       = (int)$this->request->getPost('unit_id');
+        $gradeLevelId = (int)$this->request->getPost('grade_level_id');
+        $adjustments  = $this->request->getPost('adjustments'); // array of subject_id => new_hours
+
+        try {
+            UnitScopeService::assertUnit($unitId);
+            if (empty($adjustments) || !is_array($adjustments)) {
+                throw new \InvalidArgumentException('Tidak ada penyesuaian jam yang dipilih.');
+            }
+
+            $db = Database::connect();
+            foreach ($adjustments as $subId => $newHours) {
+                $subId = (int)$subId;
+                $newHours = (float)$newHours;
+                if ($subId <= 0) continue;
+
+                $existing = $db->table('curriculum_structures')
+                    ->where('curriculum_version_id', $version['id'])
+                    ->where('unit_id', $unitId)
+                    ->where('grade_level_id', $gradeLevelId)
+                    ->where('subject_id', $subId)
+                    ->where('status', 'ACTIVE')
+                    ->where('deleted_at IS NULL')
+                    ->get()->getRowArray();
+
+                if ($existing) {
+                    if (strtoupper((string)$existing['effective_source']) !== 'OFFICIAL') {
+                        throw new \InvalidArgumentException('Asisten hanya boleh memotong jam resmi pemerintah. Baris custom sekolah tidak diubah.');
+                    }
+                    $currentHours = (float) $existing['effective_weekly_hours'];
+                    if ($newHours < 0 || $newHours > $currentHours) {
+                        throw new \InvalidArgumentException('Nilai penyesuaian tidak valid: jam baru tidak boleh negatif atau lebih besar dari jam saat ini.');
+                    }
+                    if ($newHours <= 0) {
+                        CurriculumStructureService::deleteStructure($existing['uuid'], 'Pemotongan otomatis via Asisten Rekonsiliasi');
+                    } else {
+                        $updateData = [
+                            'effective_source' => 'OFFICIAL',
+                            'official_weekly_hours' => $newHours,
+                            'custom_weekly_hours' => null,
+                            'manual_weekly_hours' => null,
+                            'adjustment_reason' => 'Penyesuaian jam resmi via Asisten Rekonsiliasi',
+                        ];
+                        CurriculumStructureService::updateStructure($existing['uuid'], $updateData);
+                    }
+                }
+            }
+
+            return redirect()->to('/curriculum/' . $uuid . '/matrix?unit_id=' . $unitId)
+                ->with('success', 'Berhasil menerapkan penyesuaian jam. Kapasitas kini telah seimbang.');
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }

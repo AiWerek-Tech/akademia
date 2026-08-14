@@ -28,9 +28,12 @@ class PermissionFilter implements FilterInterface
 
         $hasAccess = false;
         foreach ($arguments as $permissionCode) {
-            if (in_array($permissionCode, $userPerms, true)) {
-                $hasAccess = true;
-                break;
+            foreach (preg_split('/[,|]/', (string) $permissionCode) as $candidate) {
+                $candidate = trim($candidate);
+                if ($candidate !== '' && in_array($candidate, $userPerms, true)) {
+                    $hasAccess = true;
+                    break 2;
+                }
             }
         }
 
@@ -43,7 +46,9 @@ class PermissionFilter implements FilterInterface
                 ]);
             }
 
-            return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki izin (Permission denied) untuk halaman tersebut.');
+            return Services::response()->setStatusCode(403)->setBody(
+                view('errors/html/error_403', ['message' => 'Anda tidak memiliki izin untuk halaman tersebut.'])
+            );
         }
     }
 

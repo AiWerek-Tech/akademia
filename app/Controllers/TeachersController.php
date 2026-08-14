@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use Config\Database;
 use App\Services\TeacherService;
 use App\Services\TeacherDuplicateDetectionService;
 use App\Services\TeacherMergeService;
@@ -37,16 +38,32 @@ class TeachersController extends BaseController
             'search'         => $this->request->getGet('search'),
         ];
 
-        $result = TeacherService::getTeachers($filters);
+        $perPageRaw = (string)$this->request->getGet('per_page');
+        $perPage = in_array($perPageRaw, ['10', '20', '50', 'all'], true) ? $perPageRaw : '10';
+        $limit = $perPage === 'all' ? 1000 : (int)$perPage;
+
+        $filters['per_page'] = $perPage;
+        $result = TeacherService::getTeachers($filters, $limit);
         $units = UnitScopeService::accessibleUnits();
 
+        $userLinkedTeacherIds = array_map('intval', array_column(
+            Database::connect()->table('users')
+                ->select('teacher_id')
+                ->where('teacher_id IS NOT NULL')
+                ->where('deleted_at IS NULL')
+                ->get()->getResultArray(),
+            'teacher_id'
+        ));
+
         return view('teachers/index', [
-            'title'             => 'Master Guru Global',
-            'breadcrumb_active' => 'Master Guru',
-            'teachers'          => $result['data'],
-            'pager'             => $result['pager'],
-            'units'             => $units,
-            'filters'           => $filters,
+            'title'                 => 'Master Guru Global',
+            'breadcrumb_active'     => 'Master Guru',
+            'teachers'              => $result['data'],
+            'pager'                 => $result['pager'],
+            'units'                 => $units,
+            'filters'               => $filters,
+            'perPage'               => $perPage,
+            'userLinkedTeacherIds'  => $userLinkedTeacherIds,
         ]);
     }
 
@@ -56,12 +73,14 @@ class TeachersController extends BaseController
             return redirect()->to('/teachers')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
+        $activeUnitId = UnitScopeService::resolveUnit();
         $units = UnitScopeService::accessibleUnits();
 
         return view('teachers/create', [
             'title'             => 'Tambah Data Guru',
             'breadcrumb_active' => 'Tambah Guru',
             'units'             => $units,
+            'activeUnitId'      => $activeUnitId,
         ]);
     }
 

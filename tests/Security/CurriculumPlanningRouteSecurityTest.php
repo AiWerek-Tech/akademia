@@ -3,7 +3,7 @@
 namespace Tests\Security;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use CodeIgniter\Test\FeatureTestTrait;
 use App\Database\Seeds\CoreSeeder;
 use App\Database\Seeds\Milestone2MasterSeeder;
@@ -17,7 +17,7 @@ use Config\Database;
  */
 class CurriculumPlanningRouteSecurityTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
     use FeatureTestTrait;
 
     protected $migrate     = true;
@@ -106,6 +106,22 @@ class CurriculumPlanningRouteSecurityTest extends CIUnitTestCase
         if (!$superRole) {
             $superRole = $db->table('roles')->where('code', 'superadmin')->get()->getRowArray();
         }
+        foreach ([$smp, $sma] as $unit) {
+            if (! $unit) {
+                continue;
+            }
+            $adminAccess = $db->table('user_unit_access')->where('user_id', 1)
+                ->where('unit_id', $unit['id'])->get()->getRowArray();
+            if (! $adminAccess) {
+                $db->table('user_unit_access')->insert([
+                    'user_id' => 1,
+                    'unit_id' => $unit['id'],
+                    'access_level' => 'ADMIN',
+                    'is_default' => $unit['code'] === 'SMP' ? 1 : 0,
+                    'created_at' => date('Y-m-d H:i:s'),
+                ]);
+            }
+        }
         if ($superRole) {
             $ur = $db->table('user_roles')->where('user_id', 1)->where('role_id', $superRole['id'])->get()->getRowArray();
             if (!$ur) {
@@ -172,6 +188,7 @@ class CurriculumPlanningRouteSecurityTest extends CIUnitTestCase
         $result = $this->withSession([
             'logged_in'      => true,
             'user_id'        => 1,
+            'auth_timestamp' => time(),
             'username'       => 'admin',
             'role_code'      => 'super_admin',
             'active_role'    => 'super_admin',

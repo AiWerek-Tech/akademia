@@ -3,23 +3,26 @@
 # ====================================================================
 
 # Target PHP 8.2 in local XAMPP Apache without restarting
-<If "%{HTTP_HOST} =~ /^(app\.wmvaa\.local|localhost)$/ && %{REQUEST_URI} =~ /\.php/">
+<If "%{HTTP_HOST} =~ /^(app\.wmvaa\.local|localhost|192\.168\.1\.62)$/ && %{REQUEST_URI} =~ /\.php/">
     SetEnv PHPRC "E:/xampp/php82"
     SetHandler application/x-httpd-php82
 </If>
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /wmvaa-akademia/
 
-    # Block direct access to storage, writable, vendor, app, system, and sensitive configs
-    RewriteRule ^(writable|vendor|app|tests|composer\.(json|lock)|phpunit\.xml\.dist|spark|\.env) - [F,L]
+    # Block direct access to storage, source, deployment files, and secrets.
+    RewriteRule ^(?:writable|vendor|app|system|tests|deploy)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:composer\.(?:json|lock)|phpunit\.xml\.dist|spark|env|\.env(?:\..*)?)$ - [F,L,NC]
 
     # 1. Rewrite empty requests to public/index.php
     RewriteRule ^$ public/index.php [L]
 
-    # 2. Jika file fisik yang diminta ada di dalam folder public/, layani langsung
-    RewriteCond %{DOCUMENT_ROOT}/wmvaa-akademia/public/$1 -f
+    # 2. Serve public assets in both supported hosting layouts:
+    #    a) domain.tld/wmvaa-akademia/ (application in a subfolder), or
+    #    b) domain.tld/ (document root points to the application directory).
+    RewriteCond %{DOCUMENT_ROOT}/wmvaa-akademia/public/$1 -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}/public/$1 -f
     RewriteRule ^(.*)$ public/$1 [L]
 
     # 3. Redirect semua request dinamis lainnya ke public/index.php

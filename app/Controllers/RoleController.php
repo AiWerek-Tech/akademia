@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\RoleModel;
 use App\Services\AuditService;
 use Config\Database;
+use Config\RolePermissions;
 
 class RoleController extends BaseController
 {
@@ -61,7 +62,9 @@ class RoleController extends BaseController
             'breadcrumb_active' => 'Wewenang Peran',
             'role'              => $role,
             'permissions'       => $permissions,
-            'activePerms'       => $activePerms
+            'activePerms'       => $activePerms,
+            'isManagedRole'     => array_key_exists($role['code'], RolePermissions::managedRoles()),
+            'canManage'         => has_permission('roles.manage'),
         ]);
     }
 
@@ -78,7 +81,7 @@ class RoleController extends BaseController
             return redirect()->to('/roles')->with('error', 'Peran tidak ditemukan.');
         }
 
-        // Prevent modification of Super Admin permissions to avoid lockout
+        // Superadmin remains immutable because it is the recovery role.
         if (in_array($role['code'], ['superadmin', 'super_admin'], true)) {
             return redirect()->to('/roles')->with('error', 'Wewenang peran Super Admin bersifat mutlak dan tidak dapat diubah.');
         }
@@ -97,7 +100,16 @@ class RoleController extends BaseController
             $db->table('role_permissions')->where('role_id', $roleId)->delete();
 
             // Insert new ones
-            $permissionIds = (array)$this->request->getPost('permissions');
+            $permissionIds = array_values(array_unique(array_filter(array_map(
+                'intval',
+                (array) $this->request->getPost('permissions')
+            ))));
+            if ($permissionIds !== []) {
+                $validCount = $db->table('permissions')->whereIn('id', $permissionIds)->countAllResults();
+                if ($validCount !== count($permissionIds)) {
+                    throw new \RuntimeException('Salah satu izin yang dipilih tidak valid.');
+                }
+            }
             foreach ($permissionIds as $pId) {
                 $db->table('role_permissions')->insert([
                     'role_id'       => $roleId,

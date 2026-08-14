@@ -22,22 +22,11 @@ class UnitAccessFilter implements FilterInterface
             return redirect()->to('/login')->with('error', 'Silakan hubungi administrator untuk verifikasi akses unit sekolah.');
         }
 
-        // Verify active unit access in DB
-        $db = Database::connect();
-        $access = $db->table('user_unit_access')
-            ->where('user_id', $userId)
-            ->where('unit_id', $activeUnitId)
-            ->get()
-            ->getRowArray();
-
-        if (!$access) {
-            $fallbackAccess = $db->table('user_unit_access')
-                ->where('user_id', $userId)
-                ->get()
-                ->getRowArray();
-
-            if ($fallbackAccess) {
-                session()->set('active_unit_id', (int)$fallbackAccess['unit_id']);
+        // Verify active unit access
+        $accessibleIds = \App\Services\UnitScopeService::accessibleUnitIds((int)$userId);
+        if (!in_array((int)$activeUnitId, $accessibleIds, true)) {
+            if (!empty($accessibleIds)) {
+                session()->set('active_unit_id', (int)$accessibleIds[0]);
                 return redirect()->to('/dashboard')->with('error', 'Akses unit Anda telah dialihkan.');
             }
 

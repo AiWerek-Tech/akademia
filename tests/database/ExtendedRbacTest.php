@@ -4,9 +4,10 @@ namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Database\Seeds\CoreSeeder;
 use Config\Database;
+use Config\RolePermissions;
 
 /**
  * Extended RBAC & Unit Isolation Tests
@@ -16,7 +17,7 @@ use Config\Database;
 final class ExtendedRbacTest extends CIUnitTestCase
 {
     use FeatureTestTrait;
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';
@@ -90,6 +91,162 @@ final class ExtendedRbacTest extends CIUnitTestCase
 
         $result->assertRedirectTo('dashboard');
         $result->assertSessionHas('error');
+    }
+
+    public function testGuruReceivesOnlyPersonalPortalPermissions(): void
+    {
+        $user = $this->createTestUserWithRole('guru_personal_only', 'guru');
+
+        $actual = $user['permissions'];
+        sort($actual);
+        $expected = RolePermissions::GURU;
+        sort($expected);
+
+        $this->assertSame($expected, $actual);
+        $this->assertSame([], array_values(array_intersect($actual, RolePermissions::ADMINISTRATIVE_PERMISSIONS)));
+    }
+
+    public function testSuperAdminCanCustomizeGuruPermissions(): void
+    {
+        $db = Database::connect($this->DBGroup);
+        $super = $this->createTestUserWithRole('super_role_editor', 'super_admin');
+        $guru = $db->table('roles')->where('code', 'guru')->get()->getRowArray();
+        $dashboard = $db->table('permissions')->where('code', 'dashboard.view')->get()->getRowArray();
+
+        $result = $this->withSession([
+            'logged_in' => true,
+            'user_id' => $super['id'],
+            'username' => 'super_role_editor',
+            'role_code' => 'super_admin',
+            'all_role_codes' => ['super_admin'],
+            'active_unit_id' => $super['unit_id'],
+            'permissions' => $super['permissions'],
+        ])->post('roles/' . $guru['id'] . '/permissions', [
+            'permissions' => [$dashboard['id']],
+        ]);
+
+        $result->assertRedirectTo('roles');
+        $actual = array_map('intval', array_column(
+            $db->table('role_permissions')->where('role_id', $guru['id'])->get()->getResultArray(),
+            'permission_id'
+        ));
+        $this->assertSame([(int) $dashboard['id']], $actual);
+    }
+
+    public function testPersonalRoleDashboardStaysPersonalWhenGivenOneAdministrativePermission(): void
+    {
+        $db = Database::connect($this->DBGroup);
+        $guruUser = $this->createTestUserWithRole('guru_dashboard_guard', 'guru');
+        $now = date('Y-m-d H:i:s');
+        $db->table('teachers')->insert([
+            'uuid' => \App\Services\UuidService::v4(),
+            'full_name' => 'Guru Dashboard Guard',
+            'normalized_name' => 'GURU DASHBOARD GUARD',
+            'primary_unit_id' => $guruUser['unit_id'],
+            'is_active' => 1,
+            'created_at' => $now,
+        ]);
+        $teacherId = (int) $db->insertID();
+        $db->table('users')->where('id', $guruUser['id'])->update(['teacher_id' => $teacherId]);
+        $db->table('academic_years')->insert([
+            'uuid' => \App\Services\UuidService::v4(),
+            'name' => 'Dashboard Guard 2026/2027',
+            'start_date' => '2026-07-01',
+            'end_date' => '2027-06-30',
+            'status' => 'ACTIVE',
+            'is_active' => 1,
+            'created_at' => $now,
+        ]);
+        $yearId = (int) $db->insertID();
+        $db->table('academic_periods')->insert([
+            'uuid' => \App\Services\UuidService::v4(),
+            'academic_year_id' => $yearId,
+            'semester_number' => 1,
+            'name' => 'Ganjil Dashboard Guard',
+            'start_date' => '2026-07-01',
+            'end_date' => '2026-12-31',
+            'workflow_status' => 'APPROVED',
+            'is_active' => 1,
+            'created_at' => $now,
+        ]);
+        $periodId = (int) $db->insertID();
+        $guruRole = $db->table('roles')->where('code', 'guru')->get()->getRowArray();
+        $teachersPermission = $db->table('permissions')->where('code', 'teachers.view')->get()->getRowArray();
+        $db->table('role_permissions')->insert([
+            'role_id' => $guruRole['id'],
+            'permission_id' => $teachersPermission['id'],
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $result = $this->withSession([
+            'logged_in' => true,
+            'user_id' => $guruUser['id'],
+            'username' => 'guru_dashboard_guard',
+            'full_name' => 'Guru Dashboard Guard',
+            'role_code' => 'guru',
+            'role_name' => 'Guru',
+            'all_role_codes' => ['guru'],
+            'active_unit_id' => $guruUser['unit_id'],
+            'active_period_id' => $periodId,
+            'teacher_id' => $teacherId,
+            'permissions' => array_merge($guruUser['permissions'], ['teachers.view']),
+        ])->get('dashboard');
+
+        $result->assertOK();
+        $body = $result->getBody();
+        $this->assertStringContainsString('Ruang Kerja Personal', $body);
+        $this->assertStringContainsString('Dokumen &amp; Tugas Saya', $body);
+        $this->assertStringContainsString('Tugas Mengajar Saya', $body);
+        $this->assertStringNotContainsString('Kesiapan Data Master', $body);
+        $this->assertStringNotContainsString('Aktivitas Terbaru', $body);
+        $this->assertStringNotContainsString('Master Data', $body);
+    }
+
+    public function testWaliKelasReceivesPersonalAndOwnClassPermissionsOnly(): void
+    {
+        $user = $this->createTestUserWithRole('wali_scoped_only', 'wali_kelas');
+
+        $actual = $user['permissions'];
+        sort($actual);
+        $expected = RolePermissions::WALI_KELAS;
+        sort($expected);
+
+        $this->assertSame($expected, $actual);
+        $this->assertSame([], array_values(array_intersect($actual, RolePermissions::ADMINISTRATIVE_PERMISSIONS)));
+
+        $dashboard = $this->withSession([
+            'logged_in' => true,
+            'user_id' => $user['id'],
+            'username' => 'wali_scoped_only',
+            'full_name' => 'Wali Scoped Only',
+            'role_code' => 'wali_kelas',
+            'role_name' => 'Wali Kelas',
+            'all_role_codes' => ['wali_kelas'],
+            'active_unit_id' => $user['unit_id'],
+            'permissions' => $user['permissions'],
+        ])->get('dashboard');
+        $body = $dashboard->getBody();
+        $this->assertStringContainsString('Kelas Binaan', $body);
+        $this->assertStringContainsString('Tugas Mengajar Saya', $body);
+        $this->assertStringNotContainsString('Kesiapan Data Master', $body);
+        $this->assertStringNotContainsString('Aktivitas Terbaru', $body);
+    }
+
+    public function testGuruCannotOpenGlobalStudentMaster(): void
+    {
+        $user = $this->createTestUserWithRole('guru_no_students', 'guru');
+
+        $result = $this->withSession([
+            'logged_in'      => true,
+            'user_id'        => $user['id'],
+            'username'       => 'guru_no_students',
+            'role_code'      => 'guru',
+            'all_role_codes' => ['guru'],
+            'active_unit_id' => $user['unit_id'],
+            'permissions'    => $user['permissions'],
+        ])->get('students');
+
+        $result->assertStatus(403);
     }
 
     // ── SMP admin cannot switch to SMA unit ─────────────────────

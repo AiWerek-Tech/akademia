@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Database\Seeds\CoreSeeder;
 use App\Database\Seeds\Milestone5Seeder;
 use App\Services\ScheduleExportService;
@@ -15,7 +15,7 @@ use Config\Database;
  */
 final class ScheduleImportExportTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';
@@ -61,6 +61,16 @@ final class ScheduleImportExportTest extends CIUnitTestCase
 
         $smp = $db->table('school_units')->where('code', 'SMP')->get()->getRowArray();
         $smpId = (int)$smp['id'];
+        $db->table('teachers')->insert([
+            'uuid'            => '10000000-0000-4000-8000-000000000098',
+            'employee_number' => 'GURU001',
+            'full_name'       => 'Guru Pengajar',
+            'normalized_name' => 'guru pengajar',
+            'primary_unit_id' => $smpId,
+            'is_active'       => 1,
+            'created_at'      => $now,
+        ]);
+        $teacherId = (int)$db->insertID();
 
         $db->table('room_types')->insert([
             'code'       => 'CLASSROOM',
@@ -152,6 +162,17 @@ final class ScheduleImportExportTest extends CIUnitTestCase
             'created_at'          => $now,
         ]);
 
+        $db->table('schedule_requirements')->insert([
+            'uuid' => '10000000-0000-4000-8000-000000000040',
+            'schedule_version_id' => $versionId,
+            'classroom_id' => $classId,
+            'subject_id' => $subjectId,
+            'teacher_id' => $teacherId,
+            'required_weekly_hours' => 1.0,
+            'consecutive_slots_required' => 1,
+            'created_at' => $now,
+        ]);
+
         $rowsData = [
             [
                 'day_code'     => 'Senin',
@@ -179,8 +200,10 @@ final class ScheduleImportExportTest extends CIUnitTestCase
         $exportService = new ScheduleExportService();
         $classGrid     = $exportService->getGridForClassroom($versionId, $classId);
         $this->assertArrayHasKey('entry_map', $classGrid);
+        $this->assertTrue($db->fieldExists('teacher_initial', 'teachers'));
+        $this->assertTrue($db->fieldExists('color_code', 'teachers'));
 
-        $teacherGrid   = $exportService->getGridForTeacher($versionId, $userId);
+        $teacherGrid   = $exportService->getGridForTeacher($versionId, $teacherId);
         $this->assertArrayHasKey('entries', $teacherGrid);
     }
 }

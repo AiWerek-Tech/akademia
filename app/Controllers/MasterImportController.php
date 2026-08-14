@@ -51,11 +51,12 @@ class MasterImportController extends BaseController
     {
         $type = $this->request->getPost('import_type');
         $permMap = [
-            'TEACHERS'   => 'teachers.import',
-            'SUBJECTS'   => 'subjects.import',
+            'TEACHERS'     => 'teachers.import',
+            'SUBJECTS'     => 'subjects.import',
             'GRADE_LEVELS' => 'grade_levels.import',
-            'CLASSROOMS' => 'classrooms.import',
-            'ROOMS'      => 'rooms.import',
+            'CLASSROOMS'   => 'classrooms.import',
+            'ROOMS'        => 'rooms.import',
+            'STUDENTS'     => 'electives.participants.manage',
         ];
 
         $requiredPerm = $permMap[strtoupper((string)$type)] ?? 'teachers.import';
@@ -64,7 +65,7 @@ class MasterImportController extends BaseController
         }
 
         $rules = [
-            'import_type' => 'required|in_list[TEACHERS,SUBJECTS,GRADE_LEVELS,CLASSROOMS,ROOMS]',
+            'import_type' => 'required|in_list[TEACHERS,SUBJECTS,GRADE_LEVELS,CLASSROOMS,ROOMS,STUDENTS]',
             'file'        => 'uploaded[file]|max_size[file,10240]|ext_in[file,xlsx,xls,csv]|mime_in[file,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,text/plain,application/csv]',
         ];
 
@@ -149,11 +150,12 @@ class MasterImportController extends BaseController
     private function allowedImportTypes(): array
     {
         $labels = [
-            'TEACHERS' => ['permission' => 'teachers.import', 'label' => 'Guru', 'icon' => 'users'],
-            'SUBJECTS' => ['permission' => 'subjects.import', 'label' => 'Mata Pelajaran', 'icon' => 'book-open'],
+            'STUDENTS'     => ['permission' => 'electives.participants.manage', 'label' => 'Peserta Didik & Rombel', 'icon' => 'user-check'],
+            'TEACHERS'     => ['permission' => 'teachers.import', 'label' => 'Guru', 'icon' => 'users'],
+            'SUBJECTS'     => ['permission' => 'subjects.import', 'label' => 'Mata Pelajaran', 'icon' => 'book-open'],
             'GRADE_LEVELS' => ['permission' => 'grade_levels.import', 'label' => 'Tingkat Kelas', 'icon' => 'layers-3'],
-            'CLASSROOMS' => ['permission' => 'classrooms.import', 'label' => 'Kelas / Rombel', 'icon' => 'door-open'],
-            'ROOMS' => ['permission' => 'rooms.import', 'label' => 'Ruangan', 'icon' => 'map-pin'],
+            'CLASSROOMS'   => ['permission' => 'classrooms.import', 'label' => 'Kelas / Rombel', 'icon' => 'door-open'],
+            'ROOMS'        => ['permission' => 'rooms.import', 'label' => 'Ruangan', 'icon' => 'map-pin'],
         ];
 
         return array_filter($labels, static fn (array $config): bool => has_permission($config['permission']));
@@ -162,11 +164,12 @@ class MasterImportController extends BaseController
     private function permissionForType(string $type): ?string
     {
         return match (strtoupper($type)) {
-            'TEACHERS' => 'teachers.import',
-            'SUBJECTS' => 'subjects.import',
+            'STUDENTS'     => 'electives.participants.manage',
+            'TEACHERS'     => 'teachers.import',
+            'SUBJECTS'     => 'subjects.import',
             'GRADE_LEVELS' => 'grade_levels.import',
-            'CLASSROOMS' => 'classrooms.import',
-            'ROOMS' => 'rooms.import',
+            'CLASSROOMS'   => 'classrooms.import',
+            'ROOMS'        => 'rooms.import',
             default => null,
         };
     }

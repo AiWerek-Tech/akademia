@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Models\TeacherAdditionalDutyModel;
 use App\Models\AdditionalDutyTypeModel;
 use App\Database\Seeds\CoreSeeder;
@@ -17,7 +17,7 @@ use Config\Database;
  */
 final class AdditionalDutyTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

@@ -56,25 +56,27 @@
         <div class="card border-0 shadow-sm rounded-4">
             <div class="card-body p-4">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
+                    <table class="table table-hover align-middle mb-0">
                         <thead>
-                            <tr class="text-uppercase text-muted fs-8 fw-bold">
+                            <tr class="text-uppercase text-muted fs-8 fw-bold bg-light">
+                                <th class="text-center ps-3" style="width: 55px;">No.</th>
                                 <th>Tahun Pelajaran</th>
                                 <th>Semester</th>
                                 <th>Tanggal Mulai</th>
                                 <th>Tanggal Selesai</th>
                                 <th>Status</th>
-                                <th class="text-end">Aksi</th>
+                                <th class="text-end pe-3">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($periods)): ?>
                                 <tr>
-                                    <td colspan="6" class="text-center py-4 text-muted">Belum ada data periode akademik.</td>
+                                    <td colspan="7" class="text-center py-5 text-muted">Belum ada data periode akademik.</td>
                                 </tr>
                             <?php else: ?>
-                                <?php foreach ($periods as $ap): ?>
+                                <?php foreach ($periods as $idx => $ap): ?>
                                     <tr>
+                                        <td class="text-center fw-semibold text-secondary fs-8 ps-3"><?= $idx + 1 ?></td>
                                         <td>
                                             <div class="d-flex align-items-center gap-2">
                                                 <div class="bg-light rounded p-2 d-flex align-items-center justify-content-center">
@@ -99,7 +101,7 @@
                                                 <span class="badge bg-light text-muted px-3 py-1 rounded-pill fw-semibold fs-8">Non-Aktif</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td class="text-end">
+                                        <td class="text-end pe-3">
                                             <div class="d-flex justify-content-end gap-2">
                                                 <a href="<?= base_url('academic-periods/' . $ap['uuid']) ?>" class="btn btn-sm btn-light rounded-3 text-primary d-inline-flex align-items-center gap-1">
                                                     <i data-lucide="eye" style="width: 14px; height: 14px;"></i> Detail
@@ -129,25 +131,27 @@
         <div class="card border-0 shadow-sm rounded-4">
             <div class="card-body p-4">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
+                    <table class="table table-hover align-middle mb-0">
                         <thead>
-                            <tr class="text-uppercase text-muted fs-8 fw-bold">
+                            <tr class="text-uppercase text-muted fs-8 fw-bold bg-light">
+                                <th class="text-center ps-3" style="width: 55px;">No.</th>
                                 <th>Tahun Pelajaran</th>
                                 <th>Tanggal Mulai</th>
                                 <th>Tanggal Selesai</th>
                                 <th>Status Aktif</th>
                                 <th>Status Lifecycle</th>
-                                <th class="text-end">Aksi</th>
+                                <th class="text-end pe-3">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($years)): ?>
                                 <tr>
-                                    <td colspan="6" class="text-center py-4 text-muted">Belum ada data tahun pelajaran.</td>
+                                    <td colspan="7" class="text-center py-5 text-muted">Belum ada data tahun pelajaran.</td>
                                 </tr>
                             <?php else: ?>
-                                <?php foreach ($years as $yr): ?>
+                                <?php foreach ($years as $idx => $yr): ?>
                                     <tr>
+                                        <td class="text-center fw-semibold text-secondary fs-8 ps-3"><?= $idx + 1 ?></td>
                                         <td>
                                             <div class="d-flex align-items-center gap-2">
                                                 <div class="bg-light rounded p-2 d-flex align-items-center justify-content-center">
@@ -177,7 +181,7 @@
                                                 <?= $yr['status'] ?>
                                             </span>
                                         </td>
-                                        <td class="text-end">
+                                        <td class="text-end pe-3">
                                             <div class="d-flex justify-content-end gap-2">
                                                 <?php if (has_permission('academic_years.manage')): ?>
                                                     <a href="<?= base_url('academic-years/' . $yr['uuid'] . '/edit') ?>" class="btn btn-sm btn-light rounded-3 text-secondary d-inline-flex align-items-center gap-1">

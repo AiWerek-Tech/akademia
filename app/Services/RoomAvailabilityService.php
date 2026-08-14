@@ -15,7 +15,7 @@ class RoomAvailabilityService
 
     public function isRoomAvailable(int $roomId, int $academicPeriodId, int $dayOfWeek, int $slotNumber): bool
     {
-        $rule = $this->ruleModel
+        $rules = $this->ruleModel
             ->where('room_id', $roomId)
             ->where('academic_period_id', $academicPeriodId)
             ->groupStart()
@@ -26,12 +26,21 @@ class RoomAvailabilityService
                 ->where('slot_number', $slotNumber)
                 ->orWhere('slot_number IS NULL')
             ->groupEnd()
-            ->first();
+            ->findAll();
 
-        if ($rule && (string)$rule['availability_status'] === 'UNAVAILABLE') {
-            return false;
+        $resolvedStatus = null;
+        $resolvedSpecificity = -1;
+        foreach ($rules as $rule) {
+            $specificity = ($rule['day_of_week'] !== null ? 1 : 0)
+                + ($rule['slot_number'] !== null ? 1 : 0);
+            $status = strtoupper((string) ($rule['availability_status'] ?? 'UNAVAILABLE'));
+            if ($specificity > $resolvedSpecificity
+                || ($specificity === $resolvedSpecificity && $status === 'UNAVAILABLE')) {
+                $resolvedSpecificity = $specificity;
+                $resolvedStatus = $status;
+            }
         }
 
-        return true;
+        return $resolvedStatus !== 'UNAVAILABLE';
     }
 }

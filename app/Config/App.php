@@ -204,11 +204,28 @@ class App extends BaseConfig
     {
         parent::__construct();
 
+        // BaseConfig cannot populate typed array properties from a scalar .env
+        // value. Use explicit deployment-only scalar encodings instead.
+        $allowedHostsCsv = getenv('app.allowedHostnamesCSV');
+        if (is_string($allowedHostsCsv) && trim($allowedHostsCsv) !== '') {
+            $this->allowedHostnames = array_values(array_filter(array_map(
+                static fn (string $host): string => strtolower(trim($host)),
+                explode(',', $allowedHostsCsv)
+            )));
+        }
+        $proxyIpsJson = getenv('app.proxyIPsJSON');
+        if (is_string($proxyIpsJson) && trim($proxyIpsJson) !== '') {
+            $decodedProxyIps = json_decode($proxyIpsJson, true);
+            if (is_array($decodedProxyIps)) {
+                $this->proxyIPs = array_filter($decodedProxyIps, 'is_string');
+            }
+        }
+
         // Development convenience only. Production must use the configured
         // baseURL and allowedHostnames instead of trusting request headers.
         if (ENVIRONMENT === 'development' && isset($_SERVER['HTTP_HOST'])) {
             $host = strtolower(preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST']));
-            if (!in_array($host, ['localhost', '127.0.0.1', 'app.wmvaa.local'], true)) {
+            if (!in_array($host, ['localhost', '127.0.0.1', 'app.wmvaa.local', '192.168.1.62'], true)) {
                 return;
             }
             $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';

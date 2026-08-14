@@ -4,7 +4,7 @@ namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Services\UnitScopeService;
 use App\Database\Seeds\CoreSeeder;
 use App\Database\Seeds\Milestone2MasterSeeder;
@@ -18,7 +18,7 @@ use Config\Database;
 final class AssignmentSecurityTest extends CIUnitTestCase
 {
     use FeatureTestTrait;
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

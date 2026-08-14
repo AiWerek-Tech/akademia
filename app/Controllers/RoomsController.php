@@ -33,7 +33,12 @@ class RoomsController extends BaseController
             'search'       => $this->request->getGet('search'),
         ];
 
-        $result = RoomService::getRooms($filters);
+        $perPageRaw = (string)$this->request->getGet('per_page');
+        $perPage = in_array($perPageRaw, ['10', '20', '50', 'all'], true) ? $perPageRaw : '10';
+        $limit = $perPage === 'all' ? 1000 : (int)$perPage;
+
+        $filters['per_page'] = $perPage;
+        $result = RoomService::getRooms($filters, $limit);
 
         $units = UnitScopeService::accessibleUnits();
 
@@ -48,6 +53,7 @@ class RoomsController extends BaseController
             'units'             => $units,
             'roomTypes'         => $roomTypes,
             'filters'           => $filters,
+            'perPage'           => $perPage,
         ]);
     }
 
@@ -57,6 +63,7 @@ class RoomsController extends BaseController
             return redirect()->to('/rooms')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
+        $activeUnitId = UnitScopeService::resolveUnit();
         $units = UnitScopeService::accessibleUnits();
 
         $typeModel = new RoomTypeModel();
@@ -67,6 +74,7 @@ class RoomsController extends BaseController
             'breadcrumb_active' => 'Tambah Ruang',
             'units'             => $units,
             'roomTypes'         => $roomTypes,
+            'activeUnitId'      => $activeUnitId,
         ]);
     }
 

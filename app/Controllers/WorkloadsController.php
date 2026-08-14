@@ -33,17 +33,22 @@ class WorkloadsController extends BaseController
 
         $periodId = (int)($this->request->getGet('academic_period_id') ?: session()->get('active_period_id'));
 
-        // Find active assignment version for this period
-        $version = $versionModel->where('academic_period_id', $periodId)
-                                ->where('is_active', 1)
-                                ->first();
+        // Find ALL active assignment versions for this period (supports multiple: SMP + SMA)
+        $activeVersions = $versionModel->where('academic_period_id', $periodId)
+                                       ->where('is_active', 1)
+                                       ->findAll();
 
-        // Fallback to latest version if no active locked version
-        if (!$version) {
-            $version = $versionModel->where('academic_period_id', $periodId)
-                                    ->orderBy('id', 'DESC')
-                                    ->first();
+        // Fallback to latest version if no active versions
+        if (empty($activeVersions)) {
+            $fallback = $versionModel->where('academic_period_id', $periodId)
+                                     ->orderBy('id', 'DESC')
+                                     ->first();
+            $activeVersions = $fallback ? [$fallback] : [];
         }
+
+        // For backward compatibility, $version is the first active version
+        $version = !empty($activeVersions) ? $activeVersions[0] : null;
+        $activeVersionIds = array_map(function($v) { return (int)$v['id']; }, $activeVersions);
 
         $snapshots = [];
         $reportData = [
@@ -55,14 +60,14 @@ class WorkloadsController extends BaseController
         if ($version) {
             $builder = $snapshotModel->select('teacher_workload_snapshots.*, teachers.full_name, teachers.employment_status, teachers.employment_type')
                                      ->join('teachers', 'teachers.id = teacher_workload_snapshots.teacher_id')
-                                     ->where('teacher_workload_snapshots.assignment_version_id', $version['id']);
+                                     ->whereIn('teacher_workload_snapshots.assignment_version_id', $activeVersionIds ?: [0]);
 
             if ($unitId) {
                 $builder->where('teacher_workload_snapshots.unit_id', $unitId);
             }
 
             $snapshots = $builder->findAll();
-            $reportData = TeacherWorkloadCalculationService::getDetailedWorkloadReport($version['id'], $periodId, $unitId);
+            $reportData = TeacherWorkloadCalculationService::getDetailedWorkloadReport($activeVersionIds, $periodId, $unitId);
         }
 
         $periods = $periodModel->orderBy('id', 'DESC')->findAll();
@@ -72,6 +77,7 @@ class WorkloadsController extends BaseController
             'snapshots'          => $snapshots,
             'report'             => $reportData,
             'version'            => $version,
+            'activeVersions'     => $activeVersions,
             'periods'            => $periods,
             'units'              => $units,
             'selected_unit_id'   => $unitId,
@@ -107,10 +113,22 @@ class WorkloadsController extends BaseController
             return redirect()->to('/workloads/policies')->with('error', 'Akses ditolak.');
         }
 
-        $periodModel = new AcademicPeriodModel();
-        $unitModel = new SchoolUnitModel();
+        $db = \Config\Database::connect();
+        $periods = $db->table('academic_periods ap')
+            ->select('ap.*, ay.name AS year_name')
+            ->join('academic_years ay', 'ay.id = ap.academic_year_id', 'left')
+            ->orderBy('ap.id', 'DESC')
+            ->get()->getResultArray();
 
-        $periods = $periodModel->where('status', 'ACTIVE')->orderBy('id', 'DESC')->findAll();
+        foreach ($periods as &$p) {
+            $name = trim((string) ($p['name'] ?? ''));
+            if ($name === '') {
+                $semLabel = ((int) ($p['semester_number'] ?? 1) === 1) ? 'Semester 1 (Ganjil)' : 'Semester 2 (Genap)';
+                $p['name'] = 'T.A ' . ($p['year_name'] ?? '') . ' · ' . $semLabel;
+            }
+        }
+        unset($p);
+
         $units = UnitScopeService::accessibleUnits();
 
         return view('workloads/policies/create', [
@@ -180,16 +198,29 @@ class WorkloadsController extends BaseController
         $unitId = $this->request->getPost('unit_id') ? (int)$this->request->getPost('unit_id') : null;
 
         try {
-            $version = (new AssignmentVersionModel())->find($versionId);
-            if (!$version || (int) $version['academic_period_id'] !== $periodId) {
-                throw new \RuntimeException('Versi penugasan dan periode akademik tidak cocok.');
-            }
             if ($unitId !== null) {
                 $unitId = UnitScopeService::resolveUnit($unitId);
             } elseif (!in_array(session()->get('role_code'), ['superadmin', 'super_admin'], true)) {
                 $unitId = UnitScopeService::resolveUnit();
             }
-            TeacherWorkloadCalculationService::recalculateAll($versionId, $periodId, $unitId, (int)session()->get('user_id'));
+
+            if ($versionId > 0) {
+                // Recalculate specific version
+                $version = (new AssignmentVersionModel())->find($versionId);
+                if (!$version || (int) $version['academic_period_id'] !== $periodId) {
+                    throw new \RuntimeException('Versi penugasan dan periode akademik tidak cocok.');
+                }
+                TeacherWorkloadCalculationService::recalculateAll($versionId, $periodId, $unitId, (int)session()->get('user_id'));
+            } else {
+                // Recalculate ALL active versions for the period (SMP + SMA)
+                $activeVersions = (new AssignmentVersionModel())->where('academic_period_id', $periodId)
+                                                                ->where('is_active', 1)
+                                                                ->findAll();
+                foreach ($activeVersions as $av) {
+                    TeacherWorkloadCalculationService::recalculateAll((int)$av['id'], $periodId, $unitId, (int)session()->get('user_id'));
+                }
+            }
+
             return redirect()->back()->with('success', 'Perhitungan ulang beban kerja berhasil diselesaikan.');
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', $e->getMessage());

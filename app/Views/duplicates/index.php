@@ -24,25 +24,27 @@
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body p-4">
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle mb-0">
                 <thead>
-                    <tr class="text-uppercase text-muted fs-8 fw-bold">
+                    <tr class="text-uppercase text-muted fs-8 fw-bold bg-light">
+                        <th class="text-center ps-3" style="width: 55px;">No.</th>
                         <th>Entity</th>
                         <th>Confidence Score</th>
                         <th>Alasan Kemiripan</th>
                         <th>Status</th>
                         <th>Keputusan</th>
-                        <th class="text-end">Aksi</th>
+                        <th class="text-end pe-3">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($groups)): ?>
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">Belum ada kasus duplikasi yang terdeteksi.</td>
+                            <td colspan="7" class="text-center py-5 text-muted">Belum ada kasus duplikasi yang terdeteksi.</td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($groups as $g): ?>
+                        <?php foreach ($groups as $idx => $g): ?>
                             <tr>
+                                <td class="text-center fw-semibold text-secondary fs-8 ps-3"><?= $idx + 1 ?></td>
                                 <td><span class="badge bg-primary bg-opacity-10 text-primary px-2.5 py-1 rounded-pill"><?= esc($g['entity_type']) ?></span></td>
                                 <td>
                                     <span class="fw-bold text-danger fs-7"><?= esc($g['confidence_score']) ?>%</span>
@@ -65,7 +67,7 @@
                                     </span>
                                 </td>
                                 <td><span class="fw-semibold fs-8"><?= esc($g['decision']) ?></span></td>
-                                <td class="text-end">
+                                <td class="text-end pe-3">
                                     <a href="<?= base_url('duplicates/' . $g['uuid']) ?>" class="btn btn-sm btn-outline-primary rounded-3">
                                         Review Side-by-Side
                                     </a>

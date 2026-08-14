@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Services\TeacherWorkloadCalculationService;
 use App\Services\AssignmentValidationService;
 use App\Services\AssignmentWorkflowService;
@@ -31,7 +31,7 @@ use Config\Database;
  */
 final class Milestone4AcceptanceTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

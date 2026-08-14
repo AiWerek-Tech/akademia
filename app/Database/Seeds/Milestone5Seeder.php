@@ -51,8 +51,17 @@ class Milestone5Seeder extends Seeder
 
             foreach ($permissionMap as $permCode => $permId) {
                 $shouldAttach = false;
-                if ($roleCode === 'ADMIN' || $roleCode === 'SUPERADMIN' || $roleCode === 'KURIKULUM') {
+                if (in_array($roleCode, [
+                    'ADMIN', 'SUPERADMIN', 'SUPER_ADMIN', 'KURIKULUM',
+                    'WAKASEK_KURIKULUM', 'ADMIN_SMP', 'ADMIN_SMA',
+                ], true)) {
                     $shouldAttach = true;
+                } elseif ($roleCode === 'KEPALA_SEKOLAH') {
+                    $shouldAttach = ! in_array($permCode, ['schedules.manage', 'schedules.import', 'availability.manage', 'constraints.manage'], true);
+                } elseif ($roleCode === 'TATA_USAHA') {
+                    $shouldAttach = in_array($permCode, ['schedules.view', 'schedules.export', 'availability.view'], true);
+                } elseif ($roleCode === 'VIEWER_YAYASAN') {
+                    $shouldAttach = in_array($permCode, ['schedules.view', 'schedules.export'], true);
                 } elseif (($roleCode === 'GURU' || $roleCode === 'TEACHER') && in_array($permCode, ['schedules.view', 'availability.view'], true)) {
                     $shouldAttach = true;
                 }

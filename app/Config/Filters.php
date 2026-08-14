@@ -54,6 +54,12 @@ class Filters extends BaseConfig
     public function __construct()
     {
         parent::__construct();
+        if (ENVIRONMENT === 'production') {
+            if (($key = array_search('toolbar', $this->globals['after'], true)) !== false) {
+                unset($this->globals['after'][$key]);
+                $this->globals['after'] = array_values($this->globals['after']);
+            }
+        }
         if (ENVIRONMENT === 'testing' && empty($GLOBALS['enable_csrf_testing'])) {
             if (($key = array_search('csrf', $this->globals['before'], true)) !== false) {
                 unset($this->globals['before'][$key]);
@@ -98,6 +104,10 @@ class Filters extends BaseConfig
                 'academic-years/*',
                 'academic-periods',
                 'academic-periods/*',
+                'academic-calendar',
+                'academic-calendar/*',
+                'attendances',
+                'attendances/*',
                 'users',
                 'users/*',
                 'roles',
@@ -113,6 +123,8 @@ class Filters extends BaseConfig
                 'grade-levels/*',
                 'classrooms',
                 'classrooms/*',
+                'students',
+                'students/*',
                 'rooms',
                 'rooms/*',
                 'imports/master',
@@ -127,6 +139,18 @@ class Filters extends BaseConfig
                 'workloads/*',
                 'duties',
                 'duties/*',
+                'routine-activities',
+                'routine-activities/*',
+                'duty-schedules',
+                'duty-schedules/*',
+                'schedules',
+                'schedules/*',
+                'electives',
+                'electives/*',
+                'my-electives',
+                'my-electives/*',
+                'portal',
+                'portal/*',
             ]
         ],
         'unit_access' => [
@@ -140,6 +164,10 @@ class Filters extends BaseConfig
                 'academic-years/*',
                 'academic-periods',
                 'academic-periods/*',
+                'academic-calendar',
+                'academic-calendar/*',
+                'attendances',
+                'attendances/*',
                 'users',
                 'users/*',
                 'roles',
@@ -155,6 +183,8 @@ class Filters extends BaseConfig
                 'grade-levels/*',
                 'classrooms',
                 'classrooms/*',
+                'students',
+                'students/*',
                 'rooms',
                 'rooms/*',
                 'imports/master',
@@ -169,6 +199,18 @@ class Filters extends BaseConfig
                 'workloads/*',
                 'duties',
                 'duties/*',
+                'routine-activities',
+                'routine-activities/*',
+                'duty-schedules',
+                'duty-schedules/*',
+                'schedules',
+                'schedules/*',
+                'electives',
+                'electives/*',
+                'my-electives',
+                'my-electives/*',
+                'portal',
+                'portal/*',
             ]
         ],
         'password_change_required' => [
@@ -182,6 +224,10 @@ class Filters extends BaseConfig
                 'academic-years/*',
                 'academic-periods',
                 'academic-periods/*',
+                'academic-calendar',
+                'academic-calendar/*',
+                'attendances',
+                'attendances/*',
                 'users',
                 'users/*',
                 'roles',
@@ -197,6 +243,8 @@ class Filters extends BaseConfig
                 'grade-levels/*',
                 'classrooms',
                 'classrooms/*',
+                'students',
+                'students/*',
                 'rooms',
                 'rooms/*',
                 'imports/master',
@@ -211,6 +259,18 @@ class Filters extends BaseConfig
                 'workloads/*',
                 'duties',
                 'duties/*',
+                'routine-activities',
+                'routine-activities/*',
+                'duty-schedules',
+                'duty-schedules/*',
+                'schedules',
+                'schedules/*',
+                'electives',
+                'electives/*',
+                'my-electives',
+                'my-electives/*',
+                'portal',
+                'portal/*',
             ]
         ]
     ];

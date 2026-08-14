@@ -1,7 +1,7 @@
 <?php
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use Tests\Support\Database\Seeds\ExampleSeeder;
 use Tests\Support\Models\ExampleModel;
 
@@ -10,7 +10,7 @@ use Tests\Support\Models\ExampleModel;
  */
 final class ExampleDatabaseTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'Tests\Support';

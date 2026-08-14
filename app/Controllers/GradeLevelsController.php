@@ -42,9 +42,10 @@ class GradeLevelsController extends BaseController
             return redirect()->to('/grade-levels')->with('error', 'Anda tidak memiliki hak akses.');
         }
         return view('grade_levels/create', [
-            'title' => 'Tambah Tingkat Kelas',
+            'title'             => 'Tambah Tingkat Kelas',
             'breadcrumb_active' => 'Tambah Tingkat',
-            'units' => UnitScopeService::accessibleUnits(),
+            'units'             => UnitScopeService::accessibleUnits(),
+            'activeUnitId'      => UnitScopeService::resolveUnit(),
         ]);
     }
 

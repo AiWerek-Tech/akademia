@@ -4,7 +4,7 @@ namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Database\Seeds\CoreSeeder;
 use Config\Database;
 
@@ -14,7 +14,7 @@ use Config\Database;
 final class ExtendedUserManagementTest extends CIUnitTestCase
 {
     use FeatureTestTrait;
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';
@@ -84,6 +84,16 @@ final class ExtendedUserManagementTest extends CIUnitTestCase
             'active_unit_id' => 1,
             'permissions'    => ['users.view', 'users.manage']
         ];
+    }
+
+    public function testUserCreateFormRendersScopedRoleAndEntitySelectors(): void
+    {
+        $result = $this->withSession($this->getSuperAdminSession())->get('users/create');
+
+        $result->assertOK();
+        $result->assertSee('Peran Pengguna');
+        $result->assertSee('Akses Unit Sekolah');
+        $result->assertSee('Pilih Data Guru dari Master');
     }
 
     public function testUserCreationDuplicateUsernameAndEmail(): void

@@ -10,31 +10,38 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body p-4">
-        <form method="POST" action="<?= base_url('classrooms/store') ?>">
+        <form method="POST" action="<?= base_url('classrooms') ?>">
             <?= csrf_field() ?>
             <?php if (session('error')): ?><div class="alert alert-danger rounded-3"><?= esc(session('error')) ?></div><?php endif; ?>
             <?php if (session('errors')): ?><div class="alert alert-danger rounded-3"><ul class="mb-0"><?php foreach (session('errors') as $message): ?><li><?= esc($message) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
 
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">Unit Sekolah <span class="text-danger">*</span></label>
                     <select name="unit_id" id="unit_id" class="form-select rounded-3" required>
                         <option value="">-- Pilih Unit --</option>
                         <?php foreach ($units as $u): ?>
-                            <option value="<?= $u['id'] ?>" <?= old('unit_id') == $u['id'] ? 'selected' : '' ?>><?= esc($u['name']) ?></option>
+                            <option value="<?= $u['id'] ?>" <?= (string)old('unit_id', $activeUnitId ?? '') === (string)$u['id'] ? 'selected' : '' ?>><?= esc($u['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">Periode Akademik <span class="text-danger">*</span></label>
                     <select name="academic_period_id" class="form-select rounded-3" required>
                         <option value="">-- Pilih Periode --</option>
                         <?php foreach ($periods as $p): ?>
-                            <option value="<?= $p['id'] ?>" <?= old('academic_period_id') == $p['id'] ? 'selected' : '' ?>><?= esc($p['name']) ?></option>
+                            <?php
+                            $semText = ((int)($p['semester_number'] ?? 0) === 1) ? 'Ganjil' : 'Genap';
+                            $periodLabel = 'T.A. ' . esc($p['year_name'] ?? '') . ' - Semester ' . esc($p['semester_number'] ?? '') . ' (' . $semText . ')';
+                            if (!empty(trim($p['name'] ?? ''))) {
+                                $periodLabel = esc($p['name']) . ' (' . $periodLabel . ')';
+                            }
+                            ?>
+                            <option value="<?= $p['id'] ?>" <?= old('academic_period_id', $activePeriodId) == $p['id'] ? 'selected' : '' ?>><?= $periodLabel ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">Tingkat Kelas <span class="text-danger">*</span></label>
                     <select name="grade_level_id" id="grade_level_id" class="form-select rounded-3" required>
                         <option value="">-- Pilih Tingkat --</option>
@@ -43,15 +50,6 @@
                                 <?= esc($gl['name']) ?> (<?= esc($gl['unit_name']) ?>)
                             </option>
                         <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fs-8 fw-bold">Jurusan / Peminatan</label>
-                    <select name="major" class="form-select rounded-3">
-                        <option value="">Umum (Tanpa Peminatan)</option>
-                        <option value="MIPA" <?= old('major') === 'MIPA' ? 'selected' : '' ?>>MIPA (Matematika & IPA)</option>
-                        <option value="IPS" <?= old('major') === 'IPS' ? 'selected' : '' ?>>IPS (Ilmu Pengetahuan Sosial)</option>
-                        <option value="BAHASA" <?= old('major') === 'BAHASA' ? 'selected' : '' ?>>Bahasa & Budaya</option>
                     </select>
                 </div>
 

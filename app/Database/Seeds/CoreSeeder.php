@@ -3,6 +3,7 @@
 namespace App\Database\Seeds;
 
 use CodeIgniter\Database\Seeder;
+use Config\RolePermissions;
 
 class CoreSeeder extends Seeder
 {
@@ -65,6 +66,7 @@ class CoreSeeder extends Seeder
             ['code' => 'admin_sma', 'name' => 'Admin SMA', 'description' => 'Akses administratif unit SMA', 'scope' => 'UNIT', 'is_system' => 1],
             ['code' => 'tata_usaha', 'name' => 'Tata Usaha', 'description' => 'Membantu pengelolaan administratif', 'scope' => 'GLOBAL', 'is_system' => 1],
             ['code' => 'guru', 'name' => 'Guru', 'description' => 'Akses guru pengajar', 'scope' => 'GLOBAL', 'is_system' => 1],
+            ['code' => 'siswa', 'name' => 'Siswa', 'description' => 'Akses mandiri layanan akademik siswa', 'scope' => 'UNIT', 'is_system' => 1],
             ['code' => 'viewer_yayasan', 'name' => 'Viewer Yayasan', 'description' => 'Akses read-only seluruh sistem', 'scope' => 'GLOBAL', 'is_system' => 1],
         ];
 
@@ -106,6 +108,10 @@ class CoreSeeder extends Seeder
             ['code' => 'users.manage', 'module' => 'users', 'name' => 'Manage Users', 'description' => 'Membuat/mengedit pengguna dan hak akses'],
             ['code' => 'users.activate', 'module' => 'users', 'name' => 'Activate/Deactivate Users', 'description' => 'Mengaktifkan atau menonaktifkan pengguna'],
             ['code' => 'users.reset_password', 'module' => 'users', 'name' => 'Reset Password Users', 'description' => 'Mereset password pengguna lain'],
+
+            // Student self-service baseline (also maintained by ElectiveModuleSeeder).
+            ['code' => 'electives.selection.submit', 'module' => 'electives', 'name' => 'Submit Own Selection', 'description' => 'Menyimpan dan mengirim pilihan mata pelajaran sendiri'],
+            ['code' => 'electives.change.request', 'module' => 'electives', 'name' => 'Request Selection Change', 'description' => 'Mengajukan perubahan pilihan mata pelajaran sendiri'],
             
             // Roles & Permissions
             ['code' => 'roles.view', 'module' => 'roles', 'name' => 'View Roles', 'description' => 'Melihat daftar role'],
@@ -202,9 +208,69 @@ class CoreSeeder extends Seeder
             }
         }
 
-        // 5. guru mapping
-        if (isset($role_ids['guru']) && isset($perm_ids['dashboard.view'])) {
-            $mapping[] = ['role_id' => $role_ids['guru'], 'permission_id' => $perm_ids['dashboard.view']];
+        // Operational permissions added after the initial RBAC milestone.
+        // Fresh installations run all migrations before this seeder, so these
+        // grants must also live here (migration-time roles may not exist yet).
+        $operationalRolePermissions = [
+            'admin_smp' => [
+                'students.view', 'students.manage',
+                'attendances.view', 'attendances.record', 'attendances.admin',
+                'academic_calendar.view', 'academic_calendar.manage',
+            ],
+            'admin_sma' => [
+                'students.view', 'students.manage',
+                'attendances.view', 'attendances.record', 'attendances.admin',
+                'academic_calendar.view', 'academic_calendar.manage',
+            ],
+            'wakasek_kurikulum' => [
+                'students.view', 'attendances.view', 'attendances.record', 'attendances.admin',
+                'academic_calendar.view', 'academic_calendar.manage',
+            ],
+            'kepala_sekolah' => [
+                'students.view', 'attendances.view', 'attendances.admin',
+                'academic_calendar.view', 'academic_calendar.manage',
+            ],
+            'tata_usaha' => [
+                'dashboard.view', 'units.view', 'academic_years.view', 'academic_periods.view',
+                'students.view', 'students.manage',
+                'users.view', 'users.manage', 'users.activate', 'users.reset_password',
+                'attendances.view', 'academic_calendar.view',
+            ],
+            'viewer_yayasan' => [
+                'students.view', 'attendances.view', 'academic_calendar.view',
+            ],
+            'siswa' => [
+                'dashboard.view', 'academic_calendar.view',
+                'electives.selection.submit', 'electives.change.request',
+            ],
+        ];
+        foreach ($operationalRolePermissions as $roleCode => $permissionCodes) {
+            if (!isset($role_ids[$roleCode])) {
+                continue;
+            }
+            foreach ($permissionCodes as $permissionCode) {
+                if (isset($perm_ids[$permissionCode])) {
+                    $mapping[] = [
+                        'role_id' => $role_ids[$roleCode],
+                        'permission_id' => $perm_ids[$permissionCode],
+                    ];
+                }
+            }
+        }
+
+        // 5. Personal role mappings use the canonical least-privilege sets.
+        foreach (RolePermissions::managedRoles() as $roleCode => $permissionCodes) {
+            if (!isset($role_ids[$roleCode])) {
+                continue;
+            }
+            foreach ($permissionCodes as $permissionCode) {
+                if (isset($perm_ids[$permissionCode])) {
+                    $mapping[] = [
+                        'role_id' => $role_ids[$roleCode],
+                        'permission_id' => $perm_ids[$permissionCode],
+                    ];
+                }
+            }
         }
 
         // 6. viewer_yayasan mapping (read-only)

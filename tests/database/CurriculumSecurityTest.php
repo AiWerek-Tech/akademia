@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Services\CurriculumVersionService;
 use App\Services\CurriculumStructureService;
 use App\Services\BlockPatternService;
@@ -20,7 +20,7 @@ use Config\Database;
  */
 final class CurriculumSecurityTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

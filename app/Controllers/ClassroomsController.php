@@ -40,12 +40,23 @@ class ClassroomsController extends BaseController
             'search'             => $this->request->getGet('search'),
         ];
 
-        $result = ClassroomService::getClassrooms($filters);
+        $perPageRaw = (string)$this->request->getGet('per_page');
+        $perPage = in_array($perPageRaw, ['10', '20', '50', 'all'], true) ? $perPageRaw : '10';
+        $limit = $perPage === 'all' ? 1000 : (int)$perPage;
+
+        $filters['per_page'] = $perPage;
+        $result = ClassroomService::getClassrooms($filters, $limit);
 
         $units = UnitScopeService::accessibleUnits();
 
-        $periodModel = new AcademicPeriodModel();
-        $periods = $periodModel->orderBy('id', 'DESC')->findAll();
+        $db = \Config\Database::connect();
+        $periods = $db->table('academic_periods ap')
+            ->select('ap.*, ay.name as year_name')
+            ->join('academic_years ay', 'ay.id = ap.academic_year_id', 'left')
+            ->orderBy('ay.name', 'DESC')
+            ->orderBy('ap.semester_number', 'DESC')
+            ->get()
+            ->getResultArray();
 
         $gradeLevels = GradeLevelService::getGradeLevels($filters['unit_id'] ? (int)$filters['unit_id'] : null, $filters['unit_ids']);
 
@@ -58,6 +69,7 @@ class ClassroomsController extends BaseController
             'periods'           => $periods,
             'gradeLevels'       => $gradeLevels,
             'filters'           => $filters,
+            'perPage'           => $perPage,
         ]);
     }
 
@@ -72,8 +84,14 @@ class ClassroomsController extends BaseController
 
         $units = UnitScopeService::accessibleUnits();
 
-        $periodModel = new AcademicPeriodModel();
-        $periods = $periodModel->orderBy('id', 'DESC')->findAll();
+        $db = \Config\Database::connect();
+        $periods = $db->table('academic_periods ap')
+            ->select('ap.*, ay.name as year_name')
+            ->join('academic_years ay', 'ay.id = ap.academic_year_id', 'left')
+            ->orderBy('ay.name', 'DESC')
+            ->orderBy('ap.semester_number', 'DESC')
+            ->get()
+            ->getResultArray();
 
         $gradeLevels = GradeLevelService::getGradeLevels($activeUnitId ? (int)$activeUnitId : null);
         $rooms       = RoomService::getRooms(['unit_id' => $activeUnitId], 1000)['data'];
@@ -102,7 +120,7 @@ class ClassroomsController extends BaseController
             'academic_period_id' => 'required|numeric',
             'unit_id'            => 'required|numeric',
             'grade_level_id'     => 'required|numeric',
-            'code'               => 'required|min_length[2]|max_length[30]',
+            'code'               => 'required|min_length[1]|max_length[30]',
             'name'               => 'required|min_length[3]|max_length[100]',
             'capacity'           => 'permit_empty|integer|greater_than_equal_to[0]',
         ];
@@ -127,8 +145,7 @@ class ClassroomsController extends BaseController
             return redirect()->to('/classrooms')->with('error', 'Anda tidak memiliki hak akses.');
         }
 
-        $model = new ClassroomModel();
-        $classroom = $model->where('uuid', $uuid)->where('deleted_at IS NULL')->first();
+        $classroom = ClassroomService::getClassroomByUuid($uuid);
 
         if (!$classroom) {
             return redirect()->to('/classrooms')->with('error', 'Kelas/Rombel tidak ditemukan.');
@@ -167,7 +184,7 @@ class ClassroomsController extends BaseController
         }
 
         $rules = [
-            'code'            => 'required|min_length[2]|max_length[30]',
+            'code'            => 'required|min_length[1]|max_length[30]',
             'name'            => 'required|min_length[3]|max_length[100]',
             'capacity'        => 'permit_empty|integer|greater_than_equal_to[0]',
             'revision_number' => 'required|numeric',
@@ -278,5 +295,255 @@ class ClassroomsController extends BaseController
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
+    }
+
+    public function students(string $uuid)
+    {
+        if (!has_permission('classrooms.view')) {
+            return redirect()->to('/classrooms')->with('error', 'Anda tidak memiliki hak akses.');
+        }
+
+        $classroom = ClassroomService::getClassroomByUuid($uuid);
+        if (!$classroom) {
+            return redirect()->to('/classrooms')->with('error', 'Kelas/Rombel tidak ditemukan.');
+        }
+
+        $db = \Config\Database::connect();
+
+        $gradeLevel = $db->table('grade_levels')->where('id', $classroom['grade_level_id'])->get()->getRowArray();
+        $gradeNumber = $gradeLevel ? (int) $gradeLevel['grade_number'] : 10;
+
+        $assignedStudents = $db->table('elective_students es')
+            ->select('es.*, u.username AS user_name')
+            ->join('users u', 'u.id = es.user_id', 'left')
+            ->where('es.classroom_id', $classroom['id'])
+            ->where('es.is_active', 1)
+            ->orderBy('es.full_name')
+            ->get()->getResultArray();
+
+        $unassignedStudents = $db->table('elective_students es')
+            ->select('es.*, c.code AS current_classroom_code')
+            ->join('classrooms c', 'c.id = es.classroom_id', 'left')
+            ->where('es.unit_id', $classroom['unit_id'])
+            ->where('es.current_grade', $gradeNumber)
+            ->where('es.is_active', 1)
+            ->groupStart()
+                ->where('es.classroom_id IS NULL')
+                ->orWhere('es.classroom_id !=', $classroom['id'])
+            ->groupEnd()
+            ->orderBy('es.full_name')
+            ->get()->getResultArray();
+
+        return view('classrooms/students', [
+            'title'              => 'Pengaturan Siswa Rombel - ' . $classroom['name'],
+            'breadcrumb_active'  => 'Roster Siswa Rombel',
+            'classroom'          => $classroom,
+            'assignedStudents'   => $assignedStudents,
+            'unassignedStudents' => $unassignedStudents,
+            'gradeNumber'        => $gradeNumber,
+        ]);
+    }
+
+    public function assignStudent(string $uuid)
+    {
+        if (!has_permission('classrooms.manage')) {
+            return redirect()->to('/classrooms')->with('error', 'Anda tidak memiliki hak akses.');
+        }
+
+        $classroom = ClassroomService::getClassroomByUuid($uuid);
+        if (!$classroom) {
+            return redirect()->to('/classrooms')->with('error', 'Kelas/Rombel tidak ditemukan.');
+        }
+
+        $studentIds = (array) $this->request->getPost('student_ids');
+        if ($studentIds === []) {
+            $singleId = (int) $this->request->getPost('student_id');
+            if ($singleId > 0) $studentIds = [$singleId];
+        }
+
+        if ($studentIds === []) {
+            return redirect()->back()->with('error', 'Pilih minimal satu siswa untuk dimasukkan ke Rombel ini.');
+        }
+
+        $db = \Config\Database::connect();
+        $count = 0;
+        foreach ($studentIds as $sId) {
+            $sId = (int) $sId;
+            if ($sId > 0) {
+                $db->table('elective_students')->where('id', $sId)->update([
+                    'classroom_id' => $classroom['id'],
+                    'updated_at'   => date('Y-m-d H:i:s'),
+                ]);
+                $count++;
+            }
+        }
+
+        return redirect()->to('/classrooms/' . $uuid . '/students')
+            ->with('success', "Berhasil menambahkan {$count} siswa ke dalam Rombel " . $classroom['name'] . '.');
+    }
+
+    public function removeStudent(string $uuid, int $studentId)
+    {
+        if (!has_permission('classrooms.manage')) {
+            return redirect()->to('/classrooms')->with('error', 'Anda tidak memiliki hak akses.');
+        }
+
+        $classroom = ClassroomService::getClassroomByUuid($uuid);
+        if (!$classroom) {
+            return redirect()->to('/classrooms')->with('error', 'Kelas/Rombel tidak ditemukan.');
+        }
+
+        $db = \Config\Database::connect();
+        $db->table('elective_students')->where('id', $studentId)->where('classroom_id', $classroom['id'])->update([
+            'classroom_id' => null,
+            'updated_at'   => date('Y-m-d H:i:s'),
+        ]);
+
+        return redirect()->to('/classrooms/' . $uuid . '/students')
+            ->with('success', 'Siswa berhasil dikeluarkan dari Rombel ' . $classroom['name'] . '.');
+    }
+
+    public function promoteView()
+    {
+        if (!has_permission('classrooms.manage')) {
+            return redirect()->to('/classrooms')->with('error', 'Anda tidak memiliki hak akses.');
+        }
+
+        $db = \Config\Database::connect();
+        $academicYears = $db->table('academic_years')->orderBy('start_date', 'DESC')->get()->getResultArray();
+        $units = UnitScopeService::accessibleUnits();
+
+        $sourceYearId = (int) ($this->request->getGet('source_year_id') ?? 0);
+        $targetYearId = (int) ($this->request->getGet('target_year_id') ?? 0);
+        $unitId = (int) ($this->request->getGet('unit_id') ?? ($units !== [] ? $units[0]['id'] : 0));
+
+        $previewData = [];
+        if ($sourceYearId > 0 && $targetYearId > 0 && $unitId > 0) {
+            $studentGrades = $db->table('elective_students')
+                ->select('current_grade, COUNT(id) as total')
+                ->where('unit_id', $unitId)
+                ->where('academic_year_id', $sourceYearId)
+                ->where('is_active', 1)
+                ->groupBy('current_grade')
+                ->get()->getResultArray();
+
+            foreach ($studentGrades as $sg) {
+                $g = (int) $sg['current_grade'];
+                $nextG = $g + 1;
+                $isGraduate = ($g === 9 || $g === 12);
+                $previewData[] = [
+                    'current_grade' => $g,
+                    'next_grade'    => $isGraduate ? 'LULUS (Alumni)' : 'Tingkat ' . $nextG,
+                    'total_students'=> $sg['total'],
+                    'is_graduate'   => $isGraduate,
+                ];
+            }
+        }
+
+        return view('classrooms/promote', [
+            'title'             => 'Kenaikan Kelas & Perpindahan Rombel Otomatis',
+            'breadcrumb_active' => 'Kenaikan Kelas',
+            'academicYears'     => $academicYears,
+            'units'             => $units,
+            'sourceYearId'      => $sourceYearId,
+            'targetYearId'      => $targetYearId,
+            'unitId'            => $unitId,
+            'previewData'       => $previewData,
+        ]);
+    }
+
+    public function applyPromote()
+    {
+        if (!has_permission('classrooms.manage')) {
+            return redirect()->to('/classrooms')->with('error', 'Anda tidak memiliki hak akses.');
+        }
+
+        $sourceYearId = (int) $this->request->getPost('source_year_id');
+        $targetYearId = (int) $this->request->getPost('target_year_id');
+        $unitId       = (int) $this->request->getPost('unit_id');
+
+        if ($sourceYearId <= 0 || $targetYearId <= 0 || $sourceYearId === $targetYearId) {
+            return redirect()->back()->with('error', 'Tahun Pelajaran sumber dan target harus berbeda dan valid.');
+        }
+
+        $db = \Config\Database::connect();
+
+        $students = $db->table('elective_students')
+            ->where('unit_id', $unitId)
+            ->where('academic_year_id', $sourceYearId)
+            ->where('is_active', 1)
+            ->get()->getResultArray();
+
+        if ($students === []) {
+            return redirect()->back()->with('error', 'Tidak ada data siswa aktif pada Tahun Pelajaran sumber yang dipilih.');
+        }
+
+        $targetClassrooms = $db->table('classrooms c')
+            ->select('c.id, c.code, gl.grade_number')
+            ->join('grade_levels gl', 'gl.id = c.grade_level_id')
+            ->join('academic_periods ap', 'ap.id = c.academic_period_id')
+            ->where('c.unit_id', $unitId)
+            ->where('ap.academic_year_id', $targetYearId)
+            ->get()->getResultArray();
+
+        $classroomsByGrade = [];
+        foreach ($targetClassrooms as $tc) {
+            $gn = (int) $tc['grade_number'];
+            $classroomsByGrade[$gn][] = $tc;
+        }
+
+        $promotedCount = 0;
+        $graduatedCount = 0;
+
+        foreach ($students as $st) {
+            $curG = (int) $st['current_grade'];
+
+            if ($curG === 9 || $curG === 12) {
+                $graduatedCount++;
+                continue;
+            }
+
+            $nextG = $curG + 1;
+
+            $targetClassId = null;
+            if (isset($classroomsByGrade[$nextG]) && $classroomsByGrade[$nextG] !== []) {
+                $clsList = $classroomsByGrade[$nextG];
+                $targetClassId = $clsList[0]['id'];
+            }
+
+            $existing = $db->table('elective_students')
+                ->where('unit_id', $unitId)
+                ->where('academic_year_id', $targetYearId)
+                ->where('student_number', $st['student_number'])
+                ->get()->getRowArray();
+
+            if ($existing) {
+                $db->table('elective_students')->where('id', $existing['id'])->update([
+                    'full_name'     => $st['full_name'],
+                    'current_grade' => $nextG,
+                    'classroom_id'  => $targetClassId ?: $existing['classroom_id'],
+                    'updated_at'    => date('Y-m-d H:i:s'),
+                ]);
+            } else {
+                $db->table('elective_students')->insert([
+                    'uuid'             => \App\Services\UuidService::v4(),
+                    'user_id'          => $st['user_id'],
+                    'unit_id'          => $unitId,
+                    'academic_year_id' => $targetYearId,
+                    'student_number'   => $st['student_number'],
+                    'full_name'        => $st['full_name'],
+                    'current_grade'    => $nextG,
+                    'classroom_id'     => $targetClassId,
+                    'is_active'        => 1,
+                    'created_by'       => session()->get('user_id'),
+                    'created_at'       => date('Y-m-d H:i:s'),
+                    'updated_at'       => date('Y-m-d H:i:s'),
+                ]);
+            }
+            $promotedCount++;
+        }
+
+        return redirect()->to('/students?academic_year_id=' . $targetYearId . '&unit_id=' . $unitId)
+            ->with('success', "Proses Kenaikan Kelas Otomatis Berhasil! {$promotedCount} siswa berhasil naik kelas ke Tahun Pelajaran baru, {$graduatedCount} siswa diproses kelulusannya.");
     }
 }

@@ -15,8 +15,10 @@ class SchoolUnitModel extends Model
     protected $protectFields    = true;
     protected $allowedFields    = [
         'uuid', 'code', 'name', 'short_name', 'level', 'npsn', 
-        'address', 'phone', 'email', 'logo_path', 'timezone', 
-        'is_active', 'created_by', 'updated_by'
+        'address', 'phone', 'email', 'head_name', 'head_identifier',
+        'document_city', 'decree_prefix', 'logo_path', 'header_line_1',
+        'header_line_2', 'header_line_3', 'header_line_4', 'logo_right_path',
+        'timezone', 'is_active', 'created_by', 'updated_by'
     ];
 
     protected $useTimestamps = true;

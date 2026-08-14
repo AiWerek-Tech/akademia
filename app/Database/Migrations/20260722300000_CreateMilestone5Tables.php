@@ -360,11 +360,11 @@ class CreateMilestone5Tables extends Migration
                 'unsigned' => true,
             ],
             'teacher_id' => [
-                'type'     => 'INT',
+                'type'     => 'BIGINT',
                 'unsigned' => true,
             ],
             'second_teacher_id' => [
-                'type'     => 'INT',
+                'type'     => 'BIGINT',
                 'unsigned' => true,
                 'null'     => true,
             ],
@@ -408,8 +408,8 @@ class CreateMilestone5Tables extends Migration
         $this->forge->addForeignKey('teaching_assignment_id', 'teaching_assignments', 'id', 'SET NULL', 'RESTRICT');
         $this->forge->addForeignKey('classroom_id', 'classrooms', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->addForeignKey('subject_id', 'subjects', 'id', 'CASCADE', 'RESTRICT');
-        $this->forge->addForeignKey('teacher_id', 'users', 'id', 'CASCADE', 'RESTRICT');
-        $this->forge->addForeignKey('second_teacher_id', 'users', 'id', 'SET NULL', 'RESTRICT');
+        $this->forge->addForeignKey('teacher_id', 'teachers', 'id', 'CASCADE', 'RESTRICT');
+        $this->forge->addForeignKey('second_teacher_id', 'teachers', 'id', 'SET NULL', 'RESTRICT');
         $this->forge->addForeignKey('preferred_room_id', 'rooms', 'id', 'SET NULL', 'RESTRICT');
         $this->forge->createTable('schedule_requirements', true);
 
@@ -441,11 +441,11 @@ class CreateMilestone5Tables extends Migration
                 'unsigned' => true,
             ],
             'teacher_id' => [
-                'type'     => 'INT',
+                'type'     => 'BIGINT',
                 'unsigned' => true,
             ],
             'second_teacher_id' => [
-                'type'     => 'INT',
+                'type'     => 'BIGINT',
                 'unsigned' => true,
                 'null'     => true,
             ],
@@ -492,8 +492,8 @@ class CreateMilestone5Tables extends Migration
         $this->forge->addForeignKey('day_slot_id', 'schedule_day_slots', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->addForeignKey('schedule_requirement_id', 'schedule_requirements', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->addForeignKey('classroom_id', 'classrooms', 'id', 'CASCADE', 'RESTRICT');
-        $this->forge->addForeignKey('teacher_id', 'users', 'id', 'CASCADE', 'RESTRICT');
-        $this->forge->addForeignKey('second_teacher_id', 'users', 'id', 'SET NULL', 'RESTRICT');
+        $this->forge->addForeignKey('teacher_id', 'teachers', 'id', 'CASCADE', 'RESTRICT');
+        $this->forge->addForeignKey('second_teacher_id', 'teachers', 'id', 'SET NULL', 'RESTRICT');
         $this->forge->addForeignKey('subject_id', 'subjects', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->addForeignKey('room_id', 'rooms', 'id', 'SET NULL', 'RESTRICT');
         $this->forge->createTable('schedule_entries', true);
@@ -568,7 +568,7 @@ class CreateMilestone5Tables extends Migration
                 'constraint' => 36,
             ],
             'teacher_id' => [
-                'type'     => 'INT',
+                'type'     => 'BIGINT',
                 'unsigned' => true,
             ],
             'academic_period_id' => [
@@ -605,7 +605,7 @@ class CreateMilestone5Tables extends Migration
         ]);
         $this->forge->addKey('id', true);
         $this->forge->addUniqueKey('uuid');
-        $this->forge->addForeignKey('teacher_id', 'users', 'id', 'CASCADE', 'RESTRICT');
+        $this->forge->addForeignKey('teacher_id', 'teachers', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->addForeignKey('academic_period_id', 'academic_periods', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->createTable('teacher_availability_rules', true);
 
@@ -1025,11 +1025,11 @@ class CreateMilestone5Tables extends Migration
                 'unsigned' => true,
             ],
             'teacher_id' => [
-                'type'     => 'INT',
+                'type'     => 'BIGINT',
                 'unsigned' => true,
             ],
             'second_teacher_id' => [
-                'type'     => 'INT',
+                'type'     => 'BIGINT',
                 'unsigned' => true,
                 'null'     => true,
             ],
@@ -1056,8 +1056,8 @@ class CreateMilestone5Tables extends Migration
         $this->forge->addForeignKey('day_slot_id', 'schedule_day_slots', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->addForeignKey('schedule_requirement_id', 'schedule_requirements', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->addForeignKey('classroom_id', 'classrooms', 'id', 'CASCADE', 'RESTRICT');
-        $this->forge->addForeignKey('teacher_id', 'users', 'id', 'CASCADE', 'RESTRICT');
-        $this->forge->addForeignKey('second_teacher_id', 'users', 'id', 'SET NULL', 'RESTRICT');
+        $this->forge->addForeignKey('teacher_id', 'teachers', 'id', 'CASCADE', 'RESTRICT');
+        $this->forge->addForeignKey('second_teacher_id', 'teachers', 'id', 'SET NULL', 'RESTRICT');
         $this->forge->addForeignKey('subject_id', 'subjects', 'id', 'CASCADE', 'RESTRICT');
         $this->forge->addForeignKey('room_id', 'rooms', 'id', 'SET NULL', 'RESTRICT');
         $this->forge->createTable('schedule_candidate_entries', true);

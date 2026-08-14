@@ -41,6 +41,15 @@ class CreateCurriculumPlanningSettings extends Migration
                 'constraint' => '5,2',
                 'default'    => 9.00,
             ],
+            'daily_jp_capacities_json' => [
+                'type' => 'TEXT',
+                'null' => true,
+            ],
+            'minutes_per_jp' => [
+                'type'     => 'SMALLINT',
+                'unsigned' => true,
+                'default'  => 40,
+            ],
             'allow_custom_hours' => [
                 'type'       => 'TINYINT',
                 'constraint' => 1,

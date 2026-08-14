@@ -29,3 +29,20 @@
   - `revision_number` (`INT UNSIGNED DEFAULT 1`)
   - `created_at`, `updated_at`, `created_by`, `updated_by`
   - Unique Key: `uq_curriculum_planning_scope` on `(curriculum_version_id, unit_id)`
+# Pemilihan Mata Pelajaran Fase F
+
+- `elective_periods`: periode unit/tahun/kurikulum, tingkat asal-tujuan, jendela
+  pemilihan, batas perubahan, aturan 4-5 pilihan, dan status publikasi.
+- `elective_offerings`: mapel pilihan yang tersedia, guru, JP, minimum peminat,
+  kapasitas, serta informasi studi/karier.
+- `elective_students`: peserta per unit dan tahun pelajaran, opsional terhubung
+  dengan akun `users`.
+- `student_elective_submissions`: profil minat dan status workflow pilihan.
+- `student_elective_choices`: urutan pilihan utama/cadangan dan status alokasi.
+- `student_elective_reviews`: keputusan BK dan kurikulum.
+- `student_elective_change_requests`: usulan perubahan, alasan, keputusan, dan
+  jejak penilaian ulang sekolah.
+
+Seluruh tabel operasional memakai foreign key ke master kanonik. Penawaran
+merujuk `subjects` dan `teachers`; periode merujuk `curriculum_versions`; siswa
+dan submission dibatasi oleh unit serta tahun pelajaran.

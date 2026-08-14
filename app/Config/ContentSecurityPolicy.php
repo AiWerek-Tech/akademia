@@ -54,21 +54,21 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var list<string>|string
      */
-    public $scriptSrc = 'self';
+    public $scriptSrc = ['self', 'unsafe-inline', 'https://cdn.jsdelivr.net', 'https://unpkg.com'];
 
     /**
      * Lists allowed stylesheets' URLs.
      *
      * @var list<string>|string
      */
-    public $styleSrc = 'self';
+    public $styleSrc = ['self', 'unsafe-inline', 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com'];
 
     /**
      * Defines the origins from which images can be loaded.
      *
      * @var list<string>|string
      */
-    public $imageSrc = 'self';
+    public $imageSrc = ['self', 'data:'];
 
     /**
      * Restricts the URLs that can appear in a page's `<base>` element.
@@ -99,7 +99,7 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var list<string>|string
      */
-    public $fontSrc;
+    public $fontSrc = ['self', 'data:', 'https://cdn.jsdelivr.net', 'https://fonts.gstatic.com'];
 
     /**
      * Lists valid endpoints for submission from `<form>` tags.
@@ -116,7 +116,7 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var list<string>|string|null
      */
-    public $frameAncestors;
+    public $frameAncestors = 'self';
 
     /**
      * The frame-src directive restricts the URLs which may

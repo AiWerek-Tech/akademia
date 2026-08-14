@@ -5,14 +5,14 @@ namespace Tests\Database;
 use App\Database\Seeds\CoreSeeder;
 use App\Services\UnitScopeService;
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use Config\Database;
 use RuntimeException;
 
 /** @internal */
 final class UnitScopeSecurityTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate = true;
     protected $namespace = 'App';

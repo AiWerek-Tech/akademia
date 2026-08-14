@@ -20,5 +20,5 @@ $$\text{Weekly Capacity} = \text{teaching\_days\_per\_week} \times \text{daily\_
 - **SMA 6-Day Preset**: $6 \times 9.00 = 54.00\text{ JP/week capacity}$.
 
 ## 4. Immutability & Scope
-- If `workflow_status` of the curriculum version is `LOCKED`, `PUBLISHED`, or `APPROVED`, modifications are strictly rejected.
+- If `workflow_status` of the curriculum version is `LOCKED`, `APPROVED`, or `ARCHIVED`, modifications are strictly rejected.
 - Unit isolation enforces scope boundaries between SMP (unit 1) and SMA (unit 2).

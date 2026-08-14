@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Database\Seeds\CoreSeeder;
 use App\Database\Seeds\Milestone4Seeder;
 use Config\Database;
@@ -13,7 +13,7 @@ use Config\Database;
  */
 final class Milestone4SeederTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

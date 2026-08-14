@@ -46,23 +46,94 @@ $activeCount = count(array_filter($versions, static fn ($item) => (int) $item['i
     <div class="card shadow-sm border-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="table-light"><tr><th class="ps-4">Kurikulum</th><th>Periode</th><th>Status</th><th>Dibuat oleh</th><th class="text-end pe-4">Aksi</th></tr></thead>
+                <thead class="table-light"><tr><th class="text-center ps-3" style="width: 55px;">No.</th><th>Kurikulum</th><th>Periode</th><th>Status</th><th>Dibuat oleh</th><th class="text-end pe-4">Aksi</th></tr></thead>
                 <tbody>
                 <?php if ($versions === []): ?>
-                    <tr><td colspan="5" class="text-center py-5"><i class="bi bi-journal-x fs-1 text-muted"></i><h5 class="mt-3">Belum ada kurikulum</h5><p class="text-muted">Buat kurikulum pertama untuk mulai menyusun mata pelajaran.</p></td></tr>
-                <?php else: foreach ($versions as $version): ?>
+                    <tr><td colspan="6" class="text-center py-5"><i class="bi bi-journal-x fs-1 text-muted"></i><h5 class="mt-3">Belum ada kurikulum</h5><p class="text-muted">Buat kurikulum pertama untuk mulai menyusun mata pelajaran.</p></td></tr>
+                <?php else: foreach ($versions as $idx => $version): ?>
                     <tr>
-                        <td class="ps-4"><div class="fw-semibold"><?= esc($version['name']) ?></div><div class="small text-muted"><?= esc($version['code']) ?> · Revisi <?= (int) $version['revision_number'] ?></div></td>
+                        <td class="text-center fw-semibold text-secondary fs-8 ps-3"><?= $idx + 1 ?></td>
+                        <td><div class="fw-semibold"><?= esc($version['name']) ?></div><div class="small text-muted"><?= esc($version['code']) ?> · Revisi <?= (int) $version['revision_number'] ?></div></td>
                         <td><?= esc(($version['year_name'] ?? '') . ' · ' . ($version['period_name'] ?? '-')) ?></td>
                         <td><?php if ((int) $version['is_active'] === 1): ?><span class="badge rounded-pill bg-success"><i class="bi bi-check-circle me-1"></i>Aktif</span><?php else: ?><span class="badge rounded-pill bg-light text-dark border">Belum aktif</span><?php endif; ?></td>
                         <td><?= esc($version['creator_name'] ?? '-') ?></td>
                         <td class="text-end pe-4">
                             <div class="d-inline-flex flex-wrap justify-content-end gap-2">
-                                <a href="<?= base_url('curriculum/' . $version['uuid']) ?>" class="btn btn-sm btn-outline-primary">Kelola struktur</a>
+                                <a href="<?= base_url('curriculum/' . $version['uuid']) ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-grid-3x3-gap me-1"></i>Kelola struktur</a>
+                                <?php if (has_permission('curriculum.manage')): ?>
+                                    <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editModal<?= $version['id'] ?>"><i class="bi bi-pencil me-1"></i>Edit</button>
+                                <?php endif; ?>
                                 <?php if ((int) $version['is_active'] !== 1 && (has_permission('curriculum.manage') || has_permission('curriculum.approve'))): ?>
                                     <form action="<?= base_url('curriculum/' . $version['uuid'] . '/activate') ?>" method="post" data-confirm="Aktifkan kurikulum ini untuk periode <?= esc($version['period_name'] ?? '') ?>?" data-confirm-title="Aktifkan kurikulum?" data-confirm-button="Aktifkan"><?= csrf_field() ?><button class="btn btn-sm btn-success"><i class="bi bi-check2-circle me-1"></i>Aktifkan</button></form>
                                 <?php endif; ?>
                             </div>
+
+                            <!-- Modal Edit Kurikulum -->
+                            <?php if (has_permission('curriculum.manage')): ?>
+                            <div class="modal fade text-start" id="editModal<?= $version['id'] ?>" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-lg modal-dialog-centered">
+                                    <div class="modal-content border-0 rounded-4 shadow">
+                                        <form action="<?= base_url('curriculum/' . $version['uuid'] . '/update') ?>" method="post">
+                                            <?= csrf_field() ?>
+                                            <div class="modal-header border-0 px-4 pt-4">
+                                                <div>
+                                                    <h5 class="modal-title fw-bold">Edit Versi Kurikulum</h5>
+                                                    <div class="text-muted small">Ubah nama, kode, periode, atau status kurikulum.</div>
+                                                </div>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body px-4">
+                                                <div class="row g-3">
+                                                    <div class="col-md-8">
+                                                        <label class="form-label fw-semibold">Nama Kurikulum <span class="text-danger">*</span></label>
+                                                        <input type="text" class="form-control" name="name" required value="<?= esc($version['name']) ?>">
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label fw-semibold">Kode <span class="text-danger">*</span></label>
+                                                        <input type="text" class="form-control text-uppercase" name="code" required value="<?= esc($version['code']) ?>">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Periode Akademik <span class="text-danger">*</span></label>
+                                                        <select name="academic_period_id" class="form-select" required>
+                                                            <?php foreach ($periods as $p): ?>
+                                                                <option value="<?= (int)$p['id'] ?>" <?= (int)$version['academic_period_id'] === (int)$p['id'] ? 'selected' : '' ?>>
+                                                                    <?= esc(($p['year_name'] ?? '') . ' · ' . $p['name']) ?>
+                                                                </option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold">Status Alur Kerja</label>
+                                                        <select name="workflow_status" class="form-select">
+                                                            <option value="DRAFT" <?= strtoupper($version['workflow_status']) === 'DRAFT' ? 'selected' : '' ?>>DRAFT</option>
+                                                            <option value="REVIEW" <?= strtoupper($version['workflow_status']) === 'REVIEW' ? 'selected' : '' ?>>REVIEW</option>
+                                                            <option value="APPROVED" <?= strtoupper($version['workflow_status']) === 'APPROVED' ? 'selected' : '' ?>>APPROVED</option>
+                                                            <option value="LOCKED" <?= strtoupper($version['workflow_status']) === 'LOCKED' ? 'selected' : '' ?>>LOCKED</option>
+                                                            <option value="ARCHIVED" <?= strtoupper($version['workflow_status']) === 'ARCHIVED' ? 'selected' : '' ?>>ARCHIVED</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold">Status Keaktifan</label>
+                                                        <select name="is_active" class="form-select">
+                                                            <option value="1" <?= (int)$version['is_active'] === 1 ? 'selected' : '' ?>>Aktif</option>
+                                                            <option value="0" <?= (int)$version['is_active'] === 0 ? 'selected' : '' ?>>Belum aktif</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <label class="form-label fw-semibold">Deskripsi / Catatan</label>
+                                                        <textarea class="form-control" name="description" rows="3"><?= esc($version['description'] ?? '') ?></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer border-0 px-4 pb-4">
+                                                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button>
+                                                <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check2-circle me-1"></i>Simpan Perubahan</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; endif; ?>

@@ -154,23 +154,45 @@ class CurriculumVersionService
                 throw new \RuntimeException('Data telah diubah oleh pengguna lain. Silakan muat ulang halaman.');
             }
 
+            $newCode = isset($data['code']) ? strtoupper(trim($data['code'])) : $version['code'];
+            $newName = isset($data['name']) ? trim($data['name']) : $version['name'];
+            $newPeriodId = !empty($data['academic_period_id']) ? (int)$data['academic_period_id'] : (int)$version['academic_period_id'];
+            $newStatus = isset($data['workflow_status']) ? strtoupper(trim($data['workflow_status'])) : $version['workflow_status'];
+            $newIsActive = isset($data['is_active']) ? (int)$data['is_active'] : (int)$version['is_active'];
+
+            // Duplicate code check if code or period changed
+            if ($newCode !== $version['code'] || $newPeriodId !== (int)$version['academic_period_id']) {
+                $existing = $versionModel->where('academic_period_id', $newPeriodId)
+                    ->where('code', $newCode)
+                    ->where('id !=', $version['id'])
+                    ->first();
+                if ($existing) {
+                    throw new \InvalidArgumentException("Kode versi kurikulum '{$newCode}' sudah ada pada periode akademik ini.");
+                }
+            }
+
             $userId = session()->get('user_id');
             $newRevision = (int)$version['revision_number'] + 1;
 
             $updateData = [
-                'name'             => isset($data['name']) ? trim($data['name']) : $version['name'],
-                'description'      => isset($data['description']) ? trim($data['description']) : $version['description'],
-                'source_reference' => isset($data['source_reference']) ? trim($data['source_reference']) : $version['source_reference'],
-                'revision_number'  => $newRevision,
-                'updated_by'       => $userId,
+                'code'               => $newCode,
+                'name'               => $newName,
+                'academic_period_id' => $newPeriodId,
+                'description'        => isset($data['description']) ? trim($data['description']) : $version['description'],
+                'source_reference'   => isset($data['source_reference']) ? trim($data['source_reference']) : $version['source_reference'],
+                'workflow_status'    => $newStatus,
+                'is_active'          => $newIsActive,
+                'revision_number'    => $newRevision,
+                'updated_by'         => $userId,
             ];
 
             $db->table('curriculum_versions')
                 ->where('id', $version['id'])
-                ->where('revision_number', $version['revision_number'])
                 ->update($updateData);
-            if ($db->affectedRows() !== 1) {
-                throw new \RuntimeException('Versi kurikulum telah diubah oleh pengguna lain. Silakan muat ulang halaman.');
+
+            if ($newIsActive === 1) {
+                // Deactivate only other versions for the SAME UNIT in this academic period
+                self::deactivateOtherVersionsForSameUnit((int)$version['id'], $newPeriodId, $userId);
             }
 
             // History log
@@ -283,6 +305,109 @@ class CurriculumVersionService
         } catch (\Throwable $e) {
             $db->transRollback();
             throw $e;
+        }
+    }
+
+    public static function getVersionUnitIds(int $versionId): array
+    {
+        $db = Database::connect();
+
+        $planningUnits = $db->table('curriculum_planning_settings')
+            ->select('unit_id')
+            ->where('curriculum_version_id', $versionId)
+            ->get()->getResultArray();
+        $unitIds = array_filter(array_map('intval', array_column($planningUnits, 'unit_id')));
+
+        if ($unitIds !== []) {
+            return array_values(array_unique($unitIds));
+        }
+
+        $structUnits = $db->table('curriculum_structures')
+            ->distinct()->select('unit_id')
+            ->where('curriculum_version_id', $versionId)
+            ->where('deleted_at IS NULL')
+            ->get()->getResultArray();
+        $unitIds = array_filter(array_map('intval', array_column($structUnits, 'unit_id')));
+
+        if ($unitIds !== []) {
+            return array_values(array_unique($unitIds));
+        }
+
+        $version = $db->table('curriculum_versions')->where('id', $versionId)->get()->getRowArray();
+        if ($version) {
+            $str = strtoupper($version['code'] . ' ' . $version['name']);
+            if (strpos($str, 'SMP') !== false) {
+                $unit = $db->table('school_units')->where('code', 'SMP')->get()->getRowArray();
+                if ($unit) return [(int)$unit['id']];
+            } elseif (strpos($str, 'SMA') !== false) {
+                $unit = $db->table('school_units')->where('code', 'SMA')->get()->getRowArray();
+                if ($unit) return [(int)$unit['id']];
+            }
+        }
+
+        return [];
+    }
+
+    public static function deactivateOtherVersionsForSameUnit(int $versionId, int $academicPeriodId, ?int $userId = null): void
+    {
+        $db = Database::connect();
+        $unitIds = self::getVersionUnitIds($versionId);
+
+        if ($unitIds !== []) {
+            $otherVersionIds = [];
+
+            $planRows = $db->table('curriculum_planning_settings cps')
+                ->select('cps.curriculum_version_id')
+                ->join('curriculum_versions cv', 'cv.id = cps.curriculum_version_id')
+                ->where('cv.academic_period_id', $academicPeriodId)
+                ->where('cv.id !=', $versionId)
+                ->whereIn('cps.unit_id', $unitIds)
+                ->get()->getResultArray();
+            foreach ($planRows as $r) {
+                $otherVersionIds[] = (int)$r['curriculum_version_id'];
+            }
+
+            $structRows = $db->table('curriculum_structures cs')
+                ->select('cs.curriculum_version_id')
+                ->join('curriculum_versions cv', 'cv.id = cs.curriculum_version_id')
+                ->where('cv.academic_period_id', $academicPeriodId)
+                ->where('cv.id !=', $versionId)
+                ->whereIn('cs.unit_id', $unitIds)
+                ->where('cs.deleted_at IS NULL')
+                ->get()->getResultArray();
+            foreach ($structRows as $r) {
+                $otherVersionIds[] = (int)$r['curriculum_version_id'];
+            }
+
+            $version = $db->table('curriculum_versions')->where('id', $versionId)->get()->getRowArray();
+            if ($version) {
+                $unitCode = in_array(1, $unitIds, true) ? 'SMP' : (in_array(2, $unitIds, true) ? 'SMA' : '');
+                if ($unitCode !== '') {
+                    $codeRows = $db->table('curriculum_versions')
+                        ->select('id')
+                        ->where('academic_period_id', $academicPeriodId)
+                        ->where('id !=', $versionId)
+                        ->groupStart()
+                            ->like('code', $unitCode)
+                            ->orLike('name', $unitCode)
+                        ->groupEnd()
+                        ->get()->getResultArray();
+                    foreach ($codeRows as $r) {
+                        $otherVersionIds[] = (int)$r['id'];
+                    }
+                }
+            }
+
+            $otherVersionIds = array_values(array_unique(array_filter($otherVersionIds)));
+            if ($otherVersionIds !== []) {
+                $db->table('curriculum_versions')
+                    ->whereIn('id', $otherVersionIds)
+                    ->update([
+                        'is_active'  => 0,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                        'updated_by' => $userId ?: 1,
+                    ]);
+            }
         }
     }
 }

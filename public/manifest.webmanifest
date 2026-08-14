@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "WMVAA Akademia",
+  "short_name": "Akademia",
+  "description": "Sistem akademik terpadu SMP dan SMA WMVAA.",
+  "lang": "id-ID",
+  "dir": "ltr",
+  "start_url": "./dashboard?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f4f7fb",
+  "theme_color": "#4f46e5",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {"src": "assets/img/pwa-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "assets/img/pwa-icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+    {"src": "assets/img/pwa-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "assets/img/pwa-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Dashboard", "short_name": "Dashboard", "url": "./dashboard", "icons": [{"src": "assets/img/pwa-icon-192.png", "sizes": "192x192"}]},
+    {"name": "Jadwal Saya", "short_name": "Jadwal", "url": "./portal/schedule", "icons": [{"src": "assets/img/pwa-icon-192.png", "sizes": "192x192"}]}
+  ]
+}

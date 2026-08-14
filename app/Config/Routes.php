@@ -21,10 +21,15 @@ $routes->post('change-password', 'AuthController::attemptChangePassword');
 $routes->post('context/unit', 'ContextController::changeUnit');
 $routes->post('context/period', 'ContextController::changePeriod');
 
-// School Units Profile Management
+// School Units & Application Settings
 $routes->get('settings/units', 'UnitController::index');
 $routes->get('settings/units/(:segment)/edit', 'UnitController::edit/$1');
 $routes->post('settings/units/(:segment)', 'UnitController::update/$1');
+$routes->get('settings/application', 'UnitController::index');
+$routes->get('settings/academic-operations', 'AcademicOperatingSettingsController::index', ['filter' => 'permission:academic_calendar.manage']);
+$routes->post('settings/academic-operations', 'AcademicOperatingSettingsController::save', ['filter' => 'permission:academic_calendar.manage']);
+$routes->get('settings/attendance', 'AttendanceSettingsController::index', ['filter' => 'permission:attendances.admin']);
+$routes->post('settings/attendance', 'AttendanceSettingsController::save', ['filter' => 'permission:attendances.admin']);
 
 // Academic Years
 $routes->get('academic-years', 'AcademicYearController::index');
@@ -43,10 +48,28 @@ $routes->get('academic-periods/(:segment)/edit', 'AcademicPeriodController::edit
 $routes->post('academic-periods/(:segment)', 'AcademicPeriodController::update/$1');
 $routes->post('academic-periods/(:segment)/activate', 'AcademicPeriodController::activate/$1');
 
+// Academic Calendar (Kalender Pendidikan)
+$routes->get('academic-calendar', 'AcademicCalendarController::index', ['filter' => 'permission:academic_calendar.view']);
+$routes->post('academic-calendar/generate', 'AcademicCalendarController::generate', ['filter' => 'permission:academic_calendar.manage']);
+$routes->post('academic-calendar/preview', 'AcademicCalendarController::preview', ['filter' => 'permission:academic_calendar.manage']);
+$routes->get('academic-calendar/(:num)/editor', 'AcademicCalendarController::editor/$1', ['filter' => 'permission:academic_calendar.view']);
+$routes->post('academic-calendar/(:num)/update-day', 'AcademicCalendarController::updateDay/$1', ['filter' => 'permission:academic_calendar.manage']);
+$routes->post('academic-calendar/(:num)/reset-day', 'AcademicCalendarController::resetDay/$1', ['filter' => 'permission:academic_calendar.manage']);
+$routes->post('academic-calendar/(:num)/events/store', 'AcademicCalendarController::storeEvent/$1', ['filter' => 'permission:academic_calendar.manage']);
+$routes->post('academic-calendar/(:num)/events/(:num)/delete', 'AcademicCalendarController::deleteEvent/$1/$2', ['filter' => 'permission:academic_calendar.manage']);
+$routes->post('academic-calendar/(:num)/events/(:num)/update', 'AcademicCalendarController::updateEvent/$1/$2', ['filter' => 'permission:academic_calendar.manage']);
+$routes->get('academic-calendar/(:num)/print', 'AcademicCalendarController::printCalendar/$1', ['filter' => 'permission:academic_calendar.view']);
+$routes->post('academic-calendar/(:num)/activate', 'AcademicCalendarController::activate/$1', ['filter' => 'permission:academic_calendar.manage']);
+$routes->post('academic-calendar/(:num)/rebuild', 'AcademicCalendarController::rebuild/$1', ['filter' => 'permission:academic_calendar.manage']);
+$routes->post('academic-calendar/(:num)/rules/store', 'AcademicCalendarController::storeRule/$1', ['filter' => 'permission:academic_calendar.manage']);
+$routes->post('academic-calendar/(:num)/rules/(:num)/delete', 'AcademicCalendarController::deleteRule/$1/$2', ['filter' => 'permission:academic_calendar.manage']);
+$routes->post('academic-calendar/(:num)/rules/(:num)/update', 'AcademicCalendarController::updateRule/$1/$2', ['filter' => 'permission:academic_calendar.manage']);
+
 // User Management
 $routes->get('users', 'UserController::index');
 $routes->get('users/create', 'UserController::create');
 $routes->post('users', 'UserController::store');
+$routes->post('users/provision-teachers', 'UserController::provisionTeachers');
 $routes->get('users/(:segment)/edit', 'UserController::edit/$1');
 $routes->post('users/(:segment)', 'UserController::update/$1');
 $routes->post('users/(:segment)/reset-password', 'UserController::resetPassword/$1');
@@ -94,9 +117,15 @@ $routes->post('grade-levels/(:segment)', 'GradeLevelsController::update/$1');
 $routes->get('classrooms', 'ClassroomsController::index');
 $routes->get('classrooms/create', 'ClassroomsController::create');
 $routes->post('classrooms', 'ClassroomsController::store');
+$routes->post('classrooms/store', 'ClassroomsController::store');
 $routes->get('classrooms/export', 'ClassroomsController::export');
 $routes->get('classrooms/copy-period', 'ClassroomsController::copyPeriodView');
 $routes->post('classrooms/copy-period', 'ClassroomsController::applyCopyPeriod');
+$routes->get('classrooms/promote', 'ClassroomsController::promoteView');
+$routes->post('classrooms/promote', 'ClassroomsController::applyPromote');
+$routes->get('classrooms/(:segment)/students', 'ClassroomsController::students/$1');
+$routes->post('classrooms/(:segment)/students/assign', 'ClassroomsController::assignStudent/$1');
+$routes->post('classrooms/(:segment)/students/(:num)/remove', 'ClassroomsController::removeStudent/$1/$2');
 $routes->get('classrooms/(:segment)/edit', 'ClassroomsController::edit/$1');
 $routes->post('classrooms/(:segment)', 'ClassroomsController::update/$1');
 
@@ -104,9 +133,16 @@ $routes->post('classrooms/(:segment)', 'ClassroomsController::update/$1');
 $routes->get('rooms', 'RoomsController::index');
 $routes->get('rooms/create', 'RoomsController::create');
 $routes->post('rooms', 'RoomsController::store');
+$routes->post('rooms/store', 'RoomsController::store');
 $routes->get('rooms/export', 'RoomsController::export');
 $routes->get('rooms/(:segment)/edit', 'RoomsController::edit/$1');
 $routes->post('rooms/(:segment)', 'RoomsController::update/$1');
+
+// Master Peserta Didik (Students)
+$routes->get('students', 'StudentsController::index', ['filter' => 'permission:students.view']);
+$routes->post('students', 'StudentsController::store', ['filter' => 'permission:students.manage']);
+$routes->post('students/(:num)/update', 'StudentsController::update/$1', ['filter' => 'permission:students.manage']);
+$routes->post('students/(:num)/delete', 'StudentsController::delete/$1', ['filter' => 'permission:students.manage']);
 
 // Import Staging Pipeline
 $routes->get('imports/master', 'MasterImportController::index');
@@ -131,6 +167,7 @@ $routes->post('curriculum/(:segment)/matrix/update-cell', 'CurriculumMatrixContr
 $routes->post('curriculum/(:segment)/matrix/bulk-store', 'CurriculumMatrixController::bulkStore/$1');
 $routes->post('curriculum/(:segment)/matrix/clone-previous', 'CurriculumMatrixController::cloneFromPrevious/$1');
 $routes->post('curriculum/(:segment)/matrix/apply-preset', 'CurriculumMatrixController::applyPreset/$1');
+$routes->post('curriculum/(:segment)/matrix/auto-trim', 'CurriculumMatrixController::autoTrim/$1');
 
 $routes->get('curriculum/(:segment)', 'CurriculumController::show/$1');
 $routes->post('curriculum/(:segment)/structures', 'CurriculumController::storeStructure/$1');
@@ -138,7 +175,44 @@ $routes->post('curriculum/(:segment)/planning-settings', 'CurriculumController::
 $routes->post('curriculum/(:segment)/structures/(:segment)/delete', 'CurriculumController::deleteStructure/$1/$2');
 $routes->get('curriculum/(:segment)/reconciliation', 'CurriculumController::reconciliation/$1');
 $routes->get('curriculum/(:segment)/export', 'CurriculumController::export/$1');
+$routes->post('curriculum/(:segment)/update', 'CurriculumController::updateVersion/$1');
 $routes->post('curriculum/(:segment)/activate', 'CurriculumController::activate/$1');
+
+// Elective Subjects & Selection Module
+$routes->get('electives', 'ElectivesController::index');
+$routes->get('electives/create', 'ElectivesController::create');
+$routes->post('electives', 'ElectivesController::store');
+$routes->get('electives/(:num)', 'ElectivesController::show/$1');
+$routes->post('electives/(:num)/offerings', 'ElectivesController::addOffering/$1');
+$routes->post('electives/(:num)/offerings/(:num)/delete', 'ElectivesController::removeOffering/$1/$2');
+$routes->post('electives/(:num)/offerings/(:num)/update', 'ElectivesController::updateOffering/$1/$2');
+$routes->post('electives/(:num)/offerings/(:num)/toggle-approval', 'ElectivesController::toggleOfferingApproval/$1/$2');
+$routes->post('electives/(:num)/approve-all-eligible', 'ElectivesController::approveAllEligibleOfferings/$1');
+$routes->post('electives/(:num)/update', 'ElectivesController::update/$1');
+$routes->post('electives/(:num)/publish', 'ElectivesController::publish/$1');
+$routes->get('electives/(:num)/selections/export', 'ElectivesController::exportSelections/$1');
+$routes->post('electives/(:num)/enroll', 'ElectiveSelectionsController::enroll/$1');
+$routes->post('electives/(:num)/students/sync-rombel', 'ElectiveSelectionsController::syncRombel/$1');
+$routes->post('electives/(:num)/students/import', 'ElectiveSelectionsController::importStudents/$1');
+$routes->get('electives/(:num)/students/template', 'ElectiveSelectionsController::downloadStudentsTemplate/$1');
+$routes->post('electives/(:num)/students/(:num)/delete', 'ElectiveSelectionsController::deleteStudent/$1/$2');
+
+$routes->get('my-electives', 'ElectiveSelectionsController::mySelection');
+$routes->post('my-electives/save', 'ElectiveSelectionsController::saveMine');
+$routes->post('my-electives/submit', 'ElectiveSelectionsController::submitMine');
+$routes->post('my-electives/change-request', 'ElectiveSelectionsController::requestChangeMine');
+$routes->get('electives/(:num)/select/(:num)', 'ElectiveSelectionsController::form/$1/$2');
+$routes->post('electives/(:num)/select/(:num)', 'ElectiveSelectionsController::save/$1/$2');
+$routes->post('electives/(:num)/select/(:num)/submit', 'ElectiveSelectionsController::submit/$1/$2');
+$routes->get('electives/(:num)/students/(:num)/selection', 'ElectiveSelectionsController::form/$1/$2');
+$routes->post('electives/(:num)/students/(:num)/selection/save', 'ElectiveSelectionsController::save/$1/$2');
+$routes->post('electives/(:num)/students/(:num)/selection/submit', 'ElectiveSelectionsController::submit/$1/$2');
+$routes->post('electives/(:num)/submissions/(:num)/review', 'ElectiveSelectionsController::review/$1/$2');
+$routes->post('electives/(:num)/change-requests/(:num)/review', 'ElectiveSelectionsController::reviewChange/$1/$2');
+
+// Read-only elective roster owned by the authenticated teacher.
+$routes->get('portal/electives', 'TeacherElectivesController::index', ['filter' => 'permission:teacher_electives.view']);
+$routes->get('portal/electives/export', 'TeacherElectivesController::export', ['filter' => 'permission:teacher_electives.view']);
 
 // Teaching Assignments & Workload (Milestone 4)
 $routes->get('assignments', 'AssignmentsController::index');
@@ -150,11 +224,20 @@ $routes->post('assignments/imports/upload', 'AssignmentsImportController::upload
 $routes->get('assignments/imports/(:segment)', 'AssignmentsImportController::showBatch/$1');
 $routes->post('assignments/imports/(:segment)/apply', 'AssignmentsImportController::apply/$1');
 $routes->post('assignments/imports/(:segment)/rollback', 'AssignmentsImportController::rollback/$1');
+$routes->get('assignments/(:segment)/documents/sk', 'AssignmentDocumentsController::collective/$1');
+$routes->get('assignments/(:segment)/documents/teacher/(:num)', 'AssignmentDocumentsController::teacher/$1/$2');
 $routes->get('assignments/(:segment)', 'AssignmentsController::show/$1');
 $routes->post('assignments/(:segment)/store-assignment', 'AssignmentsController::storeAssignment/$1');
+$routes->post('assignments/(:segment)/update-assignment/(:num)', 'AssignmentsController::updateAssignment/$1/$2');
+$routes->post('assignments/(:segment)/delete-assignment/(:num)', 'AssignmentsController::deleteAssignment/$1/$2');
+$routes->post('assignments/(:segment)/store-duty', 'AssignmentsController::storeDuty/$1');
+$routes->post('assignments/(:segment)/update-duty/(:num)', 'AssignmentsController::updateDuty/$1/$2');
+$routes->post('assignments/(:segment)/delete-duty/(:num)', 'AssignmentsController::deleteDuty/$1/$2');
+$routes->post('assignments/(:segment)/auto-assign', 'AssignmentsController::autoAssign/$1');
 $routes->get('assignments/(:segment)/matrix', 'AssignmentsController::matrix/$1');
 $routes->get('assignments/(:segment)/export', 'AssignmentsController::export/$1');
 $routes->post('assignments/(:segment)/workflow/(:segment)', 'AssignmentsController::workflowAction/$1/$2');
+$routes->post('assignments/(:segment)/update', 'AssignmentsController::updateVersion/$1');
 $routes->post('assignments/(:segment)/clone', 'AssignmentsController::cloneVersion/$1');
 
 $routes->get('workloads', 'WorkloadsController::index');
@@ -168,10 +251,57 @@ $routes->get('duties', 'DutiesController::index');
 $routes->get('duties/create', 'DutiesController::create');
 $routes->post('duties', 'DutiesController::store');
 
+// School Routine Activities Module (Solution 2)
+$routes->get('routine-activities', 'RoutineActivitiesController::index');
+$routes->post('routine-activities', 'RoutineActivitiesController::store');
+$routes->post('routine-activities/(:num)', 'RoutineActivitiesController::update/$1');
+$routes->post('routine-activities/(:num)/delete', 'RoutineActivitiesController::delete/$1');
+
+// Modul Jadwal Piket Guru (Sekolah Satu Atap SMP & SMA)
+$routes->get('duty-schedules', 'DutySchedulesController::index');
+$routes->post('duty-schedules/generate', 'DutySchedulesController::generate');
+$routes->post('duty-schedules/store', 'DutySchedulesController::store');
+$routes->post('duty-schedules/(:num)/delete', 'DutySchedulesController::delete/$1');
+$routes->post('duty-schedules/clear', 'DutySchedulesController::clear');
+$routes->get('duty-schedules/print', 'DutySchedulesController::print');
+
+// Teacher Portal Routes
+$routes->get('portal/schedule', 'TeacherPortalController::schedule', ['filter' => 'permission:teacher_schedule.view']);
+$routes->get('portal/workload', 'TeacherPortalController::workload', ['filter' => 'permission:teacher_workload.view']);
+$routes->get('portal/assignment-document', 'TeacherPortalController::assignmentDocument', ['filter' => 'permission:teacher_assignment_document.view']);
+$routes->get('portal/duty-schedule', 'TeacherPortalController::dutySchedule', ['filter' => 'permission:teacher_duty_schedule.view']);
+$routes->get('portal/classroom', 'HomeroomPortalController::classroom', ['filter' => 'permission:class_students.view']);
+
+// Teacher Subject Attendance Portal Routes
+$routes->get('portal/attendance', 'TeacherAttendanceController::index', ['filter' => 'permission:teacher_attendance.view,attendances.record']);
+$routes->get('portal/attendance/record', 'TeacherAttendanceController::form', ['filter' => 'permission:attendances.record,teacher_attendance.view']);
+$routes->get('portal/attendance/session/(:num)', 'TeacherAttendanceController::form/$1', ['filter' => 'permission:attendances.record,teacher_attendance.view']);
+$routes->post('portal/attendance/save', 'TeacherAttendanceController::save', ['filter' => 'permission:attendances.record,teacher_attendance.view']);
+$routes->post('portal/attendance/session/(:num)/delete', 'TeacherAttendanceController::delete/$1', ['filter' => 'permission:attendances.record,attendances.admin']);
+$routes->get('portal/attendance/session/(:num)/print', 'TeacherAttendanceController::printJournal/$1', ['filter' => 'permission:teacher_attendance.view,attendances.view']);
+$routes->get('portal/attendance/recap/print', 'TeacherAttendanceController::printRecap', ['filter' => 'permission:teacher_attendance.view,attendances.view']);
+
+// Executive Superadmin Attendance Monitoring Routes
+$routes->get('attendances', 'AttendancesController::index', ['filter' => 'permission:attendances.view']);
+$routes->get('attendances/export', 'AttendancesController::export', ['filter' => 'permission:attendances.admin']);
+$routes->get('attendances/print-unit-report', 'AttendancesController::printUnitReport', ['filter' => 'permission:attendances.view']);
+$routes->get('attendances/print-blank-sheet', 'AttendancesController::printBlankSheet', ['filter' => 'permission:attendances.view']);
+$routes->get('attendances/(:num)', 'AttendancesController::show/$1', ['filter' => 'permission:attendances.view']);
+$routes->post('attendances/(:num)/verify', 'AttendancesController::verify/$1', ['filter' => 'permission:attendances.admin']);
+$routes->post('attendances/(:num)/reopen', 'AttendancesController::reopen/$1', ['filter' => 'permission:attendances.admin']);
+$routes->post('attendances/bulk-verify', 'AttendancesController::bulkVerify', ['filter' => 'permission:attendances.admin']);
+
 // Scheduling System (Milestone 5)
-$routes->group('schedules', ['filter' => 'permission:schedules.view'], static function ($routes) {
+$routes->group('schedules', ['filter' => 'permission:schedules.view,class_schedule.view'], static function ($routes) {
     $routes->get('/', 'SchedulesController::index');
+    $routes->get('substitutions', 'TeacherScheduleSubstitutionsController::index', ['filter' => 'permission:schedules.view']);
+    $routes->post('substitutions', 'TeacherScheduleSubstitutionsController::store', ['filter' => 'permission:schedules.manage']);
+    $routes->post('substitutions/(:num)', 'TeacherScheduleSubstitutionsController::update/$1', ['filter' => 'permission:schedules.manage']);
+    $routes->post('substitutions/(:num)/toggle', 'TeacherScheduleSubstitutionsController::toggle/$1', ['filter' => 'permission:schedules.manage']);
+    $routes->post('substitutions/(:num)/repair/analyze', 'TeacherScheduleSubstitutionsController::analyzeRepair/$1', ['filter' => 'permission:schedules.manage']);
+    $routes->post('substitutions/(:num)/repair/(:num)/apply', 'TeacherScheduleSubstitutionsController::applyRepair/$1/$2', ['filter' => 'permission:schedules.manage']);
     $routes->post('create', 'SchedulesController::create', ['filter' => 'permission:schedules.manage']);
+    $routes->post('(:num)/update', 'SchedulesController::update/$1', ['filter' => 'permission:schedules.manage']);
     $routes->post('(:num)/transition', 'SchedulesController::transition/$1', ['filter' => 'permission:schedules.manage']);
     $routes->get('(:num)/editor', 'ScheduleEditorController::view/$1', ['filter' => 'permission:schedules.view']);
     $routes->post('(:num)/save-entry', 'ScheduleEditorController::saveEntry/$1', ['filter' => 'permission:schedules.manage']);
@@ -183,6 +313,8 @@ $routes->group('schedules', ['filter' => 'permission:schedules.view'], static fu
     $routes->post('constraints/(:num)/weight', 'ScheduleConstraintsController::updateWeight/$1', ['filter' => 'permission:constraints.manage']);
     $routes->post('(:num)/import/stage', 'ScheduleImportsController::stage/$1', ['filter' => 'permission:schedules.import']);
     $routes->post('import/batches/(:num)/apply', 'ScheduleImportsController::apply/$1', ['filter' => 'permission:schedules.import']);
-    $routes->get('(:num)/reports/classroom/(:num)', 'ScheduleReportsController::classroomReport/$1/$2', ['filter' => 'permission:schedules.export']);
+    $routes->get('(:num)/reports/classroom/(:num)', 'ScheduleReportsController::classroomReport/$1/$2', ['filter' => 'permission:schedules.export,class_schedule.view']);
     $routes->get('(:num)/reports/teacher/(:num)', 'ScheduleReportsController::teacherReport/$1/$2', ['filter' => 'permission:schedules.export']);
+    $routes->get('(:num)/reports/unit/(:num)', 'ScheduleReportsController::unitReport/$1/$2', ['filter' => 'permission:schedules.export']);
+    $routes->get('(:num)/reports/multi-unit', 'ScheduleReportsController::multiUnitReport/$1', ['filter' => 'permission:schedules.export']);
 });

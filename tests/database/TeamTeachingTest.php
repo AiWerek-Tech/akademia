@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Models\TeachingAssignmentGroupModel;
 use App\Database\Seeds\CoreSeeder;
 use App\Database\Seeds\Milestone2MasterSeeder;
@@ -16,7 +16,7 @@ use Config\Database;
  */
 final class TeamTeachingTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

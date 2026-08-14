@@ -8,12 +8,12 @@ use App\Database\Seeds\Milestone3CurriculumSeeder;
 use App\Services\CurriculumPlanningService;
 use App\Services\CurriculumStructureService;
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use Config\Database;
 
 final class CurriculumPlanningServiceTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate = true;
     protected $namespace = 'App';
@@ -78,6 +78,55 @@ final class CurriculumPlanningServiceTest extends CIUnitTestCase
         return [$version, $unit];
     }
 
+    private function getOrCreateStructure(array $version, array $unit): array
+    {
+        $db = Database::connect($this->DBGroup);
+        $structure = $db->table('curriculum_structures')
+            ->where('curriculum_version_id', $version['id'])->get()->getRowArray();
+        if ($structure) {
+            return $structure;
+        }
+
+        $grade = $db->table('grade_levels')->where('unit_id', $unit['id'])->orderBy('id', 'ASC')->get(1)->getRowArray();
+        $subject = $db->table('subjects')->orderBy('id', 'ASC')->get(1)->getRowArray();
+        if (! $grade || ! $subject) {
+            (new Milestone2MasterSeeder(new Database()))->run();
+            $grade = $db->table('grade_levels')->where('unit_id', $unit['id'])->orderBy('id', 'ASC')->get(1)->getRowArray();
+            $subject = $db->table('subjects')->orderBy('id', 'ASC')->get(1)->getRowArray();
+        }
+
+        if (! $subject) {
+            $db->table('subjects')->insert([
+                'uuid' => '30000000-0000-0000-0000-000000000004',
+                'code' => 'SUBJ-PLAN-TEST',
+                'name' => 'Mata Pelajaran Uji Perencanaan',
+                'normalized_name' => 'mata pelajaran uji perencanaan',
+                'short_name' => 'Mapel Uji',
+                'category' => 'WAJIB',
+                'is_active' => 1,
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+            $subject = $db->table('subjects')->where('id', $db->insertID())->get()->getRowArray();
+        }
+
+        $this->assertNotEmpty($grade, 'Fixture grade level must exist.');
+        $this->assertNotEmpty($subject, 'Fixture subject must exist.');
+        $db->table('curriculum_structures')->insert([
+            'uuid' => '30000000-0000-0000-0000-000000000003',
+            'curriculum_version_id' => $version['id'],
+            'unit_id' => $unit['id'],
+            'grade_level_id' => $grade['id'],
+            'subject_id' => $subject['id'],
+            'official_weekly_hours' => 4,
+            'effective_weekly_hours' => 4,
+            'effective_source' => 'OFFICIAL',
+            'revision_number' => 1,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        return $db->table('curriculum_structures')->where('id', $db->insertID())->get()->getRowArray();
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -99,6 +148,7 @@ final class CurriculumPlanningServiceTest extends CIUnitTestCase
         $this->assertSame(5, (int) $saved['teaching_days_per_week']);
         $this->assertSame(['MON', 'TUE', 'WED', 'THU', 'FRI'], $saved['selected_day_codes']);
         $this->assertSame(9.0, (float) $saved['daily_jp_capacity']);
+        $this->assertSame(7.0, (float) $saved['daily_jp_capacities']['FRI']);
 
         $overview = CurriculumPlanningService::buildOverview(
             (int) $version['id'],
@@ -106,7 +156,7 @@ final class CurriculumPlanningServiceTest extends CIUnitTestCase
             (int) $unit['id']
         );
 
-        $this->assertSame(45.0, $overview['weekly_capacity']);
+        $this->assertSame(43.0, $overview['weekly_capacity']);
         $this->assertArrayHasKey('required_total_hours', $overview['summary']);
         $this->assertArrayHasKey('estimated_teacher_fte', $overview['summary']);
         $this->assertArrayHasKey('allocation_percent', $overview['summary']);
@@ -203,16 +253,12 @@ final class CurriculumPlanningServiceTest extends CIUnitTestCase
     {
         [$version, $unit] = $this->getOrCreateVersionAndUnit();
         $db = Database::connect($this->DBGroup);
-        $structure = $db->table('curriculum_structures')->where('curriculum_version_id', $version['id'])->get()->getRowArray();
-
-        if (!$structure) {
-            $this->markTestSkipped('No structure available for test');
-        }
+        $structure = $this->getOrCreateStructure($version, $unit);
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/alasan/i');
 
-        CurriculumStructureService::updateEffectiveHours($structure['uuid'], [
+        CurriculumStructureService::updateStructure($structure['uuid'], [
             'effective_source'    => 'CUSTOM',
             'custom_weekly_hours' => 6.0,
             'adjustment_reason'   => '',
@@ -224,15 +270,11 @@ final class CurriculumPlanningServiceTest extends CIUnitTestCase
     {
         [$version, $unit] = $this->getOrCreateVersionAndUnit();
         $db = Database::connect($this->DBGroup);
-        $structure = $db->table('curriculum_structures')->where('curriculum_version_id', $version['id'])->get()->getRowArray();
-
-        if (!$structure) {
-            $this->markTestSkipped('No structure available for test');
-        }
+        $structure = $this->getOrCreateStructure($version, $unit);
 
         $this->expectException(\InvalidArgumentException::class);
 
-        CurriculumStructureService::updateEffectiveHours($structure['uuid'], [
+        CurriculumStructureService::updateStructure($structure['uuid'], [
             'effective_source'    => 'CUSTOM',
             'custom_weekly_hours' => -2.0,
             'adjustment_reason'   => 'Penyesuaian negatif',
@@ -244,13 +286,9 @@ final class CurriculumPlanningServiceTest extends CIUnitTestCase
     {
         [$version, $unit] = $this->getOrCreateVersionAndUnit();
         $db = Database::connect($this->DBGroup);
-        $structure = $db->table('curriculum_structures')->where('curriculum_version_id', $version['id'])->get()->getRowArray();
+        $structure = $this->getOrCreateStructure($version, $unit);
 
-        if (!$structure) {
-            $this->markTestSkipped('No structure available for test');
-        }
-
-        $updated = CurriculumStructureService::updateEffectiveHours($structure['uuid'], [
+        $updated = CurriculumStructureService::updateStructure($structure['uuid'], [
             'effective_source'    => 'OFFICIAL',
             'adjustment_reason'   => 'Kembali ke standar resmi',
             'revision_number'     => $structure['revision_number'],

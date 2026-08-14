@@ -167,14 +167,27 @@ class CurriculumController extends BaseController
                 'teaching_days_per_week' => $this->request->getPost('teaching_days_per_week'),
                 'selected_day_codes'     => $this->request->getPost('selected_day_codes'),
                 'daily_jp_capacity'      => $this->request->getPost('daily_jp_capacity'),
+                'daily_jp_capacities'    => $this->request->getPost('daily_jp_capacities'),
+                'minutes_per_jp'         => $this->request->getPost('minutes_per_jp'),
+                'start_time_jp1'         => $this->request->getPost('start_time_jp1'),
                 'workload_policy_id'     => $this->request->getPost('workload_policy_id'),
                 'allow_custom_hours'     => $this->request->getPost('allow_custom_hours'),
                 'revision_number'        => $this->request->getPost('revision_number'),
                 'notes'                  => $this->request->getPost('notes'),
             ]);
 
+            // Re-sync schedule versions for this curriculum version and unit
+            $schedules = Database::connect()->table('schedule_versions')
+                ->where('curriculum_version_id', $version['id'])
+                ->where('unit_id', $unitId)
+                ->get()->getResultArray();
+            $setupService = new \App\Services\ScheduleSetupService();
+            foreach ($schedules as $sch) {
+                $setupService->initialize((int)$sch['id'], (int)$unitId);
+            }
+
             return redirect()->to('/curriculum/' . $uuid . '?unit_id=' . $unitId)
-                ->with('success', 'Parameter perencanaan berhasil disimpan dan seluruh indikator telah dihitung ulang.');
+                ->with('success', 'Parameter perencanaan berhasil disimpan dan seluruh jadwal telah disinkronkan.');
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
@@ -220,6 +233,29 @@ class CurriculumController extends BaseController
 
             CurriculumStructureService::createStructure($data);
             return redirect()->to('/curriculum/' . $uuid)->with('success', 'Struktur mata pelajaran berhasil ditambahkan.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    public function updateVersion(string $uuid)
+    {
+        if (!has_permission('curriculum.manage')) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki hak akses untuk mengubah versi kurikulum.');
+        }
+
+        try {
+            $data = [
+                'code'               => $this->request->getPost('code'),
+                'name'               => $this->request->getPost('name'),
+                'academic_period_id' => $this->request->getPost('academic_period_id'),
+                'description'        => $this->request->getPost('description'),
+                'workflow_status'    => $this->request->getPost('workflow_status'),
+                'is_active'          => $this->request->getPost('is_active'),
+            ];
+
+            CurriculumVersionService::updateVersion($uuid, $data);
+            return redirect()->to('/curriculum')->with('success', 'Data kurikulum berhasil diperbarui.');
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }

@@ -48,6 +48,10 @@ class ScheduleWorkflowService
             if ($conflictResult['critical_conflicts'] > 0) {
                 throw new \RuntimeException("Cannot validate schedule version. Found {$conflictResult['critical_conflicts']} critical conflicts.");
             }
+            $unmetHours = count(array_filter($conflictResult['conflicts'], static fn(array $conflict): bool => ($conflict['conflict_type'] ?? '') === 'UNMET_HOURS'));
+            if ($unmetHours > 0) {
+                throw new \RuntimeException("Jadwal belum lengkap. {$unmetHours} kebutuhan jam mengajar belum terpenuhi.");
+            }
         }
 
         $now = date('Y-m-d H:i:s');
@@ -87,26 +91,34 @@ class ScheduleWorkflowService
                 break;
         }
 
-        // Optimistic concurrency control check
-        $this->db->table('schedule_versions')
-            ->where('id', $versionId)
-            ->where('revision_number', $currentRevisionNumber)
-            ->update($updateData);
+        $this->db->transException(true)->transBegin();
+        try {
+            $this->db->table('schedule_versions')
+                ->where('id', $versionId)
+                ->where('revision_number', $currentRevisionNumber)
+                ->where('workflow_status', $currentState)
+                ->update($updateData);
 
-        if ($this->db->affectedRows() === 0) {
-            throw new \RuntimeException("Concurrency conflict: Schedule version has been modified by another process (revision mismatch).", 409);
+            if ($this->db->affectedRows() !== 1) {
+                throw new \RuntimeException('Jadwal telah diubah oleh proses lain (revisi/status tidak lagi sama).', 409);
+            }
+
+            if (! $this->historyModel->insert([
+                'uuid'                => UuidService::v4(),
+                'schedule_version_id' => $versionId,
+                'revision_number'     => $currentRevisionNumber + 1,
+                'action'              => "WORKFLOW_TRANSITION_{$currentState}_TO_{$targetState}",
+                'changes_json'        => json_encode($updateData, JSON_THROW_ON_ERROR),
+                'performed_by'        => $userId,
+                'created_at'          => $now,
+            ])) {
+                throw new \RuntimeException('Riwayat perubahan workflow gagal disimpan.');
+            }
+            $this->db->transCommit();
+        } catch (\Throwable $e) {
+            $this->db->transRollback();
+            throw $e;
         }
-
-        // Record revision history
-        $this->historyModel->insert([
-            'uuid'                => sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0x0fff) | 0x4000, mt_rand(0, 0x3fff) | 0x8000, mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)),
-            'schedule_version_id' => $versionId,
-            'revision_number'     => $currentRevisionNumber + 1,
-            'action'              => "WORKFLOW_TRANSITION_{$currentState}_TO_{$targetState}",
-            'changes_json'        => json_encode($updateData),
-            'performed_by'        => $userId,
-            'created_at'          => $now,
-        ]);
 
         return [
             'status'         => 'success',

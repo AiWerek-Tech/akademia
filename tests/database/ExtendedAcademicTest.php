@@ -4,7 +4,7 @@ namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Models\AcademicYearModel;
 use App\Models\AcademicPeriodModel;
 use App\Database\Seeds\CoreSeeder;
@@ -18,7 +18,7 @@ final class ExtendedAcademicTest extends CIUnitTestCase
     private int $smpId = 1;
 
     use FeatureTestTrait;
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

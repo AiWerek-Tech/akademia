@@ -4,12 +4,12 @@ namespace Tests\Database;
 
 use App\Services\CurriculumImportService;
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class CurriculumImportTemplateTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $refresh = true;
     protected $namespace = 'App';

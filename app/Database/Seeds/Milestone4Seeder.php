@@ -35,6 +35,15 @@ class Milestone4Seeder extends Seeder
             ['code' => 'COUNSELING_COORDINATOR', 'name' => 'Koordinator BK / Chaplain', 'category' => 'STRUKTURAL', 'default_workload_hours' => 2.00, 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 9],
             ['code' => 'COMMITTEE_ROLE', 'name' => 'Pembina OSIS / Panitia', 'category' => 'KOKURIKULER', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 10],
             ['code' => 'OTHER', 'name' => 'Tugas Tambahan Lainnya', 'category' => 'LAINNYA', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 11],
+            ['code' => 'CHAPLAIN', 'name' => 'Chaplain', 'category' => 'STRUKTURAL', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 12],
+            ['code' => 'PATHFINDER_DIRECTOR', 'name' => 'Direktur Pathfinder', 'category' => 'KOKURIKULER', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 13],
+            ['code' => 'MASTER_GUIDE_DIR', 'name' => 'Direktur Master Guide', 'category' => 'KOKURIKULER', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 14],
+            ['code' => 'CASHIER', 'name' => 'Kasir', 'category' => 'STRUKTURAL', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 15],
+            ['code' => 'DORM_HEAD_BOYS', 'name' => 'Kepala Asrama Boys', 'category' => 'STRUKTURAL', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 16],
+            ['code' => 'DORM_HEAD_GIRLS', 'name' => 'Kepala Asrama Girls', 'category' => 'STRUKTURAL', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 17],
+            ['code' => 'DINING_HEAD', 'name' => 'Kepala Dining', 'category' => 'STRUKTURAL', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 18],
+            ['code' => 'TU_HEAD', 'name' => 'Kepala Tata Usaha', 'category' => 'STRUKTURAL', 'default_workload_hours' => 12.00, 'requires_unit' => 1, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 19],
+            ['code' => 'ARKAS_OPERATOR', 'name' => 'Operator Arkas / BOSP', 'category' => 'FUNGSIONAL', 'default_workload_hours' => 2.00, 'requires_unit' => 0, 'requires_period' => 1, 'counts_toward_workload' => 1, 'sort_order' => 20],
         ];
 
         foreach ($duties as $d) {
@@ -175,15 +184,10 @@ class Milestone4Seeder extends Seeder
             }
         }
 
-        // 5. guru mapping
-        if (isset($role_ids['guru'])) {
-            $guru_perms = ['dashboard.view', 'assignments.view', 'duties.view', 'workloads.view'];
-            foreach ($guru_perms as $gp) {
-                if (isset($perm_ids[$gp])) {
-                    $mapping[] = ['role_id' => $role_ids['guru'], 'permission_id' => $perm_ids[$gp]];
-                }
-            }
-        }
+        // Guru uses the personal teacher portal. Global assignment/workload
+        // permissions belong to administrative roles and are intentionally not
+        // granted here. The complete Guru allow-list is synchronized by the
+        // role-separation migration after portal permissions are registered.
 
         // 6. viewer_yayasan mapping (read-only)
         if (isset($role_ids['viewer_yayasan'])) {
@@ -199,11 +203,17 @@ class Milestone4Seeder extends Seeder
             }
         }
 
-        // Truncate role_permissions and insert new ones
-        $db->table('role_permissions')->truncate();
+        // Preserve permissions from earlier/later modules and add only missing
+        // mappings. Seeders must be safe to run repeatedly in any release order.
         foreach ($mapping as $m) {
-            $m['created_at'] = date('Y-m-d H:i:s');
-            $db->table('role_permissions')->insert($m);
+            $exists = $db->table('role_permissions')
+                ->where('role_id', $m['role_id'])
+                ->where('permission_id', $m['permission_id'])
+                ->countAllResults() > 0;
+            if (! $exists) {
+                $m['created_at'] = date('Y-m-d H:i:s');
+                $db->table('role_permissions')->insert($m);
+            }
         }
     }
 }

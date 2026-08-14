@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Models\UserModel;
 use App\Models\LoginAttemptModel;
 use App\Database\Seeds\CoreSeeder;
@@ -13,7 +13,7 @@ use App\Database\Seeds\CoreSeeder;
  */
 final class AuthTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

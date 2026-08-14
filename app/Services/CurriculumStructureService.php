@@ -442,11 +442,49 @@ class CurriculumStructureService
             ->where('cs.deleted_at IS NULL')
             ->get()->getResultArray();
 
+        // Get planning settings to compute capacity limits & minutes
+        $planningSettings = CurriculumPlanningService::getSettings($versionId, $unitId);
+        $grossCapacity = CurriculumPlanningService::computeWeeklyCapacity($planningSettings);
+        $minutesPerJp = (int)($planningSettings['minutes_per_jp'] ?? 40);
+
+        // Only routines with an actual locked JP consume weekly grid capacity.
+        // Banner activities (prayer, attendance, dismissal) may still carry a
+        // legacy ACADEMIC_JP label but do not own a lesson slot.
+        $routineSlots = CurriculumPlanningService::computeAcademicRoutineReservation(
+            $unitId,
+            $planningSettings['selected_day_codes'] ?? ['MON', 'TUE', 'WED', 'THU', 'FRI']
+        );
+        $maxCapacity = max(1.0, $grossCapacity - $routineSlots);
+
+        // Fetch approved elective subject IDs for this academic period and unit
+        $curriculumVersion = $db->table('curriculum_versions')->where('id', $versionId)->get()->getRowArray();
+        $academicPeriodId = (int)($curriculumVersion['academic_period_id'] ?? 0);
+
+        $approvedElectivesMap = [];
+        if ($academicPeriodId > 0) {
+            $approvedRows = $db->table('elective_offerings eo')
+                ->select('eo.subject_id, ep.target_grade')
+                ->join('elective_periods ep', 'ep.id = eo.elective_period_id')
+                ->join('academic_periods ap', 'ap.academic_year_id = ep.academic_year_id')
+                ->where('ap.id', $academicPeriodId)
+                ->where('eo.is_approved', 1)
+                ->get()->getResultArray();
+            foreach ($approvedRows as $ar) {
+                $approvedElectivesMap[(int)$ar['target_grade']][(int)$ar['subject_id']] = true;
+            }
+        }
+
         // Build 2D lookup map: [subject_id][grade_level_id] => structure
         $matrixMap = [];
         $gradeTotals = [];
+        $officialTotals = [];
+        $customTotals = [];
+
         foreach ($grades as $g) {
-            $gradeTotals[(int)$g['id']] = 0.0;
+            $gId = (int)$g['id'];
+            $gradeTotals[$gId] = 0.0;
+            $officialTotals[$gId] = 0.0;
+            $customTotals[$gId] = 0.0;
         }
         $grandTotal = 0.0;
 
@@ -455,22 +493,78 @@ class CurriculumStructureService
             $grdId = (int)$s['grade_level_id'];
             $hours = (float)$s['effective_weekly_hours'];
 
+            $grdRow = $db->table('grade_levels')->select('grade_number')->where('id', $grdId)->get()->getRowArray();
+            $grdNum = (int)($grdRow['grade_number'] ?? 0);
+
+            $subCatRow = $db->table('subjects')->select('category')->where('id', $subId)->get()->getRowArray();
+            $subCategory = strtoupper((string)($subCatRow['category'] ?? $s['category'] ?? ''));
+
+            $isApprovedElective = true;
+            if ($subCategory === 'PILIHAN' && $grdNum >= 11) {
+                $isApprovedElective = isset($approvedElectivesMap[$grdNum][$subId]);
+            }
+
+            $s['is_approved_elective'] = $isApprovedElective ? 1 : 0;
             $matrixMap[$subId][$grdId] = $s;
+
+            // If an elective subject is NOT approved in Rancangan Mapel Pilihan, do NOT count its JP in curriculum total!
+            if (!$isApprovedElective) {
+                continue;
+            }
+
+            $source = strtoupper((string)($s['effective_source'] ?? 'OFFICIAL'));
+            $off   = $source === 'OFFICIAL' ? $hours : 0.0;
+            $cus   = $source === 'CUSTOM' ? $hours : 0.0;
+
             if (isset($gradeTotals[$grdId])) {
                 $gradeTotals[$grdId] += $hours;
+                $officialTotals[$grdId] += $off;
+                $customTotals[$grdId] += $cus;
             } else {
                 $gradeTotals[$grdId] = $hours;
+                $officialTotals[$grdId] = $off;
+                $customTotals[$grdId] = $cus;
             }
             $grandTotal += $hours;
         }
 
+        $breakdownByGrade = [];
+        foreach ($grades as $g) {
+            $gId = (int)$g['id'];
+            $eff = $gradeTotals[$gId] ?? 0.0;
+            $diff = $eff - $maxCapacity;
+            $status = (abs($diff) < 0.01) ? 'BALANCED' : ($diff > 0 ? 'OVER' : 'UNDER');
+
+            $breakdownByGrade[$gId] = [
+                'grade_id'        => $gId,
+                'grade_code'      => $g['code'],
+                'grade_name'      => $g['name'],
+                'official_total'  => $officialTotals[$gId] ?? 0.0,
+                'custom_total'    => $customTotals[$gId] ?? 0.0,
+                'effective_total' => $eff,
+                'max_capacity'    => $maxCapacity,
+                'gross_capacity'  => $grossCapacity,
+                'routine_slots'   => $routineSlots,
+                'minutes_per_jp'  => $minutesPerJp,
+                'total_minutes'   => $eff * $minutesPerJp,
+                'diff'            => $diff,
+                'status'          => $status,
+            ];
+        }
+
         return [
-            'grades'       => $grades,
-            'subjects'     => $subjects,
-            'matrix'       => $matrixMap,
-            'grade_totals' => $gradeTotals,
-            'grand_total'  => $grandTotal,
-            'raw_count'    => count($structures),
+            'grades'             => $grades,
+            'subjects'           => $subjects,
+            'matrix'             => $matrixMap,
+            'grade_totals'       => $gradeTotals,
+            'official_totals'    => $officialTotals,
+            'custom_totals'      => $customTotals,
+            'breakdown_by_grade' => $breakdownByGrade,
+            'planning_settings'  => $planningSettings,
+            'max_capacity'       => $maxCapacity,
+            'minutes_per_jp'     => $minutesPerJp,
+            'grand_total'        => $grandTotal,
+            'raw_count'          => count($structures),
         ];
     }
 

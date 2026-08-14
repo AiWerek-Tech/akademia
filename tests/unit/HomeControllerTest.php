@@ -4,7 +4,7 @@ namespace Tests;
 
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\ControllerTestTrait;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Controllers\Home;
 
 /**
@@ -13,7 +13,7 @@ use App\Controllers\Home;
 final class HomeControllerTest extends CIUnitTestCase
 {
     use ControllerTestTrait;
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';
@@ -29,8 +29,12 @@ final class HomeControllerTest extends CIUnitTestCase
         $result = $this->controller(Home::class)
                        ->execute('index');
 
-        $this->assertTrue($result->isOK());
+        $this->assertTrue(
+            $result->isOK(),
+            'Dashboard response status: ' . $result->response()->getStatusCode()
+                . "\n" . $result->response()->getBody()
+        );
         $this->assertStringContainsString('WMVAA Akademia', $result->response()->getBody());
-        $this->assertStringContainsString('Kesiapan Data Master', $result->response()->getBody());
+        $this->assertStringContainsString('Ringkasan Akademik', $result->response()->getBody());
     }
 }

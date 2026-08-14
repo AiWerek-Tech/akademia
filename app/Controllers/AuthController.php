@@ -174,23 +174,13 @@ class AuthController extends BaseController
             $activePeriod = $db->table('academic_periods')->where('is_active', 1)->get()->getRowArray();
             $activePeriodId = $activePeriod ? (int)$activePeriod['id'] : null;
 
-            // Fetch user role info
-            $userRoleRow = $db->table('user_roles ur')
-                ->select('r.code, r.name')
-                ->join('roles r', 'r.id = ur.role_id')
-                ->where('ur.user_id', $user['id'])
-                ->groupStart()
-                    ->where('ur.unit_id', $defaultUnitId)
-                    ->orWhere('ur.unit_id', null)
-                ->groupEnd()
-                ->get()
-                ->getRowArray();
-
-            $roleCode = $userRoleRow ? $userRoleRow['code'] : 'visitor';
-            $roleName = $userRoleRow ? $userRoleRow['name'] : 'Visitor';
+            $userModel = new \App\Models\UserModel();
+            $roleContext = $userModel->getRoleContext((int) $user['id'], $defaultUnitId);
+            $roleCode = $roleContext['primary']['code'];
+            $roleName = $roleContext['primary']['name'];
+            $allRoleCodes = $roleContext['codes'];
 
             // Fetch user permissions
-            $userModel = new \App\Models\UserModel();
             $permissions = $userModel->getPermissions((int)$user['id'], $defaultUnitId);
 
             // Set session variables
@@ -205,12 +195,16 @@ class AuthController extends BaseController
                 'active_period_id'   => $activePeriodId,
                 'role_code'          => $roleCode,
                 'role_name'          => $roleName,
+                'all_role_codes'     => $allRoleCodes,
                 'permissions'        => $permissions,
-                'must_change_password' => (int)$user['must_change_password'] === 1
+                'teacher_id'         => $user['teacher_id'] ?? null,
+                'classroom_id'       => $user['classroom_id'] ?? null,
+                'must_change_password' => (int)$user['must_change_password'] === 1,
+                'must_change_username' => (int)($user['must_change_username'] ?? 0) === 1,
             ]);
 
             // Check if password change is forced
-            if ((int)$user['must_change_password'] === 1) {
+            if ((int)$user['must_change_password'] === 1 || (int)($user['must_change_username'] ?? 0) === 1) {
                 return redirect()->to('/change-password');
             }
 
@@ -286,12 +280,23 @@ class AuthController extends BaseController
         }
 
         $userId = $session->get('user_id');
+        $isForcedChange = (bool) $session->get('must_change_password');
+        $mustChangeUsername = (bool) $session->get('must_change_username');
+        $isForcedChange = $isForcedChange || $mustChangeUsername;
 
         $rules = [
-            'current_password' => 'required',
             'new_password'     => 'required|regex_match[/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{12,}$/]',
             'confirm_password' => 'required|matches[new_password]',
         ];
+
+        // During first login/reset, the password was already verified by login,
+        // so asking for it again is unnecessary and the form does not expose it.
+        if (!$isForcedChange) {
+            $rules['current_password'] = 'required';
+        }
+        if ($mustChangeUsername) {
+            $rules['new_username'] = 'required|regex_match[/^[a-zA-Z0-9._-]+$/]|min_length[4]|max_length[50]';
+        }
 
         $messages = [
             'new_password' => [
@@ -303,7 +308,7 @@ class AuthController extends BaseController
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        $currentPassword = $this->request->getPost('current_password');
+        $currentPassword = (string) $this->request->getPost('current_password');
         $newPassword = $this->request->getPost('new_password');
 
         $user = $db->table('users')->where('id', $userId)->get()->getRowArray();
@@ -311,22 +316,42 @@ class AuthController extends BaseController
             return redirect()->to('/login');
         }
 
-        // Verify current password
-        if (!password_verify($currentPassword, $user['password_hash'])) {
+        // Verify the current password only for a normal, self-initiated change.
+        if (!$isForcedChange && !password_verify($currentPassword, $user['password_hash'])) {
             return redirect()->back()->withInput()->with('error', 'Password saat ini salah.');
         }
 
         // New password cannot be the same as current
-        if ($currentPassword === $newPassword) {
+        if (password_verify($newPassword, $user['password_hash'])) {
             return redirect()->back()->withInput()->with('error', 'Password baru tidak boleh sama dengan password saat ini.');
         }
 
-        // Update password
-        $db->table('users')->where('id', $userId)->update([
+        $newUsername = trim((string) $this->request->getPost('new_username'));
+        if ($mustChangeUsername) {
+            if (strcasecmp($newUsername, (string) $user['username']) === 0) {
+                return redirect()->back()->withInput()->with('error', 'Username baru harus berbeda dari username sementara.');
+            }
+            $duplicateUsername = $db->table('users')
+                ->where('username', $newUsername)
+                ->where('id !=', $userId)
+                ->where('deleted_at IS NULL')
+                ->get()->getRowArray();
+            if ($duplicateUsername) {
+                return redirect()->back()->withInput()->with('error', 'Username tersebut sudah digunakan. Silakan pilih username lain.');
+            }
+        }
+
+        $updateData = [
             'password_hash'        => password_hash($newPassword, PASSWORD_BCRYPT),
             'must_change_password' => 0,
             'password_changed_at'  => date('Y-m-d H:i:s')
-        ]);
+        ];
+        if ($mustChangeUsername) {
+            $updateData['username'] = $newUsername;
+            $updateData['must_change_username'] = 0;
+            $updateData['username_changed_at'] = date('Y-m-d H:i:s');
+        }
+        $db->table('users')->where('id', $userId)->update($updateData);
 
         // Log audit
         AuditService::log(
@@ -334,16 +359,20 @@ class AuthController extends BaseController
             'change_password',
             'User',
             $userId,
-            ['must_change_password' => (int)$user['must_change_password']],
-            ['must_change_password' => 0],
-            'User changed their own password'
+            ['must_change_password' => (int)$user['must_change_password'], 'must_change_username' => (int)($user['must_change_username'] ?? 0)],
+            ['must_change_password' => 0, 'must_change_username' => 0],
+            'User changed their own login credentials'
         );
 
         // Update session state
         $session->set('must_change_password', false);
+        $session->set('must_change_username', false);
+        if ($mustChangeUsername) {
+            $session->set('username', $newUsername);
+        }
         $session->set('auth_timestamp', time());
         $session->regenerate(true);
 
-        return redirect()->to('/dashboard')->with('success', 'Password Anda berhasil diperbarui.');
+        return redirect()->to('/dashboard')->with('success', $mustChangeUsername ? 'Username dan password Anda berhasil diperbarui.' : 'Password Anda berhasil diperbarui.');
     }
 }

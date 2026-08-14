@@ -15,6 +15,7 @@ class ScheduleVersionModel extends Model
     protected $allowedFields    = [
         'uuid',
         'academic_period_id',
+        'unit_id',
         'curriculum_version_id',
         'assignment_version_id',
         'code',

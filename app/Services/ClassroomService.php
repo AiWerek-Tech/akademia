@@ -14,13 +14,16 @@ class ClassroomService
     public static function getClassrooms(array $filters = [], int $perPage = 20): array
     {
         $model = new ClassroomModel();
-        $builder = $model->select('classrooms.*, grade_levels.code as grade_code, grade_levels.name as grade_name, grade_levels.phase as grade_phase, rooms.code as room_code, rooms.name as room_name, teachers.full_name as homeroom_teacher_name, school_units.code as unit_code, academic_periods.name as period_name')
+        $builder = $model->select('classrooms.*, grade_levels.code as grade_code, grade_levels.name as grade_name, grade_levels.phase as grade_phase, grade_levels.grade_number, rooms.code as room_code, rooms.name as room_name, teachers.full_name as homeroom_teacher_name, school_units.code as unit_code, academic_periods.name as period_name, academic_periods.semester_number, academic_years.name as year_name, COUNT(es.id) as total_students')
             ->join('grade_levels', 'grade_levels.id = classrooms.grade_level_id')
             ->join('school_units', 'school_units.id = classrooms.unit_id')
             ->join('academic_periods', 'academic_periods.id = classrooms.academic_period_id')
+            ->join('academic_years', 'academic_years.id = academic_periods.academic_year_id', 'left')
             ->join('rooms', 'rooms.id = classrooms.default_room_id', 'left')
             ->join('teachers', 'teachers.id = classrooms.homeroom_teacher_id', 'left')
-            ->where('classrooms.deleted_at IS NULL');
+            ->join('elective_students es', 'es.classroom_id = classrooms.id AND es.is_active = 1', 'left')
+            ->where('classrooms.deleted_at IS NULL')
+            ->groupBy('classrooms.id');
 
         if (!empty($filters['unit_id'])) {
             $builder->where('classrooms.unit_id', $filters['unit_id']);
@@ -53,10 +56,43 @@ class ClassroomService
             ->orderBy('classrooms.code', 'ASC')
             ->paginate($perPage);
 
+        foreach ($classrooms as &$c) {
+            $semText = ((int)($c['semester_number'] ?? 0) === 1) ? 'Ganjil' : 'Genap';
+            $fallback = 'T.A. ' . ($c['year_name'] ?? '') . ' - ' . $semText;
+            $c['period_name'] = !empty(trim($c['period_name'] ?? '')) ? $c['period_name'] : $fallback;
+        }
+        unset($c);
+
         return [
             'data'  => $classrooms,
             'pager' => $model->pager,
         ];
+    }
+
+    /**
+     * Get single classroom by UUID with full joined names
+     */
+    public static function getClassroomByUuid(string $uuid): ?array
+    {
+        $model = new ClassroomModel();
+        $classroom = $model->select('classrooms.*, grade_levels.code as grade_code, grade_levels.name as grade_name, grade_levels.phase as grade_phase, rooms.code as room_code, rooms.name as room_name, teachers.full_name as homeroom_teacher_name, school_units.name as unit_name, school_units.code as unit_code, academic_periods.name as period_name, academic_periods.semester_number, academic_years.name as year_name')
+            ->join('grade_levels', 'grade_levels.id = classrooms.grade_level_id')
+            ->join('school_units', 'school_units.id = classrooms.unit_id')
+            ->join('academic_periods', 'academic_periods.id = classrooms.academic_period_id')
+            ->join('academic_years', 'academic_years.id = academic_periods.academic_year_id', 'left')
+            ->join('rooms', 'rooms.id = classrooms.default_room_id', 'left')
+            ->join('teachers', 'teachers.id = classrooms.homeroom_teacher_id', 'left')
+            ->where('classrooms.uuid', $uuid)
+            ->where('classrooms.deleted_at IS NULL')
+            ->first();
+
+        if ($classroom) {
+            $semText = ((int)($classroom['semester_number'] ?? 0) === 1) ? 'Ganjil' : 'Genap';
+            $fallback = 'T.A. ' . ($classroom['year_name'] ?? '') . ' - Semester ' . ($classroom['semester_number'] ?? '') . ' (' . $semText . ')';
+            $classroom['period_name'] = !empty(trim($classroom['period_name'] ?? '')) ? $classroom['period_name'] : $fallback;
+        }
+
+        return $classroom;
     }
 
     /**

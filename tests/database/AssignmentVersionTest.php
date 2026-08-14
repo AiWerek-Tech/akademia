@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Services\AssignmentWorkflowService;
 use App\Models\AssignmentVersionModel;
 use App\Database\Seeds\CoreSeeder;
@@ -17,7 +17,7 @@ use Config\Database;
  */
 final class AssignmentVersionTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';

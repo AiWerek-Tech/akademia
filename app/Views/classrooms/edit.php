@@ -17,26 +17,17 @@
             <?php if (session('errors')): ?><div class="alert alert-danger rounded-3"><ul class="mb-0"><?php foreach (session('errors') as $message): ?><li><?= esc($message) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
 
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">Unit Sekolah</label>
-                    <input type="text" class="form-control rounded-3" value="<?= esc($classroom['unit_name']) ?>" disabled>
+                    <input type="text" class="form-control rounded-3" value="<?= esc($classroom['unit_name'] ?? '-') ?>" disabled>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">Periode Akademik</label>
-                    <input type="text" class="form-control rounded-3" value="<?= esc($classroom['period_name']) ?>" disabled>
+                    <input type="text" class="form-control rounded-3" value="<?= esc($classroom['period_name'] ?? '-') ?>" disabled>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label fs-8 fw-bold">Tingkat Kelas</label>
-                    <input type="text" class="form-control rounded-3" value="<?= esc($classroom['grade_name']) ?>" disabled>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fs-8 fw-bold">Jurusan / Peminatan</label>
-                    <select name="major" class="form-select rounded-3">
-                        <option value="">Umum (Tanpa Peminatan)</option>
-                        <option value="MIPA" <?= $classroom['major'] === 'MIPA' ? 'selected' : '' ?>>MIPA (Matematika & IPA)</option>
-                        <option value="IPS" <?= $classroom['major'] === 'IPS' ? 'selected' : '' ?>>IPS (Ilmu Pengetahuan Sosial)</option>
-                        <option value="BAHASA" <?= $classroom['major'] === 'BAHASA' ? 'selected' : '' ?>>Bahasa & Budaya</option>
-                    </select>
+                    <input type="text" class="form-control rounded-3" value="<?= esc($classroom['grade_name'] ?? '-') ?>" disabled>
                 </div>
 
                 <div class="col-md-4">

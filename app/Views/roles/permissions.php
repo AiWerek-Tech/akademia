@@ -16,6 +16,15 @@
     <div class="col-lg-10 col-12">
         <div class="card border-0 shadow-sm rounded-4">
             <div class="card-body p-4">
+                <?php if (!$canManage): ?>
+                    <div class="alert alert-secondary border-0 rounded-3"><i data-lucide="eye" style="width:18px" class="me-2"></i>Mode baca saja. Perubahan wewenang hanya dapat dilakukan oleh Super Admin.</div>
+                <?php endif; ?>
+                <?php if ($isManagedRole): ?>
+                    <div class="alert alert-info border-0 rounded-3 d-flex gap-2 align-items-start">
+                        <i data-lucide="shield-check" style="width:20px;height:20px" class="mt-1 flex-shrink-0"></i>
+                        <div><strong>Akses personal tetap aman.</strong><br><span class="small">Superadmin dapat menyesuaikan fitur role ini. Halaman personal tetap membatasi data ke guru atau kelas milik akun yang sedang login.</span></div>
+                    </div>
+                <?php endif; ?>
                 <form action="<?= base_url('roles/' . $role['id'] . '/permissions') ?>" method="POST">
                     <?= csrf_field() ?>
 
@@ -43,7 +52,7 @@
                                                 </label>
                                                 <span class="text-muted fs-9 d-block"><?= esc($p['code']) ?></span>
                                             </div>
-                                            <input class="form-check-input ms-2 me-1" type="checkbox" name="permissions[]" value="<?= $p['id'] ?>" id="perm_<?= $p['id'] ?>" <?= in_array($p['id'], $activePerms) ? 'checked' : '' ?>>
+                                            <input class="form-check-input ms-2 me-1" type="checkbox" name="permissions[]" value="<?= $p['id'] ?>" id="perm_<?= $p['id'] ?>" <?= in_array($p['id'], $activePerms) ? 'checked' : '' ?> <?= $canManage ? '' : 'disabled' ?>>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -55,9 +64,9 @@
 
                     <div class="d-flex justify-content-end gap-2">
                         <a href="<?= base_url('roles') ?>" class="btn btn-light rounded-3 px-4">Batal</a>
-                        <button type="submit" class="btn btn-primary rounded-3 px-4 d-inline-flex align-items-center gap-2">
+                        <?php if ($canManage): ?><button type="submit" class="btn btn-primary rounded-3 px-4 d-inline-flex align-items-center gap-2">
                             <i data-lucide="save" style="width: 16px; height: 16px;"></i> Simpan Wewenang
-                        </button>
+                        </button><?php endif; ?>
                     </div>
                 </form>
             </div>

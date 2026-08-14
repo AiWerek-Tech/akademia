@@ -13,12 +13,15 @@
             </div>
             <div class="d-flex align-items-center gap-2">
                 <?php if (has_permission('teachers.import')): ?>
-                    <a href="<?= base_url('imports/master?type=TEACHERS') ?>" class="btn btn-outline-primary rounded-3 btn-sm px-3 d-flex align-items-center gap-2"><i data-lucide="upload" style="width:16px;height:16px"></i><span>Import</span></a>
+                    <a href="<?= base_url('imports/master/template/teachers') ?>" class="btn btn-outline-secondary rounded-3 btn-sm px-3 d-flex align-items-center gap-2" title="Unduh template resmi yang sama dengan halaman Import Master">
+                        <i data-lucide="file-spreadsheet" style="width:16px;height:16px"></i><span>Template</span>
+                    </a>
+                    <a href="<?= base_url('imports/master?type=TEACHERS') ?>" class="btn btn-outline-primary rounded-3 btn-sm px-3 d-flex align-items-center gap-2"><i data-lucide="upload" style="width:16px;height:16px"></i><span>Import Excel</span></a>
                 <?php endif; ?>
                 <?php if (has_permission('teachers.export')): ?>
                     <a href="<?= base_url('teachers/export?unit_id=' . ($filters['unit_id'] ?? '')) ?>" class="btn btn-outline-success rounded-3 btn-sm px-3 d-flex align-items-center gap-2">
                         <i data-lucide="download" style="width: 16px; height: 16px;"></i>
-                        <span>Export Excel</span>
+                        <span>Export Data</span>
                     </a>
                 <?php endif; ?>
                 <?php if (has_permission('teachers.manage')): ?>
@@ -36,6 +39,9 @@
 <div class="card border-0 shadow-sm rounded-4 mb-4">
     <div class="card-body p-3">
         <form method="GET" action="<?= base_url('teachers') ?>" class="row g-3 align-items-center">
+            <?php if (!empty($filters['per_page'])): ?>
+                <input type="hidden" name="per_page" value="<?= esc($filters['per_page']) ?>">
+            <?php endif; ?>
             <div class="col-md-3">
                 <select name="unit_id" class="form-select form-select-sm rounded-3">
                     <option value="">-- Semua Unit --</option>
@@ -69,26 +75,59 @@
 <!-- Table Card -->
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body p-4">
+        <?php
+        $currentPage = (int)($pager->getCurrentPage() ?? 1);
+        $perPageVal = $perPage ?? '10';
+        $itemsPerPage = $perPageVal === 'all' ? (count($teachers) ?: 1) : (int)$perPageVal;
+        $totalRecords = $pager->getTotal() ?? count($teachers);
+        $startNo = empty($teachers) ? 0 : (($currentPage - 1) * $itemsPerPage) + 1;
+        $endNo = empty($teachers) ? 0 : min($startNo + count($teachers) - 1, $totalRecords);
+        ?>
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div class="fs-8 text-muted">
+                Menampilkan <span class="fw-bold text-dark"><?= $startNo ?></span> – <span class="fw-bold text-dark"><?= $endNo ?></span> dari <span class="fw-bold text-dark"><?= $totalRecords ?></span> data
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <label class="fs-8 text-muted mb-0">Tampilkan:</label>
+                <select class="form-select form-select-sm rounded-3 py-1 ps-2 pe-4 fs-8 border-light-subtle" onchange="location = this.value;" style="width: auto;">
+                    <?php
+                    $queryParams = $filters;
+                    unset($queryParams['per_page']);
+                    $buildUrl = function($pp) use ($queryParams) {
+                        $p = array_merge($queryParams, ['per_page' => $pp]);
+                        return base_url('teachers') . '?' . http_build_query(array_filter($p, fn($v) => $v !== null && $v !== ''));
+                    };
+                    ?>
+                    <option value="<?= $buildUrl(10) ?>" <?= $perPageVal === '10' ? 'selected' : '' ?>>10 baris</option>
+                    <option value="<?= $buildUrl(20) ?>" <?= $perPageVal === '20' ? 'selected' : '' ?>>20 baris</option>
+                    <option value="<?= $buildUrl(50) ?>" <?= $perPageVal === '50' ? 'selected' : '' ?>>50 baris</option>
+                    <option value="<?= $buildUrl('all') ?>" <?= $perPageVal === 'all' ? 'selected' : '' ?>>Semua</option>
+                </select>
+            </div>
+        </div>
+
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle mb-0">
                 <thead>
-                    <tr class="text-uppercase text-muted fs-8 fw-bold">
+                    <tr class="text-uppercase text-muted fs-8 fw-bold bg-light rounded-3">
+                        <th class="text-center ps-3" style="width: 55px;">No.</th>
                         <th>Guru</th>
                         <th>NIP / NIK</th>
                         <th>Status Pegawai</th>
                         <th>Unit Penugasan</th>
                         <th>Kelengkapan Profil</th>
-                        <th class="text-end">Aksi</th>
+                        <th class="text-end pe-3">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($teachers)): ?>
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">Belum ada data guru terdaftar.</td>
+                            <td colspan="7" class="text-center py-5 text-muted">Belum ada data guru terdaftar.</td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($teachers as $t): ?>
+                        <?php foreach ($teachers as $idx => $t): ?>
                             <tr>
+                                <td class="text-center fw-semibold text-secondary fs-8 ps-3"><?= $startNo + $idx ?></td>
                                 <td>
                                     <div class="d-flex align-items-center gap-3">
                                         <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px; min-width: 40px;">
@@ -133,7 +172,7 @@
                                         <?= esc($c['status']) ?>
                                     </span>
                                 </td>
-                                <td class="text-end">
+                                <td class="text-end pe-3">
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-light border-0 rounded-circle" type="button" data-bs-toggle="dropdown">
                                             <i data-lucide="more-vertical" style="width: 16px; height: 16px;"></i>
@@ -151,6 +190,24 @@
                                                     </a>
                                                 </li>
                                             <?php endif; ?>
+                                            <?php
+                                                $hasUserAccount = in_array((int)$t['id'], $userLinkedTeacherIds ?? [], true);
+                                            ?>
+                                            <?php if ($hasUserAccount): ?>
+                                                <li><hr class="dropdown-divider my-1"></li>
+                                                <li>
+                                                    <span class="dropdown-item d-flex align-items-center gap-2 text-success disabled">
+                                                        <i data-lucide="check-circle" style="width: 14px; height: 14px;"></i> Akun User Ada
+                                                    </span>
+                                                </li>
+                                            <?php elseif (has_permission('users.manage')): ?>
+                                                <li><hr class="dropdown-divider my-1"></li>
+                                                <li>
+                                                    <a class="dropdown-item d-flex align-items-center gap-2 text-primary fw-bold" href="<?= base_url('users/create?teacher_id=' . $t['id']) ?>">
+                                                        <i data-lucide="user-plus" style="width: 14px; height: 14px;"></i> Buat Akun Login
+                                                    </a>
+                                                </li>
+                                            <?php endif; ?>
                                         </ul>
                                     </div>
                                 </td>
@@ -161,9 +218,16 @@
             </table>
         </div>
 
-        <div class="mt-3">
-            <?= $pager->links() ?>
-        </div>
+        <?php if ($perPageVal !== 'all' && !empty($teachers)): ?>
+            <div class="d-flex justify-content-between align-items-center mt-4 pt-2 border-top flex-wrap gap-2">
+                <div class="fs-8 text-muted">
+                    Halaman <span class="fw-bold text-dark"><?= $currentPage ?></span> dari <span class="fw-bold text-dark"><?= max(1, ceil($totalRecords / $itemsPerPage)) ?></span>
+                </div>
+                <div class="pagination-container fs-8">
+                    <?= $pager->links() ?>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 <?= $this->endSection() ?>

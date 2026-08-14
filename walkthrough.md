@@ -21,7 +21,7 @@
 ### 4. Route Security & Concurrency Guardrails
 - Created dedicated route security test suite [`tests/Security/CurriculumPlanningRouteSecurityTest.php`](file:///E:/xampp/htdocs/wmvaa.id/public_html/app.wmvaa.id/wmvaa-akademia/tests/Security/CurriculumPlanningRouteSecurityTest.php).
 - Verified guest redirects, 403 authorization checks, cross-unit boundary isolation (Admin SMP vs Admin SMA), and CSRF token protection on POST routes.
-- Enforced version immutability (`LOCKED`, `PUBLISHED`, `APPROVED`) and optimistic concurrency control (`revision_number`).
+- Enforced version immutability (`LOCKED`, `APPROVED`, `ARCHIVED`) and optimistic concurrency control (`revision_number`).
 
 ### 5. Automated Tests & Privacy
 - Enhanced [`tests/database/CurriculumPlanningServiceTest.php`](file:///E:/xampp/htdocs/wmvaa.id/public_html/app.wmvaa.id/wmvaa-akademia/tests/database/CurriculumPlanningServiceTest.php) with comprehensive test cases.

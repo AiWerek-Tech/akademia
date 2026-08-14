@@ -10,7 +10,7 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body p-4">
-        <form method="POST" action="<?= base_url('rooms/store') ?>">
+        <form method="POST" action="<?= base_url('rooms') ?>">
             <?= csrf_field() ?>
 
             <?php if (session('error')): ?><div class="alert alert-danger rounded-3"><?= esc(session('error')) ?></div><?php endif; ?>
@@ -22,7 +22,7 @@
                     <select name="unit_id" class="form-select rounded-3" required>
                         <option value="">-- Pilih Unit --</option>
                         <?php foreach ($units as $u): ?>
-                            <option value="<?= $u['id'] ?>" <?= old('unit_id') == $u['id'] ? 'selected' : '' ?>><?= esc($u['name']) ?></option>
+                            <option value="<?= $u['id'] ?>" <?= (string)old('unit_id', $activeUnitId ?? '') === (string)$u['id'] ? 'selected' : '' ?>><?= esc($u['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>

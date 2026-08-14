@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Services\MasterImportService;
 use App\Services\MasterExportService;
 use App\Services\TeacherService;
@@ -25,7 +25,7 @@ use Config\Database;
  */
 final class ImportExportAcceptanceTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';
@@ -65,7 +65,10 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
             $this->assertStringEndsWith('.xlsx', $path);
             $workbook = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
             $this->assertSame(['Data Import', 'Contoh', 'Petunjuk Pengisian', 'Referensi'], $workbook->getSheetNames());
-            $this->assertNotEmpty($workbook->getSheetByName('Data Import')->getCell('A1')->getValue());
+            $headers = MasterImportService::headers($type);
+            $actualHeaders = $workbook->getSheetByName('Data Import')
+                ->rangeToArray('A1:' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers)) . '1')[0];
+            $this->assertSame($headers, $actualHeaders);
             $this->assertNotEmpty($workbook->getSheetByName('Data Import')->getAutoFilter()->getRange());
             $this->assertCount(1, $workbook->getSheetByName('Data Import')->getTableCollection());
             $validationCell = match ($type) {
@@ -74,6 +77,7 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
                 'GRADE_LEVELS' => 'A2',
                 'CLASSROOMS' => 'A2',
                 'ROOMS' => 'C2',
+                'STUDENTS' => 'C2',
             };
             $this->assertSame(
                 \PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST,
@@ -488,6 +492,7 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
         $this->assertFileExists($path);
         $this->assertStringEndsWith('.xlsx', $path);
         $this->assertGreaterThan(0, filesize($path));
+        $this->assertWorkbookUsesImportContract($path, 'TEACHERS');
 
         // Clean up
         if (file_exists($path)) {
@@ -507,6 +512,7 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
         $path = MasterExportService::exportExcel('SUBJECTS');
         $this->assertFileExists($path);
         $this->assertGreaterThan(0, filesize($path));
+        $this->assertWorkbookUsesImportContract($path, 'SUBJECTS');
 
         if (file_exists($path)) {
             unlink($path);
@@ -519,6 +525,7 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
         $path = MasterExportService::exportExcel('CLASSROOMS');
         $this->assertFileExists($path);
         $this->assertGreaterThan(0, filesize($path));
+        $this->assertWorkbookUsesImportContract($path, 'CLASSROOMS');
 
         if (file_exists($path)) {
             unlink($path);
@@ -531,6 +538,7 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
         $path = MasterExportService::exportExcel('ROOMS');
         $this->assertFileExists($path);
         $this->assertGreaterThan(0, filesize($path));
+        $this->assertWorkbookUsesImportContract($path, 'ROOMS');
 
         if (file_exists($path)) {
             unlink($path);
@@ -544,5 +552,29 @@ final class ImportExportAcceptanceTest extends CIUnitTestCase
         $this->expectExceptionMessage('tidak dikenali');
 
         MasterExportService::exportExcel('INVALID');
+    }
+
+    /** L.6 Every page export uses the same official workbook contract as Import Master. */
+    public function testL06_AllMasterExportsUseOfficialImportContract(): void
+    {
+        foreach (MasterImportService::SUPPORTED_TYPES as $type) {
+            $path = MasterExportService::exportExcel($type);
+            $this->assertFileExists($path);
+            $this->assertWorkbookUsesImportContract($path, $type);
+            if (file_exists($path)) {
+                unlink($path);
+            }
+        }
+    }
+
+    private function assertWorkbookUsesImportContract(string $path, string $type): void
+    {
+        $workbook = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+        $this->assertSame(['Data Import', 'Contoh', 'Petunjuk Pengisian', 'Referensi'], $workbook->getSheetNames());
+        $headers = MasterImportService::headers($type);
+        $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+        $actualHeaders = $workbook->getSheetByName('Data Import')->rangeToArray("A1:{$lastColumn}1")[0];
+        $this->assertSame($headers, $actualHeaders);
+        $workbook->disconnectWorksheets();
     }
 }

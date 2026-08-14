@@ -26,7 +26,8 @@ class SuperAdminSeeder extends Seeder
         $existing = $db->table('users')->where('username', $username)->get()->getRowArray();
 
         if ($existing) {
-            $db->table('users')->where('id', $existing['id'])->update([
+            $userIdToSync = (int) $existing['id'];
+            $db->table('users')->where('id', $userIdToSync)->update([
                 'password_hash'        => password_hash($password, PASSWORD_BCRYPT),
                 'is_active'            => 1,
                 'must_change_password' => 0,
@@ -46,25 +47,36 @@ class SuperAdminSeeder extends Seeder
                 'created_at'           => date('Y-m-d H:i:s')
             ];
             $db->table('users')->insert($userData);
-            $newUserId = $db->insertID();
+            $userIdToSync = (int) $db->insertID();
+            echo "Akun 'admin' berhasil dibuat!\n";
+        }
 
+        $existingRole = $db->table('user_roles')->where('user_id', $userIdToSync)->where('role_id', $role['id'])->get()->getRowArray();
+        if (!$existingRole) {
             $db->table('user_roles')->insert([
-                'user_id'    => $newUserId,
+                'user_id'    => $userIdToSync,
                 'role_id'    => $role['id'],
                 'unit_id'    => null,
                 'created_at' => date('Y-m-d H:i:s')
             ]);
+        }
 
-            foreach ($units as $u) {
+        foreach ($units as $u) {
+            $hasUnitAccess = $db->table('user_unit_access')
+                ->where('user_id', $userIdToSync)
+                ->where('unit_id', $u['id'])
+                ->get()
+                ->getRowArray();
+
+            if (!$hasUnitAccess) {
                 $db->table('user_unit_access')->insert([
-                    'user_id'      => $newUserId,
+                    'user_id'      => $userIdToSync,
                     'unit_id'      => $u['id'],
                     'access_level' => 'ADMIN',
                     'is_default'   => ($u['code'] === 'SMP') ? 1 : 0,
                     'created_at'   => date('Y-m-d H:i:s')
                 ]);
             }
-            echo "Akun 'admin' berhasil dibuat!\n";
         }
     }
 }

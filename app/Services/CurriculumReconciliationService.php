@@ -111,6 +111,11 @@ class CurriculumReconciliationService
                 $status = 'DIFFERENT_ACCEPTED';
             }
 
+            $settings = CurriculumPlanningService::getSettings($versionId, $uId);
+            $weeklyCapacity = CurriculumPlanningService::computeWeeklyCapacity($settings);
+            $capacityDiff = $totEffective - $weeklyCapacity;
+            $capacityStatus = abs($capacityDiff) < 0.01 ? 'BALANCED' : ($capacityDiff > 0 ? 'OVER' : 'UNDER');
+
             $reconciliationList[] = [
                 'unit_id'         => $uId,
                 'unit_code'       => $unitName,
@@ -122,6 +127,10 @@ class CurriculumReconciliationService
                 'total_custom'    => $totCustom,
                 'total_manual'    => $totManual,
                 'total_effective' => $totEffective,
+                'max_capacity'    => $weeklyCapacity,
+                'capacity_diff'   => $capacityDiff,
+                'capacity_status' => $capacityStatus,
+                'minutes_per_jp'  => (int)($settings['minutes_per_jp'] ?? 40),
                 'warning_count'   => $warningCount,
                 'error_count'     => $errorCount,
                 'unresolved_rows' => $unresolved,

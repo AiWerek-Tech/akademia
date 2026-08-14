@@ -16,38 +16,26 @@ class ContextController extends BaseController
         $userId = session()->get('user_id');
         $unitId = (int)$this->request->getPost('unit_id');
 
+        if ($unitId <= 0) {
+            return redirect()->back()->with('error', 'Pilihan unit sekolah tidak valid.');
+        }
+
         $db = Database::connect();
 
         // Validate unit access
-        $access = $db->table('user_unit_access')
-            ->where('user_id', $userId)
-            ->where('unit_id', $unitId)
-            ->get()
-            ->getRowArray();
-
-        if (!$access) {
+        $accessibleUnitIds = \App\Services\UnitScopeService::accessibleUnitIds($userId);
+        if (!in_array($unitId, $accessibleUnitIds, true)) {
             return redirect()->back()->with('error', 'Anda tidak memiliki akses ke unit sekolah tersebut.');
         }
 
         $beforeUnitId = session()->get('active_unit_id');
 
-        // Recalculate role
-        $userRoleRow = $db->table('user_roles ur')
-            ->select('r.code, r.name')
-            ->join('roles r', 'r.id = ur.role_id')
-            ->where('ur.user_id', $userId)
-            ->groupStart()
-                ->where('ur.unit_id', $unitId)
-                ->orWhere('ur.unit_id', null)
-            ->groupEnd()
-            ->get()
-            ->getRowArray();
-
-        $roleCode = $userRoleRow ? $userRoleRow['code'] : 'visitor';
-        $roleName = $userRoleRow ? $userRoleRow['name'] : 'Visitor';
+        $userModel = new \App\Models\UserModel();
+        $roleContext = $userModel->getRoleContext($userId, $unitId);
+        $roleCode = $roleContext['primary']['code'];
+        $roleName = $roleContext['primary']['name'];
 
         // Recalculate permissions
-        $userModel = new \App\Models\UserModel();
         $permissions = $userModel->getPermissions($userId, $unitId);
 
         // Update session
@@ -55,6 +43,7 @@ class ContextController extends BaseController
             'active_unit_id' => $unitId,
             'role_code'      => $roleCode,
             'role_name'      => $roleName,
+            'all_role_codes' => $roleContext['codes'],
             'permissions'    => $permissions
         ]);
 

@@ -34,7 +34,12 @@ class SubjectsController extends BaseController
             'search'    => $this->request->getGet('search'),
         ];
 
-        $result = SubjectService::getSubjects($filters);
+        $perPageRaw = (string)$this->request->getGet('per_page');
+        $perPage = in_array($perPageRaw, ['10', '20', '50', 'all'], true) ? $perPageRaw : '10';
+        $limit = $perPage === 'all' ? 1000 : (int)$perPage;
+
+        $filters['per_page'] = $perPage;
+        $result = SubjectService::getSubjects($filters, $limit);
         $units = UnitScopeService::accessibleUnits();
 
         return view('subjects/index', [
@@ -45,6 +50,7 @@ class SubjectsController extends BaseController
             'units'             => $units,
             'categories'        => SubjectService::CATEGORIES,
             'filters'           => $filters,
+            'perPage'           => $perPage,
         ]);
     }
 

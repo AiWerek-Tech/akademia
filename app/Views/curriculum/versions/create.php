@@ -24,8 +24,15 @@
                     <select name="academic_period_id" class="form-select" required>
                         <option value="">-- Pilih Periode Akademik --</option>
                         <?php foreach ($periods as $p): ?>
-                            <option value="<?= $p['id'] ?>" <?= old('academic_period_id') == $p['id'] ? 'selected' : '' ?>>
-                                <?= esc($p['name']) ?> (<?= esc($p['year_name'] ?? '') ?>)
+                            <?php
+                            $semText = ((int)($p['semester_number'] ?? 0) === 1) ? 'Ganjil' : 'Genap';
+                            $pLabel = 'T.A. ' . esc($p['year_name'] ?? '') . ' - Semester ' . esc($p['semester_number'] ?? '') . ' (' . $semText . ')';
+                            if (!empty(trim($p['name'] ?? ''))) {
+                                $pLabel = esc($p['name']) . ' (' . $pLabel . ')';
+                            }
+                            ?>
+                            <option value="<?= $p['id'] ?>" <?= old('academic_period_id', session()->get('active_period_id')) == $p['id'] ? 'selected' : '' ?>>
+                                <?= $pLabel ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

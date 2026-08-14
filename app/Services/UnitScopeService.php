@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\AuthorizationException;
 use Config\Database;
 use RuntimeException;
 
@@ -21,11 +22,23 @@ class UnitScopeService
             return [];
         }
 
+        if (function_exists('is_super_admin') && is_super_admin($userId)) {
+            $rows = Database::connect()->table('school_units')
+                ->select('id as unit_id')
+                ->where('is_active', 1)
+                ->where('deleted_at IS NULL')
+                ->get()
+                ->getResultArray();
+
+            return array_values(array_unique(array_map('intval', array_column($rows, 'unit_id'))));
+        }
+
         $rows = Database::connect()->table('user_unit_access uua')
             ->select('uua.unit_id')
             ->join('school_units su', 'su.id = uua.unit_id')
             ->where('uua.user_id', $userId)
             ->where('su.is_active', 1)
+            ->where('su.deleted_at IS NULL')
             ->get()
             ->getResultArray();
 
@@ -47,6 +60,29 @@ class UnitScopeService
             ->getResultArray();
     }
 
+    /**
+     * Return the active unit as a complete row after enforcing user scope.
+     *
+     * Controllers that need unit metadata should use this instead of trusting
+     * an ID stored in the request or session.
+     */
+    public static function getCurrentUnit(): array
+    {
+        $unitId = self::resolveUnit();
+        $unit = Database::connect()->table('school_units')
+            ->where('id', $unitId)
+            ->where('is_active', 1)
+            ->where('deleted_at IS NULL')
+            ->get()
+            ->getRowArray();
+
+        if (! $unit) {
+            throw new RuntimeException('Unit sekolah aktif tidak ditemukan.');
+        }
+
+        return $unit;
+    }
+
     public static function resolveUnit($requestedUnitId = null): int
     {
         $unitId = (int) ($requestedUnitId ?: session()->get('active_unit_id'));
@@ -58,7 +94,7 @@ class UnitScopeService
     public static function assertUnit(int $unitId): void
     {
         if ($unitId <= 0 || !in_array($unitId, self::accessibleUnitIds(), true)) {
-            throw new RuntimeException('Anda tidak memiliki akses ke unit sekolah yang diminta.');
+            throw new AuthorizationException('Anda tidak memiliki akses ke unit sekolah yang diminta.');
         }
     }
 
@@ -66,13 +102,13 @@ class UnitScopeService
     {
         $normalized = array_values(array_unique(array_filter(array_map('intval', $unitIds))));
         if ($normalized === []) {
-            throw new RuntimeException('Minimal satu unit sekolah yang dapat diakses wajib dipilih.');
+            throw new AuthorizationException('Minimal satu unit sekolah yang dapat diakses wajib dipilih.');
         }
 
         $allowed = self::accessibleUnitIds();
         foreach ($normalized as $unitId) {
             if (!in_array($unitId, $allowed, true)) {
-                throw new RuntimeException('Anda tidak memiliki akses ke salah satu unit sekolah yang dipilih.');
+                throw new AuthorizationException('Anda tidak memiliki akses ke salah satu unit sekolah yang dipilih.');
             }
         }
 
@@ -83,7 +119,7 @@ class UnitScopeService
     {
         $ids = self::accessibleUnitIds();
         if ($ids === []) {
-            throw new RuntimeException('Anda tidak memiliki akses ke data guru tersebut.');
+            throw new AuthorizationException('Anda tidak memiliki akses ke data guru tersebut.');
         }
 
         $db = Database::connect();
@@ -99,7 +135,7 @@ class UnitScopeService
             ->getRowArray();
 
         if (!$allowed) {
-            throw new RuntimeException('Anda tidak memiliki akses ke data guru tersebut.');
+            throw new AuthorizationException('Anda tidak memiliki akses ke data guru tersebut.');
         }
     }
 
@@ -126,7 +162,7 @@ class UnitScopeService
         $allowed = $builder->get()->getRowArray();
 
         if (!$allowed) {
-            throw new RuntimeException('Guru tidak aktif atau tidak ditugaskan pada unit sekolah yang dipilih.');
+            throw new AuthorizationException('Guru tidak aktif atau tidak ditugaskan pada unit sekolah yang dipilih.');
         }
     }
 
@@ -140,7 +176,7 @@ class UnitScopeService
             ->getRowArray();
 
         if (!$allowed) {
-            throw new RuntimeException('Data guru lintas unit hanya dapat dilihat; perubahan harus dilakukan oleh unit utamanya.');
+            throw new AuthorizationException('Data guru lintas unit hanya dapat dilihat; perubahan harus dilakukan oleh unit utamanya.');
         }
     }
 
@@ -155,7 +191,7 @@ class UnitScopeService
             ->getRowArray();
 
         if (!$allowed) {
-            throw new RuntimeException('Anda tidak memiliki akses ke mata pelajaran tersebut.');
+            throw new AuthorizationException('Anda tidak memiliki akses ke mata pelajaran tersebut.');
         }
     }
 
@@ -174,7 +210,7 @@ class UnitScopeService
             ->getRowArray();
 
         if (!$allowed) {
-            throw new RuntimeException('Mata pelajaran tidak aktif atau tidak tersedia pada unit sekolah yang dipilih.');
+            throw new AuthorizationException('Mata pelajaran tidak aktif atau tidak tersedia pada unit sekolah yang dipilih.');
         }
     }
 
@@ -189,7 +225,7 @@ class UnitScopeService
         }
 
         if (!$builder->get()->getRowArray()) {
-            throw new RuntimeException('Anda tidak memiliki akses ke ruang tersebut.');
+            throw new AuthorizationException('Anda tidak memiliki akses ke ruang tersebut.');
         }
     }
 
@@ -203,7 +239,7 @@ class UnitScopeService
             ->getRowArray();
 
         if (!$allowed) {
-            throw new RuntimeException('Anda tidak memiliki akses ke kelas tersebut.');
+            throw new AuthorizationException('Anda tidak memiliki akses ke kelas tersebut.');
         }
     }
 
@@ -218,7 +254,7 @@ class UnitScopeService
         $outsideScope = array_diff($targetIds, self::accessibleUnitIds());
 
         if ($targetIds === [] || $outsideScope !== []) {
-            throw new RuntimeException('Anda tidak memiliki cakupan unit yang cukup untuk mengelola pengguna tersebut.');
+            throw new AuthorizationException('Anda tidak memiliki cakupan unit yang cukup untuk mengelola pengguna tersebut.');
         }
     }
 }

@@ -1,28 +1,24 @@
-# Generator Design & Algorithm Specification — Milestone 5
+# Desain Generator Jadwal
 
-## Overview
-The scheduling engine in Akademia uses the **`DeterministicGreedyScheduleGenerator`**.
+`DeterministicGreedyScheduleGenerator` membentuk satu kandidat yang dapat direproduksi dari versi jadwal, pembagian tugas, slot aktif, aturan ketersediaan, ruangan, dan entri terkunci.
 
-## Key Algorithm Characteristics
-- **Deterministic**: Given identical input state (version requirements, slots, rules, and locks), the generator produces exact, reproducible outputs across repeated executions.
-- **Reproducible**: No random seed generation or stochastic mutation is employed.
-- **Greedy**: Places requirements sequentially into available slots based on constraint heuristics.
-- **Best-Effort**: Attempts maximum slot placement without breaking hard constraints.
-- **Constraint-Aware**: Strictly enforces hard constraints (teacher overlap, classroom overlap, room overlap, cross-unit availability) and evaluates soft constraints (load balancing, gap minimization).
-- **May Return Partial Result**: If conflict-free placement is impossible for certain slots, unplaced requirements are placed into an unscheduled queue.
-- **Not Guaranteed Globally Optimal**: As a greedy heuristic algorithm, it does not guarantee finding a global mathematical optimum (which would require NP-hard integer linear programming or constraint programming solvers).
+## Alur
 
-## Execution Lifecycle
-1. **Fetch & Freeze Inputs**: Requirements, active day slots, teacher availability rules, room availability rules.
-2. **Preserve Locks**: Pre-existing locked entries (`schedule_locks` or manually pinned entries) are preserved without modification.
-3. **Sequential Placement**: Iterates through unscheduled requirements, attempting slot assignments.
-4. **Hard Constraint Validation**:
-   - M1: Teacher Double Booking (same unit)
-   - M2: Classroom Double Booking
-   - M3: Room Double Booking
-   - M4: Cross-Unit Teacher Double Booking (global SMP vs SMA check)
-   - M5: Teacher Unavailability Rule
-   - M6: Room Type Mismatch
-5. **Soft Score Evaluation**: Calculates penalty scores for soft constraints (`SOFT_TEACHER_MAX_DAILY_HOURS`, `SOFT_TEACHER_CONSECUTIVE_SLOTS`, `SOFT_CLASSROOM_GAP_MINIMIZATION`, `SOFT_PREFERRED_ROOM`).
-6. **Candidate Staging**: Generates candidate solution in `schedule_generation_candidates` and `schedule_candidate_entries` with `is_applied = 0`.
-7. **Manual Review & Apply**: Requires explicit user action (`applyCandidate`) to merge candidate entries into live `schedule_entries`.
+1. Persiapan versi dilakukan secara eksplisit sebelum generasi: profil perencanaan, hari sekolah, slot JP, dan kebutuhan mengajar harus sudah tersedia.
+2. Generator tidak menjalankan sinkronisasi destruktif atau mengubah jadwal terpasang.
+3. Generator memuat slot dengan urutan stabil dan menjalankan maksimal 24 variasi ordering yang bounded.
+4. Entri terkunci dimasukkan lebih dahulu ke peta okupansi.
+5. Kelas dengan slack kapasitas terkecil dan guru dengan beban tinggi diprioritaskan; tie-breaker selalu deterministik.
+6. Kebutuhan ditempatkan dengan pemeriksaan benturan kelas, guru, ruangan, ketersediaan, jadwal lintas unit, pola blok, dan jarak pertemuan.
+7. Team teaching ditolak ketika feature flag OFF; anggota tidak pernah diratakan menjadi satu guru.
+8. Hasil disimpan sebagai kandidat yang terikat ke revisi versi saat dibuat. Pengguna meninjau ringkasan dan memilih **Terapkan Kandidat**.
+9. Penerapan memakai transaksi, row lock, dan OCC. Kandidat ditolak bila sudah diterapkan, basi, parsial, atau menghasilkan konflik kritis/jam tidak terpenuhi.
+10. Conflict history yang mereferensikan entry lama di-resolve dan FK entry dilepas sebelum replacement; fingerprint/description tetap disimpan.
+11. Audit konflik dijalankan sebelum commit dan sebelum jadwal disetujui atau dikunci.
+
+## Sifat Hasil
+
+- Deterministik dan *best effort*.
+- Kebutuhan yang tidak tertampung tetap dilaporkan.
+- Tidak menghapus entri yang dikunci.
+- Belum merupakan solver optimasi global; lihat `known-limitations.md`.

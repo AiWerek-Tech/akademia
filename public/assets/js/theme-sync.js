@@ -86,11 +86,16 @@
     }
 
     function updateToggleIcon(iconEl, isDark) {
-        if (!iconEl) {
+        const iconId = iconEl ? iconEl.id : 'themeToggleIcon';
+        const liveIcon = iconEl && iconEl.isConnected
+            ? iconEl
+            : document.getElementById(iconId || 'themeToggleIcon');
+        if (!liveIcon) {
             return;
         }
-        iconEl.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
-        iconEl.classList.toggle('text-warning', isDark);
+        liveIcon.classList.remove('lucide-sun', 'lucide-moon');
+        liveIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+        liveIcon.classList.toggle('text-warning', isDark);
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
@@ -102,7 +107,7 @@
         }
         updateToggleIcon(iconEl, isDarkMode());
         buttonEl.addEventListener('click', function () {
-            updateToggleIcon(iconEl, toggleDarkMode());
+            updateToggleIcon(document.getElementById(iconEl?.id || 'themeToggleIcon'), toggleDarkMode());
         });
     }
 

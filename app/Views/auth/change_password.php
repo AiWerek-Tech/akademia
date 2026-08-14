@@ -1,238 +1,198 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-service-worker="<?= esc(base_url('sw.js'), 'attr') ?>">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Perbarui Password | WMVAA Akademia</title>
-    
-    <!-- Google Fonts -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Perbarui password akun WMVAA Akademia.">
+    <meta name="theme-color" content="#2f2f88">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Akademia">
+    <title>Amankan Akun | WMVAA Akademia</title>
+    <link rel="icon" type="image/svg+xml" href="<?= base_url('assets/img/brand-mark.svg') ?>">
+    <link rel="manifest" href="<?= base_url('manifest.webmanifest') ?>">
+    <link rel="apple-touch-icon" href="<?= base_url('assets/img/pwa-icon-192.png') ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Bootstrap 5 CSS & Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    
-    <!-- SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
-    <style>
-        :root {
-            --font-primary: 'Plus Jakarta Sans', sans-serif;
-            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --accent-color: #ef4444; /* Warning/Danger tone */
-            --accent-hover: #dc2626;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --input-bg: rgba(15, 23, 42, 0.6);
-            --input-border: rgba(255, 255, 255, 0.12);
-        }
-
-        body {
-            font-family: var(--font-primary);
-            background: var(--bg-gradient);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #f8fafc;
-            margin: 0;
-            padding: 1.5rem;
-        }
-
-        .login-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--card-border);
-            border-radius: 24px;
-            padding: 2.5rem 2rem;
-            width: 100%;
-            max-width: 480px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        }
-
-        .brand-logo {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 70px;
-            height: 70px;
-            background: rgba(239, 68, 68, 0.1);
-            border-radius: 20px;
-            margin-bottom: 1.5rem;
-            border: 1px solid rgba(239, 68, 68, 0.2);
-        }
-
-        .brand-logo i {
-            font-size: 2.25rem;
-            color: var(--accent-color);
-        }
-
-        .brand-name {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-            letter-spacing: -0.5px;
-            color: #fff;
-            text-align: center;
-        }
-
-        .brand-tagline {
-            font-size: 0.85rem;
-            color: #94a3b8;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-
-        .form-floating > .form-control {
-            background-color: var(--input-bg);
-            border: 1px solid var(--input-border);
-            color: #fff;
-            border-radius: 12px;
-            transition: all 0.2s;
-        }
-
-        .form-floating > .form-control:focus {
-            background-color: rgba(15, 23, 42, 0.8);
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
-            color: #fff;
-        }
-
-        .form-floating > label {
-            color: #64748b;
-        }
-
-        .form-floating > .form-control:focus ~ label,
-        .form-floating > .form-control:not(:placeholder-shown) ~ label {
-            color: var(--accent-color);
-        }
-
-        .btn-submit {
-            background-color: #3b82f6;
-            border: none;
-            color: white;
-            padding: 0.85rem 1rem;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            width: 100%;
-            transition: all 0.2s ease-in-out;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
-        }
-
-        .btn-submit:hover {
-            background-color: #2563eb;
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
-        }
-
-        .btn-submit:active {
-            transform: translateY(0);
-        }
-
-        .requirements-box {
-            background: rgba(15, 23, 42, 0.4);
-            border-radius: 12px;
-            padding: 1rem;
-            font-size: 0.8rem;
-            color: #94a3b8;
-            margin-bottom: 1.5rem;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .requirements-box ul {
-            margin: 0;
-            padding-left: 1.25rem;
-        }
-
-        .requirements-box li {
-            margin-bottom: 0.25rem;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="<?= base_url('assets/css/auth.css?v=2.0.0') ?>" rel="stylesheet">
+    <script src="<?= base_url('assets/js/lucide.min.js?v=1.0.1') ?>" defer></script>
 </head>
-<body>
+<body class="auth-page">
+    <main class="auth-shell">
+        <section class="auth-story" aria-label="Keamanan akun">
+            <a class="auth-brand" href="<?= base_url('dashboard') ?>" aria-label="WMVAA Akademia">
+                <img src="<?= base_url('assets/img/brand-mark.svg') ?>" alt="">
+                <span>
+                    <span class="auth-brand-name">WMVAA Akademia</span>
+                    <span class="auth-brand-subtitle">Academic Planning Suite</span>
+                </span>
+            </a>
 
-    <div class="login-card">
-        <div class="text-center">
-            <div class="brand-logo">
-                <i class="bi bi-shield-lock-fill"></i>
-            </div>
-            <h1 class="brand-name">Perbarui Password</h1>
-            <p class="brand-tagline">Anda wajib mengganti password demi alasan keamanan akun sebelum mengakses sistem.</p>
-        </div>
-
-        <div class="requirements-box">
-            <strong>Persyaratan Password Baru:</strong>
-            <ul class="mt-1">
-                <li>Minimal 12 karakter</li>
-                <li>Harus memiliki huruf besar (A-Z)</li>
-                <li>Harus memiliki huruf kecil (a-z)</li>
-                <li>Harus memiliki angka (0-9)</li>
-                <li>Harus memiliki simbol khusus (@, #, $, !, %, *, dll.)</li>
-            </ul>
-        </div>
-
-        <form action="<?= base_url('change-password') ?>" method="POST" autocomplete="off" id="changeForm">
-            <?= csrf_field() ?>
-
-            <div class="form-floating mb-3">
-                <input type="password" class="form-control" id="current_password" name="current_password" placeholder="Password Saat Ini" required>
-                <label for="current_password"><i class="bi bi-key-fill me-2"></i>Password Saat Ini</label>
-            </div>
-
-            <div class="form-floating mb-3">
-                <input type="password" class="form-control" id="new_password" name="new_password" placeholder="Password Baru" required>
-                <label for="new_password"><i class="bi bi-lock-fill me-2"></i>Password Baru</label>
-            </div>
-
-            <div class="form-floating mb-4">
-                <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Konfirmasi Password Baru" required>
-                <label for="confirm_password"><i class="bi bi-check-circle-fill me-2"></i>Konfirmasi Password Baru</label>
+            <div class="auth-story-content">
+                <span class="auth-eyebrow"><i data-lucide="shield-check"></i> Perlindungan akun</span>
+                <h1>Satu langkah lagi untuk <span>mengamankan akun.</span></h1>
+                <p class="auth-story-lead">
+                    Gunakan password unik dan kuat. Sistem akan memeriksa persyaratannya secara langsung sebelum Anda melanjutkan.
+                </p>
+                <div class="auth-feature-grid">
+                    <div class="auth-feature">
+                        <i data-lucide="key-round"></i>
+                        <strong>Minimal 12 karakter</strong>
+                        <span>Lebih panjang berarti lebih sulit ditebak.</span>
+                    </div>
+                    <div class="auth-feature">
+                        <i data-lucide="scan-text"></i>
+                        <strong>Kombinasi lengkap</strong>
+                        <span>Huruf besar, kecil, angka, dan simbol.</span>
+                    </div>
+                    <div class="auth-feature">
+                        <i data-lucide="user-check"></i>
+                        <strong>Khusus untuk Anda</strong>
+                        <span>Jangan gunakan ulang password akun lain.</span>
+                    </div>
+                </div>
             </div>
 
-            <button type="submit" class="btn btn-submit" id="btnSubmit">
-                <span class="spinner-border spinner-border-sm d-none me-2" role="status" aria-hidden="true" id="submitSpinner"></span>
-                <span id="submitBtnText">Perbarui & Masuk</span>
-            </button>
-        </form>
-    </div>
+            <div class="auth-story-footer">&copy; <?= date('Y') ?> WMVAA Akademia · Keamanan data adalah prioritas</div>
+        </section>
 
-    <script>
-        // Form loading
-        document.getElementById('changeForm').addEventListener('submit', function() {
-            document.getElementById('submitSpinner').classList.remove('d-none');
-            document.getElementById('btnSubmit').setAttribute('disabled', 'true');
-            document.getElementById('submitBtnText').textContent = 'Memperbarui...';
-        });
+        <section class="auth-main">
+            <div class="auth-card">
+                <div class="auth-mobile-brand" aria-hidden="true">
+                    <img src="<?= base_url('assets/img/brand-mark.svg') ?>" alt="">
+                    <span><strong>WMVAA Akademia</strong><span>Keamanan akun</span></span>
+                </div>
 
-        // SweetAlert2 Alerts
-        <?php if (session()->getFlashdata('error')): ?>
-            Swal.fire({
-                icon: 'error',
-                title: 'Gagal',
-                text: <?= json_encode((string) session()->getFlashdata('error'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
-                confirmButtonColor: '#3b82f6',
-                background: '#1e293b',
-                color: '#fff'
-            });
-        <?php endif; ?>
+                <div class="auth-mobile-welcome" aria-hidden="true">
+                    <span class="auth-mobile-status"><span></span> Pengamanan akun pertama</span>
+                </div>
 
-        <?php if (session()->getFlashdata('errors')): ?>
-            <?php 
-                $errStr = implode("\n", session()->getFlashdata('errors'));
-            ?>
-            Swal.fire({
-                icon: 'error',
-                title: 'Gagal Validasi',
-                text: <?= json_encode($errStr, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
-                confirmButtonColor: '#3b82f6',
-                background: '#1e293b',
-                color: '#fff'
-            });
-        <?php endif; ?>
-    </script>
+                <header class="auth-card-header">
+                    <h2><?= session()->get('must_change_username') ? 'Atur akun pribadi Anda' : 'Perbarui password' ?></h2>
+                    <p><?= session()->get('must_change_username') ? 'Ganti username sementara dan buat password baru sebelum melanjutkan.' : 'Buat password baru yang memenuhi seluruh indikator keamanan berikut.' ?></p>
+                </header>
+
+                <?php if (session()->getFlashdata('error')): ?>
+                    <div class="auth-alert auth-alert-error" role="alert">
+                        <i data-lucide="alert-circle"></i>
+                        <span><?= esc(session()->getFlashdata('error')) ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (session()->getFlashdata('errors')): ?>
+                    <div class="auth-alert auth-alert-error" role="alert">
+                        <i data-lucide="alert-circle"></i>
+                        <span><?= esc(implode(' ', (array) session()->getFlashdata('errors'))) ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <div class="password-requirements" aria-label="Persyaratan password">
+                    <span class="password-rule" data-password-rule="length">Minimal 12 karakter</span>
+                    <span class="password-rule" data-password-rule="upper">Huruf besar</span>
+                    <span class="password-rule" data-password-rule="lower">Huruf kecil</span>
+                    <span class="password-rule" data-password-rule="number">Angka</span>
+                    <span class="password-rule" data-password-rule="symbol">Simbol khusus</span>
+                </div>
+
+                <?php $isForcedChange = (bool) session()->get('must_change_password') || (bool) session()->get('must_change_username'); ?>
+                <form action="<?= base_url('change-password') ?>" method="POST" id="changeForm">
+                    <?= csrf_field() ?>
+
+                    <?php if ((bool) session()->get('must_change_username')): ?>
+                        <div class="auth-field">
+                            <label class="auth-label" for="new_username">Username baru</label>
+                            <div class="auth-input-wrap">
+                                <i class="auth-input-icon" data-lucide="at-sign"></i>
+                                <input class="auth-input" type="text" id="new_username" name="new_username" value="<?= esc(old('new_username')) ?>" placeholder="Contoh: saray.barusa" autocomplete="username" minlength="4" maxlength="50" pattern="[A-Za-z0-9._-]+" required autofocus>
+                            </div>
+                            <span class="auth-progress-label">Gunakan huruf, angka, titik, garis bawah, atau strip. Username harus berbeda dari username sementara.</span>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!$isForcedChange): ?>
+                        <div class="auth-field">
+                            <label class="auth-label" for="current_password">Password saat ini</label>
+                            <div class="auth-input-wrap">
+                                <i class="auth-input-icon" data-lucide="lock"></i>
+                                <input
+                                    class="auth-input"
+                                    type="password"
+                                    id="current_password"
+                                    name="current_password"
+                                    placeholder="Masukkan password saat ini"
+                                    autocomplete="current-password"
+                                    required
+                                    autofocus
+                                >
+                                <button class="auth-password-toggle" type="button" data-password-toggle="current_password" aria-label="Tampilkan password saat ini" aria-pressed="false">
+                                    <i data-lucide="eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="auth-field">
+                        <label class="auth-label" for="new_password">Password baru</label>
+                        <div class="auth-input-wrap">
+                            <i class="auth-input-icon" data-lucide="lock-keyhole"></i>
+                            <input
+                                class="auth-input"
+                                type="password"
+                                id="new_password"
+                                name="new_password"
+                                placeholder="Masukkan password baru"
+                                autocomplete="new-password"
+                                minlength="12"
+                                required
+                                <?= $isForcedChange && !session()->get('must_change_username') ? 'autofocus' : '' ?>
+                            >
+                            <button class="auth-password-toggle" type="button" data-password-toggle="new_password" aria-label="Tampilkan password baru" aria-pressed="false">
+                                <i data-lucide="eye"></i>
+                            </button>
+                        </div>
+                        <div class="auth-progress" data-password-progress data-score="0" aria-hidden="true">
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                        <span class="auth-progress-label" aria-live="polite">Belum diisi</span>
+                    </div>
+
+                    <div class="auth-field">
+                        <label class="auth-label" for="confirm_password">Konfirmasi password baru</label>
+                        <div class="auth-input-wrap">
+                            <i class="auth-input-icon" data-lucide="badge-check"></i>
+                            <input
+                                class="auth-input"
+                                type="password"
+                                id="confirm_password"
+                                name="confirm_password"
+                                placeholder="Ulangi password baru"
+                                autocomplete="new-password"
+                                minlength="12"
+                                required
+                            >
+                            <button class="auth-password-toggle" type="button" data-password-toggle="confirm_password" aria-label="Tampilkan konfirmasi password" aria-pressed="false">
+                                <i data-lucide="eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="auth-submit">
+                        <span><?= session()->get('must_change_username') ? 'Simpan username dan password' : 'Perbarui dan lanjutkan' ?></span>
+                        <i data-lucide="arrow-right"></i>
+                    </button>
+                </form>
+
+                <div class="auth-security-note">
+                    <i data-lucide="info"></i>
+                    <span>Setelah berhasil, gunakan username dan password baru untuk login berikutnya.</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="<?= base_url('assets/js/auth-ui.js?v=2.0.0') ?>"></script>
+    <script src="<?= base_url('assets/js/pwa.js?v=1.1.0') ?>"></script>
 </body>
 </html>

@@ -84,8 +84,13 @@ class TeacherWorkloadCalculationService
         $teachingAssigned = 0.00;
         $teachingWorkload = 0.00;
         foreach ($assignments as $a) {
-            $teachingAssigned += (float)$a['assigned_weekly_hours'];
-            $teachingWorkload += (float)$a['workload_weekly_hours'];
+            $assigned = (float)($a['assigned_weekly_hours'] ?? 0);
+            $workload = (float)($a['workload_weekly_hours'] ?? 0);
+            if ($workload <= 0.00 && $assigned > 0.00) {
+                $workload = $assigned;
+            }
+            $teachingAssigned += $assigned;
+            $teachingWorkload += $workload;
         }
 
         // 2. Calculate additional duties workload hours
@@ -224,22 +229,53 @@ class TeacherWorkloadCalculationService
     /**
      * Get detailed school-wide workload report matching real school spreadsheet
      */
-    public static function getDetailedWorkloadReport(int $versionId, int $periodId, ?int $unitId = null): array
+    /**
+     * Get detailed school-wide workload report matching real school spreadsheet
+     * Supports single version ID or array of active version IDs (e.g. SMP + SMA combined)
+     */
+    public static function getDetailedWorkloadReport($versionIds, int $periodId, ?int $unitId = null): array
     {
         $db = \Config\Database::connect();
+        $vIds = array_values(array_filter(array_map('intval', (array)$versionIds)));
 
-        // 1. Get all Grade Levels (VII-XII) ordered by number
-        $gradeBuilder = $db->table('grade_levels')->where('is_active', 1)->where('deleted_at IS NULL');
-        if ($unitId !== null) {
-            $gradeBuilder->where('unit_id', $unitId);
+        if (empty($vIds)) {
+            return [
+                'grades'  => [],
+                'rows'    => [],
+                'summary' => ['total_teachers' => 0, 'underload_count' => 0, 'optimal_count' => 0, 'overload_count' => 0, 'grand_teaching' => 0.0, 'grand_duties' => 0.0, 'grand_total' => 0.0],
+            ];
         }
-        $grades = $gradeBuilder->orderBy('grade_number', 'ASC')->get()->getResultArray();
 
-        // 2. Get active teachers for this version
+        // 1. Get Grade Levels ordered by unit and grade number
+        $gradeBuilder = $db->table('grade_levels gl')
+            ->select('gl.*, su.name as unit_name, su.code as unit_code')
+            ->join('school_units su', 'su.id = gl.unit_id', 'left')
+            ->where('gl.is_active', 1);
+        if ($unitId !== null) {
+            $gradeBuilder->where('gl.unit_id', $unitId);
+        } else {
+            $allowedUnitIds = UnitScopeService::accessibleUnitIds();
+            if (!empty($allowedUnitIds)) {
+                $gradeBuilder->whereIn('gl.unit_id', $allowedUnitIds);
+            }
+        }
+        $grades = $gradeBuilder->orderBy('gl.unit_id', 'ASC')->orderBy('gl.grade_number', 'ASC')->get()->getResultArray();
+
+        // 2. Get active teachers for this period/unit
         $teacherQuery = $db->table('teachers t')
             ->select('t.*')
             ->where('t.is_active', 1)
             ->where('t.deleted_at IS NULL');
+
+        if ($unitId !== null) {
+            $teacherQuery->groupStart()
+                ->where('t.primary_unit_id', $unitId)
+                ->orWhereIn('t.id', function ($sub) use ($unitId) {
+                    return $sub->select('teacher_id')->from('teacher_unit_assignments')->where('unit_id', $unitId)->where('status', 'ACTIVE');
+                })
+                ->groupEnd();
+        }
+
         $teachers = $teacherQuery->orderBy('t.full_name', 'ASC')->get()->getResultArray();
 
         $rows = [];
@@ -256,23 +292,24 @@ class TeacherWorkloadCalculationService
         foreach ($teachers as $t) {
             $tId = (int)$t['id'];
 
-            // Get teaching assignments grouped by subject & grade
+            // Get teaching assignments across ALL versionIds
             $assignments = $db->table('teaching_assignments ta')
                 ->select('ta.*, s.name as subject_name, s.code as subject_code, gl.code as grade_code, gl.id as grade_id')
                 ->join('subjects s', 's.id = ta.subject_id', 'left')
                 ->join('grade_levels gl', 'gl.id = ta.grade_level_id', 'left')
-                ->where('ta.assignment_version_id', $versionId)
+                ->whereIn('ta.assignment_version_id', $vIds)
                 ->where('ta.teacher_id', $tId)
                 ->where('ta.status', 'ACTIVE')
                 ->get()->getResultArray();
 
-            // Get additional duties
+            // Get additional duties across ALL versionIds
             $duties = $db->table('teacher_additional_duties tad')
                 ->select('tad.*, adt.name as duty_type_name, adt.code as duty_type_code')
                 ->join('additional_duty_types adt', 'adt.id = tad.duty_type_id', 'left')
-                ->where('tad.assignment_version_id', $versionId)
+                ->whereIn('tad.assignment_version_id', $vIds)
                 ->where('tad.teacher_id', $tId)
                 ->where('tad.status', 'ACTIVE')
+                ->where('tad.deleted_at IS NULL')
                 ->get()->getResultArray();
 
             $teachingAssigned = 0.0;
@@ -325,7 +362,7 @@ class TeacherWorkloadCalculationService
                 'teacher_id'        => $tId,
                 'full_name'         => $t['full_name'],
                 'nip'               => $t['nip'] ?? '-',
-                'duties_title'      => implode(', ', $dutyTitles),
+                'duties_title'      => implode(', ', array_unique($dutyTitles)),
                 'subjects_title'    => implode(', ', array_unique($subjectSummary)),
                 'teaching_hours'    => $teachingWorkload,
                 'duty_hours'        => $dutyHours,

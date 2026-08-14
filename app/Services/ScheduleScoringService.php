@@ -15,11 +15,15 @@ class ScheduleScoringService
 
     public function calculateScore(int $scheduleVersionId): array
     {
+        $version = $this->db->table('schedule_versions')->select('academic_period_id')
+            ->where('id', $scheduleVersionId)->get()->getRowArray();
+        $academicPeriodId = (int) ($version['academic_period_id'] ?? 0);
+        $substitutions = new TeacherScheduleSubstitutionService();
         $entries = $this->db->table('schedule_entries se')
             ->select('se.*, sds.slot_number, sd.day_of_week, sr.preferred_room_id')
             ->join('schedule_day_slots sds', 'sds.id = se.day_slot_id')
             ->join('schedule_days sd', 'sd.id = sds.day_id')
-            ->join('schedule_requirements sr', 'sr.id = se.schedule_requirement_id')
+            ->join('schedule_requirements sr', 'sr.id = se.schedule_requirement_id', 'left')
             ->where('se.schedule_version_id', $scheduleVersionId)
             ->get()->getResultArray();
 
@@ -38,9 +42,13 @@ class ScheduleScoringService
         // 2. Teacher Max Daily Hours Penalty (-20 for every day with > 5 hours)
         $teacherDailyLoad = [];
         foreach ($entries as $e) {
-            $tId = (int)$e['teacher_id'];
+            $tId = $substitutions->resolveResourceTeacherId((int) $e['teacher_id'], $academicPeriodId);
             $day = (int)$e['day_of_week'];
             $teacherDailyLoad[$tId][$day] = ($teacherDailyLoad[$tId][$day] ?? 0) + 1;
+            if (!empty($e['second_teacher_id'])) {
+                $secondId = $substitutions->resolveResourceTeacherId((int) $e['second_teacher_id'], $academicPeriodId);
+                $teacherDailyLoad[$secondId][$day] = ($teacherDailyLoad[$secondId][$day] ?? 0) + 1;
+            }
         }
 
         $teacherOverloadPenalty = 0;

@@ -71,7 +71,7 @@
                     <select name="primary_unit_id" class="form-select rounded-3" required>
                         <option value="">-- Pilih Unit Utama --</option>
                         <?php foreach ($units as $u): ?>
-                            <option value="<?= $u['id'] ?>" <?= (string)old('primary_unit_id') === (string)$u['id'] ? 'selected' : '' ?>>
+                            <option value="<?= $u['id'] ?>" <?= (string)old('primary_unit_id', $activeUnitId ?? '') === (string)$u['id'] ? 'selected' : '' ?>>
                                 <?= esc($u['name']) ?>
                             </option>
                         <?php endforeach; ?>
@@ -85,6 +85,27 @@
                 <div class="col-md-6">
                     <label class="form-label fs-8 fw-bold">Email</label>
                     <input type="email" name="email" class="form-control rounded-3" placeholder="guru@wmvaa.sch.id" value="<?= esc(old('email')) ?>">
+                </div>
+
+                <div class="col-12 mt-2">
+                    <div class="card border rounded-3 bg-light p-3">
+                        <label class="form-label fs-8 fw-bold text-dark mb-1">
+                            <i class="bi bi-buildings me-1 text-primary"></i> Penugasan Unit Sekolah Tambahan (Sekolah Kedua / Lintas Unit)
+                        </label>
+                        <small class="text-muted d-block mb-2">Centang unit sekolah di mana guru ini juga mengajar selain dari Unit Sekolah Utama.</small>
+                        <div class="row g-2">
+                            <?php foreach ($units as $u): ?>
+                                <div class="col-md-4">
+                                    <div class="form-check p-2 rounded bg-white border">
+                                        <input class="form-check-input me-2" type="checkbox" name="additional_units[]" value="<?= $u['id'] ?>" id="create_unit_cb_<?= $u['id'] ?>">
+                                        <label class="form-check-label small fw-semibold text-dark cursor-pointer" for="create_unit_cb_<?= $u['id'] ?>">
+                                            <?= esc($u['name']) ?>
+                                        </label>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="col-12">

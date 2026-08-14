@@ -3,7 +3,7 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Services\CurriculumVersionService;
 use App\Services\CurriculumStructureService;
 use App\Services\CurriculumEffectiveHoursService;
@@ -35,7 +35,7 @@ use Config\Database;
  */
 final class Milestone3AcceptanceTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';
@@ -112,7 +112,7 @@ final class Milestone3AcceptanceTest extends CIUnitTestCase
         // Subjects
         $subMat = $db->table('subjects')->where('code', 'MAT-SMP')->get()->getRowArray();
         if (!$subMat) {
-            $this->subjectMatId = $db->table('subjects')->insert([
+            $db->table('subjects')->insert([
                 'uuid' => '00000000-0000-0000-0000-000000000010',
                 'code' => 'MAT-SMP',
                 'name' => 'Matematika SMP',
@@ -121,6 +121,7 @@ final class Milestone3AcceptanceTest extends CIUnitTestCase
                 'is_active' => 1,
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
+            $this->subjectMatId = (int) $db->insertID();
         } else {
             $this->subjectMatId = (int)$subMat['id'];
         }
@@ -135,7 +136,7 @@ final class Milestone3AcceptanceTest extends CIUnitTestCase
 
         $subIpa = $db->table('subjects')->where('code', 'IPA-SMP')->get()->getRowArray();
         if (!$subIpa) {
-            $this->subjectIpaId = $db->table('subjects')->insert([
+            $db->table('subjects')->insert([
                 'uuid' => '00000000-0000-0000-0000-000000000011',
                 'code' => 'IPA-SMP',
                 'name' => 'IPA Terpadu',
@@ -144,6 +145,7 @@ final class Milestone3AcceptanceTest extends CIUnitTestCase
                 'is_active' => 1,
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
+            $this->subjectIpaId = (int) $db->insertID();
         } else {
             $this->subjectIpaId = (int)$subIpa['id'];
         }
@@ -159,7 +161,7 @@ final class Milestone3AcceptanceTest extends CIUnitTestCase
         // Classroom
         $c7a = $db->table('classrooms')->where('unit_id', $this->smpId)->where('code', '7A')->get()->getRowArray();
         if (!$c7a) {
-            $class7AId = $db->table('classrooms')->insert([
+            $db->table('classrooms')->insert([
                 'uuid' => '00000000-0000-0000-0000-000000000020',
                 'academic_period_id' => $this->periodId,
                 'unit_id' => $this->smpId,
@@ -169,7 +171,7 @@ final class Milestone3AcceptanceTest extends CIUnitTestCase
                 'is_active' => 1,
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
-            $this->class7AId = $class7AId;
+            $this->class7AId = (int) $db->insertID();
         } else {
             $this->class7AId = (int)$c7a['id'];
         }

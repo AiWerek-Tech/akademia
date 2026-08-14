@@ -18,7 +18,6 @@ class SubjectService
         'MUATAN_LOKAL',
         'KOKURIKULER',
         'EKSTRAKURIKULER',
-        'KEGIATAN_TETAP',
         'OTHER',
     ];
 

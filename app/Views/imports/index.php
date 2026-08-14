@@ -3,7 +3,7 @@
 <?= $this->section('main_content') ?>
 <?php
 $typeColors = [
-    'TEACHERS' => 'primary', 'SUBJECTS' => 'success', 'GRADE_LEVELS' => 'info',
+    'STUDENTS' => 'success', 'TEACHERS' => 'primary', 'SUBJECTS' => 'indigo', 'GRADE_LEVELS' => 'info',
     'CLASSROOMS' => 'warning', 'ROOMS' => 'secondary',
 ];
 $selectedType = isset($allowedTypes[$selectedType]) ? $selectedType : (string) array_key_first($allowedTypes);
@@ -17,7 +17,7 @@ $selectedType = isset($allowedTypes[$selectedType]) ? $selectedType : (string) a
             </span>
             <div>
                 <h4 class="fw-bold text-slate-800 mb-0">Import Master Data</h4>
-                <p class="text-muted fs-7 mb-0">Guru, mata pelajaran, tingkat, kelas/rombel, dan ruangan melalui staging yang aman.</p>
+                <p class="text-muted fs-7 mb-0">Peserta didik & rombel, guru, mata pelajaran, tingkat, kelas, dan ruangan melalui staging yang aman.</p>
             </div>
         </div>
     </div>

@@ -1,6 +1,6 @@
 <?= $this->extend('layouts/admin') ?>
 
-<?= $this->section('content') ?>
+<?= $this->section('main_content') ?>
 <div class="container-fluid px-4 py-4">
     <div class="mb-4">
         <nav aria-label="breadcrumb">

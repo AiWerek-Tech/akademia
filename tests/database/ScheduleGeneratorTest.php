@@ -3,11 +3,12 @@
 namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Database\Seeds\CoreSeeder;
 use App\Database\Seeds\Milestone5Seeder;
 use App\Models\ScheduleVersionModel;
 use App\Services\DeterministicGreedyScheduleGenerator;
+use App\Services\ScheduleConflictDetectionService;
 use App\Services\ScheduleRequirementSyncService;
 use App\Services\ScheduleScoringService;
 use Config\Database;
@@ -17,7 +18,7 @@ use Config\Database;
  */
 final class ScheduleGeneratorTest extends CIUnitTestCase
 {
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';
@@ -179,6 +180,7 @@ final class ScheduleGeneratorTest extends CIUnitTestCase
             'assigned_weekly_hours'  => 4.0,
             'workload_weekly_hours'  => 4.0,
             'source_weekly_hours'    => 4.0,
+            'is_primary_teacher'     => 1,
             'status'                 => 'ACTIVE',
             'created_at'             => $now,
         ]);
@@ -236,15 +238,154 @@ final class ScheduleGeneratorTest extends CIUnitTestCase
         $this->assertEquals('success', $genResult['status']);
         $this->assertGreaterThan(0, $genResult['total_placed_slots']);
 
+        $repeatResult = $generator->generate($versionId, $userId, 0);
+        $projection = static function (array $rows): array {
+            $normalized = array_map(static fn (array $row): array => [
+                'day_slot_id' => (int) $row['day_slot_id'],
+                'schedule_requirement_id' => (int) $row['schedule_requirement_id'],
+                'classroom_id' => (int) $row['classroom_id'],
+                'teacher_id' => (int) $row['teacher_id'],
+                'second_teacher_id' => (int) ($row['second_teacher_id'] ?? 0),
+                'subject_id' => (int) $row['subject_id'],
+                'room_id' => (int) ($row['room_id'] ?? 0),
+            ], $rows);
+            usort($normalized, static fn (array $a, array $b): int => $a <=> $b);
+            return $normalized;
+        };
+        $firstEntries = $db->table('schedule_candidate_entries')->where('candidate_id', (int) $genResult['candidate_id'])->get()->getResultArray();
+        $repeatEntries = $db->table('schedule_candidate_entries')->where('candidate_id', (int) $repeatResult['candidate_id'])->get()->getResultArray();
+        $this->assertSame($projection($firstEntries), $projection($repeatEntries), 'Strategi dan input yang sama harus menghasilkan penempatan identik.');
+
         // 3. Apply Candidate
         $candidateId = (int)$genResult['candidate_id'];
-        $applyResult = $generator->applyCandidate($candidateId, $userId);
+        try {
+            $generator->applyCandidate($candidateId, $userId, 999);
+            $this->fail('Kandidat dengan revisi kedaluwarsa seharusnya ditolak.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame(409, $e->getCode());
+        }
+        $this->assertSame(0, $db->table('schedule_entries')->where('schedule_version_id', $versionId)->countAllResults());
+        $this->assertSame(0, (int) $db->table('schedule_generation_candidates')->where('id', $candidateId)->get()->getRowArray()['is_applied']);
+
+        // A previous audit may retain a foreign key to an entry that the
+        // explicit apply is about to replace. History must survive without
+        // blocking the replacement transaction.
+        $legacy = $firstEntries[0];
+        $db->table('schedule_entries')->insert([
+            'uuid' => '10000000-0000-4000-8000-000000000090',
+            'schedule_version_id' => $versionId,
+            'day_slot_id' => $legacy['day_slot_id'],
+            'schedule_requirement_id' => $legacy['schedule_requirement_id'],
+            'classroom_id' => $legacy['classroom_id'],
+            'teacher_id' => $legacy['teacher_id'],
+            'subject_id' => $legacy['subject_id'],
+            'is_locked' => 0,
+            'created_at' => $now,
+        ]);
+        $legacyEntryId = (int) $db->insertID();
+        $legacyFingerprint = hash('sha256', 'legacy-generator-test');
+        $db->table('schedule_conflicts')->insert([
+            'uuid' => '10000000-0000-4000-8000-000000000091',
+            'fingerprint' => $legacyFingerprint,
+            'schedule_version_id' => $versionId,
+            'conflict_code' => 'LEGACY_TEST',
+            'conflict_type' => 'LEGACY_TEST',
+            'severity' => 'MEDIUM',
+            'description' => 'Historical conflict retained during apply.',
+            'status' => 'ACTIVE',
+            'detected_at' => $now,
+            'active_generation_scope' => 'CURRENT',
+            'primary_entry_id' => $legacyEntryId,
+            'is_resolved' => 0,
+            'created_at' => $now,
+        ]);
+
+        $applyResult = $generator->applyCandidate($candidateId, $userId, 1);
         $this->assertEquals('success', $applyResult['status']);
         $this->assertGreaterThan(0, $applyResult['applied_entries']);
+        $this->assertSame(2, (int) $applyResult['new_revision']);
+        $this->assertSame(1, $db->table('schedule_revision_history')
+            ->where('schedule_version_id', $versionId)
+            ->where('action', 'APPLY_GENERATED_CANDIDATE')
+            ->countAllResults());
+        $retainedConflict = $db->table('schedule_conflicts')->where('fingerprint', $legacyFingerprint)->get()->getRowArray();
+        $this->assertNotEmpty($retainedConflict);
+        $this->assertNull($retainedConflict['primary_entry_id']);
+        $this->assertSame('RESOLVED', $retainedConflict['status']);
+
+        try {
+            $generator->applyCandidate($candidateId, $userId, 2);
+            $this->fail('Kandidat yang sudah diterapkan seharusnya ditolak.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('sudah pernah diterapkan', $e->getMessage());
+        }
 
         // 4. Score Calculation
         $scoringService = new ScheduleScoringService();
         $scoreResult    = $scoringService->calculateScore($versionId);
         $this->assertArrayHasKey('total_score', $scoreResult);
+
+        $db->table('schedule_requirements')->where('schedule_version_id', $versionId)
+            ->update(['required_weekly_hours' => 6.0]);
+        try {
+            $generator->generate($versionId, $userId, 0);
+            $this->fail('Dataset mustahil harus dihentikan oleh capacity preflight.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('kapasitas tidak cukup', $e->getMessage());
+        }
+    }
+
+    public function testGeneratorKeepsTwoJpTogetherAndPrefersThreeJpTogether(): void
+    {
+        $generator = new DeterministicGreedyScheduleGenerator();
+        $method = new \ReflectionMethod($generator, 'buildJpBlocks');
+        $method->setAccessible(true);
+
+        $this->assertSame([2], $method->invoke($generator, 2));
+        $this->assertSame([3], $method->invoke($generator, 3));
+        $this->assertSame([2, 2], $method->invoke($generator, 4));
+        $this->assertSame([2, 2, 1], $method->invoke($generator, 5));
+    }
+
+    public function testGeneratorAvoidsBreakSplitAndPrioritizesHeavySubjectsInMorning(): void
+    {
+        $generator = new DeterministicGreedyScheduleGenerator();
+        $crossesBreak = new \ReflectionMethod($generator, 'blockCrossesIntermission');
+        $crossesBreak->setAccessible(true);
+        $isHeavy = new \ReflectionMethod($generator, 'isMorningPrioritySubject');
+        $isHeavy->setAccessible(true);
+        $rank = new \ReflectionMethod($generator, 'blockTimePreferenceRank');
+        $rank->setAccessible(true);
+
+        $blockBeforeBreak = [['slot_number' => 4], ['slot_number' => 5]];
+        $blockAcrossBreak = [['slot_number' => 5], ['slot_number' => 6]];
+        $blockAfterBreak = [['slot_number' => 6], ['slot_number' => 7]];
+        $blockLate = [['slot_number' => 8], ['slot_number' => 9]];
+
+        $this->assertFalse($crossesBreak->invoke($generator, $blockBeforeBreak, 5));
+        $this->assertTrue($crossesBreak->invoke($generator, $blockAcrossBreak, 5));
+        $this->assertTrue($isHeavy->invoke($generator, ['code' => 'MTK', 'name' => 'Matematika']));
+        $this->assertLessThan(
+            $rank->invoke($generator, $blockAfterBreak, true, 5),
+            $rank->invoke($generator, $blockBeforeBreak, true, 5)
+        );
+        $this->assertLessThan(
+            $rank->invoke($generator, $blockLate, true, 5),
+            $rank->invoke($generator, $blockAfterBreak, true, 5)
+        );
+        $this->assertGreaterThanOrEqual(900, $rank->invoke($generator, $blockAcrossBreak, true, 5));
+    }
+
+    public function testContiguousBlockCounterNeverCombinesSeparatedSlotsOrDays(): void
+    {
+        $detector = new ScheduleConflictDetectionService();
+        $method = new \ReflectionMethod($detector, 'countContiguousPairs');
+        $method->setAccessible(true);
+
+        $this->assertSame(1, $method->invoke($detector, [1 => [1, 2]]));
+        $this->assertSame(0, $method->invoke($detector, [1 => [1, 3]]));
+        $this->assertSame(1, $method->invoke($detector, [1 => [1, 2, 3]]));
+        $this->assertSame(2, $method->invoke($detector, [1 => [1, 2], 4 => [6, 7]]));
+        $this->assertSame(0, $method->invoke($detector, [1 => [1], 2 => [2]]));
     }
 }

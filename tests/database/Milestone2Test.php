@@ -4,7 +4,7 @@ namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Models\TeacherModel;
 use App\Models\SubjectModel;
 use App\Models\RoomModel;
@@ -26,7 +26,7 @@ use Config\Database;
 final class Milestone2Test extends CIUnitTestCase
 {
     use FeatureTestTrait;
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';
@@ -186,12 +186,14 @@ final class Milestone2Test extends CIUnitTestCase
     {
         $db = Database::connect($this->DBGroup);
         $smp = $db->table('school_units')->where('code', 'SMP')->get()->getRowArray();
+        $roomType = $db->table('room_types')->where('code', 'CLASSROOM')->where('is_active', 1)->get()->getRowArray();
+        $this->assertNotNull($roomType);
 
         // Create Room
         $roomData = [
             'code'                 => 'R701',
             'name'                 => 'Ruang Kelas VII A',
-            'room_type_id'         => 1, // CLASSROOM
+            'room_type_id'         => (int) $roomType['id'],
             'unit_id'              => $smp['id'],
             'shared_between_units' => 0,
             'capacity'             => 36,

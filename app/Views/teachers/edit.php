@@ -88,6 +88,31 @@
                     <input type="email" name="email" class="form-control rounded-3" value="<?= esc($teacher['email']) ?>">
                 </div>
 
+                <div class="col-12 mt-2">
+                    <div class="card border rounded-3 bg-light p-3">
+                        <label class="form-label fs-8 fw-bold text-dark mb-1">
+                            <i class="bi bi-buildings me-1 text-primary"></i> Penugasan Unit Sekolah Tambahan (Sekolah Kedua / Lintas Unit)
+                        </label>
+                        <small class="text-muted d-block mb-2">Centang unit sekolah di mana guru ini juga mengajar selain dari Unit Sekolah Utama.</small>
+                        <div class="row g-2">
+                            <?php foreach ($units as $u): ?>
+                                <?php
+                                $isPrimary = (string)$teacher['primary_unit_id'] === (string)$u['id'];
+                                $isAssigned = in_array((int)$u['id'], array_map('intval', $assignedUnitIds ?? []), true);
+                                ?>
+                                <div class="col-md-4">
+                                    <div class="form-check p-2 rounded bg-white border">
+                                        <input class="form-check-input me-2" type="checkbox" name="additional_units[]" value="<?= $u['id'] ?>" id="unit_cb_<?= $u['id'] ?>" <?= ($isAssigned && !$isPrimary) ? 'checked' : '' ?> <?= $isPrimary ? 'disabled' : '' ?>>
+                                        <label class="form-check-label small fw-semibold text-dark cursor-pointer" for="unit_cb_<?= $u['id'] ?>">
+                                            <?= esc($u['name']) ?> <?= $isPrimary ? '<span class="badge bg-primary-subtle text-primary ms-1">Utama</span>' : '' ?>
+                                        </label>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="col-12">
                     <label class="form-label fs-8 fw-bold">Alamat Tempat Tinggal</label>
                     <textarea name="address" class="form-control rounded-3" rows="2"><?= esc($teacher['address']) ?></textarea>

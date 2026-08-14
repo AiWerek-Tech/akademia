@@ -17,7 +17,7 @@ class AuthFilter implements FilterInterface
 
         $userId = (int) session()->get('user_id');
         $user = Database::connect()->table('users')
-            ->select('id, is_active, deleted_at, must_change_password, password_changed_at')
+            ->select('id, is_active, deleted_at, must_change_password, must_change_username, password_changed_at')
             ->where('id', $userId)
             ->get()
             ->getRowArray();
@@ -35,6 +35,7 @@ class AuthFilter implements FilterInterface
         }
 
         session()->set('must_change_password', (int) $user['must_change_password'] === 1);
+        session()->set('must_change_username', (int) $user['must_change_username'] === 1);
     }
 
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)

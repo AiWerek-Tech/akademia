@@ -186,10 +186,8 @@ class CurriculumWorkflowService
                 throw new \RuntimeException("Kurikulum belum dapat diaktifkan karena masih ada {$validation['errors']} data yang perlu diperbaiki.");
             }
 
-            // Deactivate all other versions for the same academic period
-            $db->table('curriculum_versions')
-                ->where('academic_period_id', $version['academic_period_id'])
-                ->update(['is_active' => 0, 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => $userId]);
+            // Deactivate only other versions for the SAME UNIT in this academic period
+            CurriculumVersionService::deactivateOtherVersionsForSameUnit((int)$version['id'], (int)$version['academic_period_id'], $userId);
 
             // Activate target version
             $versionModel->update($version['id'], [

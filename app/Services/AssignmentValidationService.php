@@ -118,6 +118,50 @@ class AssignmentValidationService
             }
         }
 
+        // --- SECTION A2: SCHEDULE CAPACITY RECONCILIATION ---
+        // Assignment totals must fit the actual academic grid after fixed
+        // routine activities reserve JP slots. This is intentionally separate
+        // from curriculum allocation: routines do not reduce the mapel need,
+        // but they do reduce where that need can be scheduled.
+        $scheduleCapacity = ScheduleCapacityService::forAssignmentVersion($versionId);
+        if (!empty($scheduleCapacity['has_schedule'])) {
+            $requiredByClass = [];
+            foreach ($structures as $s) {
+                $classId = (int) ($s['classroom_id'] ?? 0);
+                if ($classId > 0) {
+                    $requiredByClass[$classId] = ($requiredByClass[$classId] ?? 0) + (float) $s['effective_weekly_hours'];
+                }
+            }
+            foreach ($requiredByClass as $classId => $requiredJP) {
+                $capacity = $scheduleCapacity['classrooms'][$classId] ?? null;
+                if (!$capacity) continue;
+                $requiredBlocks = (int) ceil($requiredJP / 2);
+                $slotShortage = $requiredJP - (float) $capacity['available_slots'];
+                $blockShortage = $requiredBlocks - (int) $capacity['available_2jp_blocks'];
+                if ($slotShortage <= 0 && $blockShortage <= 0) continue;
+                $shortage = max(0, $slotShortage);
+                $results[] = [
+                    'assignment_version_id' => $versionId,
+                    'teaching_assignment_id' => null,
+                    'teacher_id' => null,
+                    'validation_code' => $slotShortage > 0 ? 'SCHEDULE_CAPACITY_EXCEEDED' : 'SCHEDULE_2JP_BLOCK_CAPACITY_EXCEEDED',
+                    'severity' => 'ERROR',
+                    'message' => $slotShortage > 0
+                        ? "Kapasitas jadwal {$capacity['classroom_name']} kurang {$shortage} JP setelah {$capacity['routine_jp']} JP kegiatan rutin akademik dikunci."
+                        : "Kapasitas blok 2 JP {$capacity['classroom_name']} kurang {$blockShortage} blok setelah kegiatan rutin akademik dikunci.",
+                    'details_json' => json_encode([
+                        'classroom_id' => $classId,
+                        'required_jp' => $requiredJP,
+                        'available_slots' => $capacity['available_slots'],
+                        'routine_jp' => $capacity['routine_jp'],
+                        'available_2jp_blocks' => $capacity['available_2jp_blocks'],
+                        'required_2jp_blocks' => $requiredBlocks,
+                    ])
+                ];
+                $errorsCount++;
+            }
+        }
+
         // --- SECTION B: ASSIGNMENT-LEVEL VALIDATIONS ---
         $duplicateGuard = [];
         $homeroomsPerClassroom = [];

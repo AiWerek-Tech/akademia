@@ -78,11 +78,11 @@ class AssignmentWorkflowService
         }
 
         if ($targetStatus === 'LOCKED') {
-            // Deactivate any other active versions for the same period
+            // Deactivate any other active versions for the same period and curriculum target
             $versionModel->where('academic_period_id', $version['academic_period_id'])
+                         ->where('curriculum_version_id', $version['curriculum_version_id'])
                          ->where('id !=', $versionId)
                          ->update(null, ['is_active' => 0]);
-
         }
 
         // Set transition fields

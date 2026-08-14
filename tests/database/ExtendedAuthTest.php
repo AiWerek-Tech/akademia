@@ -4,7 +4,7 @@ namespace Tests\Database;
 
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
-use CodeIgniter\Test\DatabaseTestTrait;
+use Tests\Support\IsolatedDatabaseTestTrait;
 use App\Database\Seeds\CoreSeeder;
 use Config\Database;
 
@@ -17,7 +17,7 @@ use Config\Database;
 final class ExtendedAuthTest extends CIUnitTestCase
 {
     use FeatureTestTrait;
-    use DatabaseTestTrait;
+    use IsolatedDatabaseTestTrait;
 
     protected $migrate   = true;
     protected $namespace = 'App';
@@ -223,6 +223,55 @@ final class ExtendedAuthTest extends CIUnitTestCase
 
         $user = $db->table('users')->where('id', $userId)->get()->getRowArray();
         $this->assertTrue(password_verify('NewStrongPass123!', $user['password_hash']));
+    }
+
+    public function testForcedChangePasswordDoesNotRequireCurrentPassword(): void
+    {
+        $userId = $this->createTestUser('guru_forced_cp', 'GuruPass123456!', 1, 1);
+        $db = Database::connect($this->DBGroup);
+
+        $result = $this->withSession([
+            'logged_in'            => true,
+            'user_id'              => $userId,
+            'username'             => 'guru_forced_cp',
+            'must_change_password' => true,
+        ])->post('change-password', [
+            'new_password'     => 'NewForcedPass123!',
+            'confirm_password' => 'NewForcedPass123!',
+        ]);
+
+        $result->assertRedirectTo('dashboard');
+        $user = $db->table('users')->where('id', $userId)->get()->getRowArray();
+        $this->assertTrue(password_verify('NewForcedPass123!', $user['password_hash']));
+        $this->assertEquals(0, (int) $user['must_change_password']);
+    }
+
+    public function testFirstLoginChangesTemporaryUsernameAndPasswordTogether(): void
+    {
+        $userId = $this->createTestUser('guru.temporary', 'GuruPass123456!', 1, 1);
+        $db = Database::connect($this->DBGroup);
+        $db->table('users')->where('id', $userId)->update(['must_change_username' => 1]);
+
+        $result = $this->withSession([
+            'logged_in'            => true,
+            'user_id'              => $userId,
+            'username'             => 'guru.temporary',
+            'must_change_password' => true,
+            'must_change_username' => true,
+        ])->post('change-password', [
+            'new_username'     => 'guru.pribadi',
+            'new_password'     => 'PersonalPass123!',
+            'confirm_password' => 'PersonalPass123!',
+        ]);
+
+        $result->assertRedirectTo('dashboard');
+        $result->assertSessionHas('username', 'guru.pribadi');
+        $user = $db->table('users')->where('id', $userId)->get()->getRowArray();
+        $this->assertSame('guru.pribadi', $user['username']);
+        $this->assertSame(0, (int) $user['must_change_username']);
+        $this->assertSame(0, (int) $user['must_change_password']);
+        $this->assertTrue(password_verify('PersonalPass123!', $user['password_hash']));
+        $this->assertNotNull($user['username_changed_at']);
     }
 
     // ── Logout via POST destroys session ────────────────────────
