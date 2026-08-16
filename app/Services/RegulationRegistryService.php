@@ -79,9 +79,9 @@ class RegulationRegistryService
             'source_type' => strtoupper(trim($data['source_type'])), 'issuer' => trim($data['issuer']),
             'status' => strtoupper($data['status'] ?? 'DRAFT'), 'created_by' => EducationFoundationService::actorId(),
         ];
+        if ($record['status']==='PUBLISHED' && empty($record['regulation_version_id']) && empty($record['source_url']) && empty($record['source_hash'])) throw new \InvalidArgumentException('Sumber terbit wajib memiliki provenance regulasi, URL, atau hash.');
         $id = (new CurriculumSourceModel())->insert($record, true);
         AuditService::log('education_foundation', 'CREATE_CURRICULUM_SOURCE', 'CurriculumSource', (int) $id, null, $record);
         return (new CurriculumSourceModel())->find($id);
     }
 }
-

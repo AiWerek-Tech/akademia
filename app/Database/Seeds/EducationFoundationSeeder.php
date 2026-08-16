@@ -57,14 +57,17 @@ class EducationFoundationSeeder extends Seeder
 
         $all = array_keys(self::PERMISSIONS);
         $view = array_values(array_filter($all, static fn (string $code): bool => str_ends_with($code, '.view')));
-        $manage = array_values(array_filter($all, static fn (string $code): bool => !in_array($code, ['learning_sequences.approve', 'learning_sequences.lock'], true)));
+        $manage = array_values(array_filter($all, static fn (string $code): bool => !in_array($code, [
+            'regulations.manage', 'curriculum_sources.manage', 'graduate_profile.manage', 'learning_outcomes.manage',
+            'learning_sequences.approve', 'learning_sequences.lock',
+        ], true)));
         $roleMap = [
             'super_admin' => $all,
             'kepala_sekolah' => array_merge($view, ['learning_sequences.review', 'learning_sequences.approve', 'learning_sequences.lock']),
             'wakasek_kurikulum' => $manage,
             'admin_smp' => $manage,
             'admin_sma' => $manage,
-            'guru' => $view,
+            'guru' => array_merge($view, ['learning_objectives.manage', 'learning_sequences.manage', 'learning_packs.manage']),
             'viewer_yayasan' => $view,
         ];
         $roles = array_column($this->db->table('roles')->get()->getResultArray(), 'id', 'code');
@@ -72,6 +75,12 @@ class EducationFoundationSeeder extends Seeder
         foreach ($roleMap as $roleCode => $codes) {
             if (!isset($roles[$roleCode])) {
                 continue;
+            }
+            $allowedIds=array_values(array_intersect_key($permissions,array_flip(array_unique($codes))));
+            $existingModuleIds=array_values($permissions);
+            if ($existingModuleIds!==[]) {
+                $removeIds=array_values(array_diff($existingModuleIds,$allowedIds));
+                if ($removeIds!==[]) $this->db->table('role_permissions')->where('role_id',$roles[$roleCode])->whereIn('permission_id',$removeIds)->delete();
             }
             foreach (array_unique($codes) as $code) {
                 if (!isset($permissions[$code])) {
@@ -85,7 +94,7 @@ class EducationFoundationSeeder extends Seeder
         }
 
         $flag = $this->db->table('feature_flags')->where('code', 'ialos_education_foundation')->get()->getRowArray();
-        $flagData = ['name' => 'IALOS Education Foundation', 'description' => 'Fondasi regulasi, CP, TP, ATP, coverage, dan paket pembelajaran', 'enabled' => 1, 'updated_at' => $now];
+        $flagData = ['name' => 'IALOS Education', 'description' => 'Modul pendidikan terpadu untuk regulasi, CP, TP, ATP, coverage, dan paket pembelajaran', 'enabled' => 1, 'updated_at' => $now];
         if ($flag) {
             $this->db->table('feature_flags')->where('id', $flag['id'])->update($flagData);
         } else {

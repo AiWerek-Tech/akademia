@@ -18,6 +18,7 @@ class LearningOutcomeService
         $record['code'] = strtoupper(trim($record['code']));
         $record['phase'] = strtoupper(trim($record['phase']));
         $record['status'] = strtoupper($record['status'] ?? 'DRAFT');
+        if ($record['status'] === 'PUBLISHED' && empty($record['curriculum_source_id'])) throw new \InvalidArgumentException('CP yang diterbitkan wajib memiliki sumber kurikulum resmi.');
         $id = (new LearningOutcomeModel())->insert($record, true);
         AuditService::log('education_foundation', 'CREATE_CP', 'LearningOutcome', (int) $id, null, $record);
         return (new LearningOutcomeModel())->find($id);
@@ -30,6 +31,9 @@ class LearningOutcomeService
             throw new RuntimeException('CP resmi yang telah diterbitkan tidak dapat diubah langsung.');
         }
         $allowed = array_intersect_key($data, array_flip(['statement','phase','status','curriculum_source_id','revision_number']));
+        $targetStatus=strtoupper((string)($allowed['status'] ?? $current['status']));
+        $targetSource=$allowed['curriculum_source_id'] ?? $current['curriculum_source_id'];
+        if ($targetStatus==='PUBLISHED' && empty($targetSource)) throw new \InvalidArgumentException('CP yang diterbitkan wajib memiliki sumber kurikulum resmi.');
         $updated = EducationFoundationService::atomicUpdate('learning_outcomes_cp', $current, $allowed);
         AuditService::log('education_foundation', 'UPDATE_CP', 'LearningOutcome', (int) $current['id'], $current, $updated);
         return $updated;
@@ -63,4 +67,3 @@ class LearningOutcomeService
         return $rows;
     }
 }
-

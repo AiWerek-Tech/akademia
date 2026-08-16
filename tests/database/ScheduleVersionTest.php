@@ -25,6 +25,7 @@ final class ScheduleVersionTest extends CIUnitTestCase
     {
         $db = Database::connect($this->DBGroup);
         $now = date('Y-m-d H:i:s');
+        $fixtureSuffix = strtoupper(substr(hash('sha256', $this->name()), 0, 8));
 
         $db->table('users')->insert([
             'uuid'          => sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0x0fff) | 0x4000, mt_rand(0, 0x3fff) | 0x8000, mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)),
@@ -38,7 +39,7 @@ final class ScheduleVersionTest extends CIUnitTestCase
 
         $db->table('academic_years')->insert([
             'uuid'       => sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0x0fff) | 0x4000, mt_rand(0, 0x3fff) | 0x8000, mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)),
-            'name'       => '2026/2027',
+            'name'       => '2026/2027-' . $fixtureSuffix,
             'start_date' => '2026-07-01',
             'end_date'   => '2027-06-30',
             'is_active'  => 1,

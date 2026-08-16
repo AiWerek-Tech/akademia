@@ -70,19 +70,22 @@ class LearningSequenceService
 
     public static function clone(string $uuid, array $overrides = []): array
     {
-        $source = EducationFoundationService::byUuid('learning_sequences_atp', $uuid); UnitScopeService::assertUnit((int) $source['unit_id']);
-        $copy = self::create([
-            'curriculum_version_id' => $overrides['curriculum_version_id'] ?? $source['curriculum_version_id'], 'unit_id' => $overrides['unit_id'] ?? $source['unit_id'],
-            'subject_id' => $source['subject_id'], 'grade_level_id' => $source['grade_level_id'], 'parent_sequence_id' => $source['id'],
-            'code' => $overrides['code'] ?? ($source['code'] . '-COPY'), 'name' => $overrides['name'] ?? ($source['name'] . ' (Salinan)'),
-            'phase' => $source['phase'], 'description' => $source['description'],
-        ]);
-        $items = Database::connect()->table('learning_sequence_items')->where('learning_sequence_id', $source['id'])->orderBy('sort_order')->get()->getResultArray();
-        foreach ($items as $item) {
-            $objective = Database::connect()->table('learning_objectives_tp')->where('id', $item['learning_objective_id'])->get()->getRowArray();
-            self::addItem($copy['uuid'], $objective['uuid'], $item);
-        }
-        return $copy;
+        $db=Database::connect(); $db->transBegin();
+        try {
+            $source = EducationFoundationService::byUuid('learning_sequences_atp', $uuid); UnitScopeService::assertUnit((int) $source['unit_id']);
+            $copy = self::create([
+                'curriculum_version_id' => $overrides['curriculum_version_id'] ?? $source['curriculum_version_id'], 'unit_id' => $overrides['unit_id'] ?? $source['unit_id'],
+                'subject_id' => $source['subject_id'], 'grade_level_id' => $source['grade_level_id'], 'parent_sequence_id' => $source['id'],
+                'code' => $overrides['code'] ?? ($source['code'] . '-COPY'), 'name' => $overrides['name'] ?? ($source['name'] . ' (Salinan)'),
+                'phase' => $source['phase'], 'description' => $source['description'],
+            ]);
+            $items = $db->table('learning_sequence_items')->where('learning_sequence_id', $source['id'])->orderBy('sort_order')->get()->getResultArray();
+            foreach ($items as $item) {
+                $objective = $db->table('learning_objectives_tp')->where('id', $item['learning_objective_id'])->get()->getRowArray();
+                self::addItem($copy['uuid'], $objective['uuid'], $item);
+            }
+            $db->transCommit(); return $copy;
+        } catch (\Throwable $e) { $db->transRollback(); throw $e; }
     }
 
     public static function scoped(): array
@@ -97,4 +100,3 @@ class LearningSequenceService
         if (in_array($sequence['workflow_status'], ['LOCKED','ARCHIVED'], true)) throw new RuntimeException('ATP terkunci/diarsipkan bersifat immutable. Klon untuk membuat revisi.');
     }
 }
-

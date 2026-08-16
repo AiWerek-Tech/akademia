@@ -161,10 +161,12 @@ $routes->get('references/graduate-profile', 'EducationFoundationController::prof
 $routes->get('curriculum/outcomes', 'EducationFoundationController::outcomes', ['filter' => 'permission:learning_outcomes.view']);
 $routes->post('curriculum/outcomes', 'EducationFoundationController::storeOutcome', ['filter' => 'permission:learning_outcomes.manage']);
 $routes->post('curriculum/outcomes/(:segment)', 'EducationFoundationController::updateOutcome/$1', ['filter' => 'permission:learning_outcomes.manage']);
+$routes->post('curriculum/outcomes/(:segment)/elements', 'EducationFoundationController::addOutcomeElement/$1', ['filter' => 'permission:learning_outcomes.manage']);
 $routes->get('curriculum/objectives', 'EducationFoundationController::objectives', ['filter' => 'permission:learning_objectives.view']);
 $routes->post('curriculum/objectives', 'EducationFoundationController::storeObjective', ['filter' => 'permission:learning_objectives.manage']);
 $routes->post('curriculum/objectives/(:segment)', 'EducationFoundationController::updateObjective/$1', ['filter' => 'permission:learning_objectives.manage']);
 $routes->post('curriculum/objectives/(:segment)/adapt', 'EducationFoundationController::adaptObjective/$1', ['filter' => 'permission:learning_objectives.manage']);
+$routes->post('curriculum/objectives/(:segment)/criteria', 'EducationFoundationController::addObjectiveCriterion/$1', ['filter' => 'permission:learning_objectives.manage']);
 $routes->get('curriculum/sequences', 'EducationFoundationController::sequences', ['filter' => 'permission:learning_sequences.view']);
 $routes->post('curriculum/sequences', 'EducationFoundationController::storeSequence', ['filter' => 'permission:learning_sequences.manage']);
 $routes->post('curriculum/sequences/(:segment)/items', 'EducationFoundationController::addSequenceItem/$1', ['filter' => 'permission:learning_sequences.manage']);
@@ -173,6 +175,8 @@ $routes->post('curriculum/sequences/(:segment)/clone', 'EducationFoundationContr
 $routes->get('curriculum/coverage', 'EducationFoundationController::coverage', ['filter' => 'permission:learning_sequences.view']);
 $routes->get('curriculum/learning-packs', 'EducationFoundationController::packs', ['filter' => 'permission:learning_packs.view']);
 $routes->post('curriculum/learning-packs', 'EducationFoundationController::storePack', ['filter' => 'permission:learning_packs.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/objectives', 'EducationFoundationController::attachPackObjective/$1', ['filter' => 'permission:learning_packs.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/sequences', 'EducationFoundationController::attachPackSequence/$1', ['filter' => 'permission:learning_packs.manage']);
 $routes->get('curriculum/education-imports', 'EducationFoundationController::imports', ['filter' => 'permission:learning_outcomes.manage']);
 $routes->post('curriculum/education-imports', 'EducationFoundationController::stageImport', ['filter' => 'permission:learning_outcomes.manage']);
 $routes->post('curriculum/education-imports/(:segment)/apply', 'EducationFoundationController::applyImport/$1', ['filter' => 'permission:learning_outcomes.manage']);

@@ -249,6 +249,8 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                                 ['permission' => 'workloads.view', 'href' => 'workloads', 'icon' => 'bar-chart-3', 'label' => 'Beban Kerja Guru', 'patterns' => ['workloads']],
                                 ['permission' => 'schedules.view', 'href' => 'schedules', 'icon' => 'calendar-check', 'label' => 'Jadwal Resmi', 'patterns' => ['schedules']],
                                 ['permissionAny' => ['duty_schedules.view', 'schedules.view'], 'href' => 'duty-schedules', 'icon' => 'shield-check', 'label' => 'Jadwal Piket', 'patterns' => ['duty-schedules']],
+                                ['permission' => 'learning_sequences.view', 'href' => 'curriculum/sequences', 'icon' => 'network', 'label' => 'IALOS Education', 'patterns' => ['curriculum/sequences', 'curriculum/coverage']],
+                                ['permission' => 'learning_packs.view', 'href' => 'curriculum/learning-packs', 'icon' => 'package-open', 'label' => 'Paket Pembelajaran', 'patterns' => ['curriculum/learning-packs']],
                             ],
                         ],
                         [
@@ -259,6 +261,8 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                                 ['permission' => 'teachers.view', 'href' => 'teachers', 'icon' => 'users', 'label' => 'Daftar Guru', 'patterns' => ['teachers']],
                                 ['permission' => 'classrooms.view', 'href' => 'classrooms', 'icon' => 'school', 'label' => 'Daftar Rombel', 'patterns' => ['classrooms']],
                                 ['permission' => 'students.view', 'href' => 'students', 'icon' => 'graduation-cap', 'label' => 'Peserta Didik', 'patterns' => ['students']],
+                                ['permission' => 'regulations.view', 'href' => 'references/regulations', 'icon' => 'landmark', 'label' => 'Regulasi Pendidikan', 'patterns' => ['references/regulations']],
+                                ['permission' => 'graduate_profile.view', 'href' => 'references/graduate-profile', 'icon' => 'badge-check', 'label' => 'Profil Lulusan', 'patterns' => ['references/graduate-profile']],
                             ],
                         ],
                     ];
@@ -298,6 +302,8 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                                 ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart-2', 'label' => 'Beban Mengajar', 'patterns' => ['portal/workload']],
                                 ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Pembagian Tugas', 'patterns' => ['portal/assignment-document']],
                                 ['permission' => 'teacher_duty_schedule.view', 'href' => 'portal/duty-schedule', 'icon' => 'shield-check', 'label' => 'Jadwal Piket', 'patterns' => ['portal/duty-schedule']],
+                                ['permission' => 'learning_objectives.view', 'href' => 'curriculum/objectives', 'icon' => 'network', 'label' => 'IALOS Education', 'patterns' => ['curriculum/objectives']],
+                                ['permission' => 'learning_packs.view', 'href' => 'curriculum/learning-packs', 'icon' => 'package-open', 'label' => 'Paket Pembelajaran', 'patterns' => ['curriculum/learning-packs']],
                             ],
                         ],
                     ];
@@ -362,8 +368,8 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                         'items' => [
                             ['permission' => 'curriculum.view', 'href' => 'curriculum', 'icon' => 'grid', 'label' => 'Struktur Kurikulum', 'patterns' => ['curriculum'], 'excludePatterns' => ['curriculum/imports', 'curriculum/outcomes', 'curriculum/objectives', 'curriculum/sequences', 'curriculum/coverage', 'curriculum/learning-packs', 'curriculum/education-imports']],
                             ['permission' => 'curriculum.import', 'href' => 'curriculum/imports', 'icon' => 'file-spreadsheet', 'label' => 'Import Kurikulum', 'patterns' => ['curriculum/imports']],
-                            ['permission' => 'learning_outcomes.view', 'href' => 'curriculum/outcomes', 'icon' => 'milestone', 'label' => 'CP & Elemen', 'patterns' => ['curriculum/outcomes']],
-                            ['permission' => 'learning_objectives.view', 'href' => 'curriculum/objectives', 'icon' => 'target', 'label' => 'Tujuan Pembelajaran', 'patterns' => ['curriculum/objectives']],
+                            ['permission' => 'learning_outcomes.view', 'href' => 'curriculum/outcomes', 'icon' => 'network', 'label' => 'IALOS Education', 'patterns' => ['curriculum/outcomes']],
+                            ['permission' => 'learning_objectives.view', 'href' => 'curriculum/objectives', 'icon' => 'target', 'label' => 'Adaptasi TP', 'patterns' => ['curriculum/objectives']],
                             ['permission' => 'learning_sequences.view', 'href' => 'curriculum/sequences', 'icon' => 'route', 'label' => 'ATP & Coverage', 'patterns' => ['curriculum/sequences', 'curriculum/coverage']],
                             ['permission' => 'learning_packs.view', 'href' => 'curriculum/learning-packs', 'icon' => 'package-open', 'label' => 'Paket Pembelajaran', 'patterns' => ['curriculum/learning-packs']],
                             ['permissionAny' => ['electives.view', 'class_electives.manage'], 'href' => 'electives', 'icon' => 'list-checks', 'label' => has_permission('electives.view') ? 'Pemilihan Mapel' : 'Pemilihan Mapel Kelas', 'patterns' => ['electives']],
@@ -395,6 +401,8 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                             ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart', 'label' => 'Penugasan & Beban Saya', 'patterns' => ['portal/workload']],
                             ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Tugas Saya', 'patterns' => ['portal/assignment-document']],
                             ['permission' => 'teacher_duty_schedule.view', 'href' => 'portal/duty-schedule', 'icon' => 'shield-check', 'label' => 'Piket Saya', 'patterns' => ['portal/duty-schedule']],
+                            ['permission' => 'learning_objectives.view', 'href' => 'curriculum/objectives', 'icon' => 'network', 'label' => 'IALOS Education', 'patterns' => ['curriculum/objectives']],
+                            ['permission' => 'learning_packs.view', 'href' => 'curriculum/learning-packs', 'icon' => 'package-open', 'label' => 'Paket Pembelajaran', 'patterns' => ['curriculum/learning-packs']],
                             ['permission' => 'class_students.view', 'href' => 'portal/classroom', 'icon' => 'school', 'label' => 'Kelas Binaan Saya', 'patterns' => ['portal/classroom']],
                         ],
                     ],

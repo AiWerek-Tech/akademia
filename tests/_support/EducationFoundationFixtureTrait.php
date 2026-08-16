@@ -52,14 +52,17 @@ trait EducationFoundationFixtureTrait
         session()->set(['user_id'=>1,'active_unit_id'=>$this->unitId,'active_period_id'=>$this->periodId]);
     }
 
-    protected function createTestOutcome(string $code='CP-INF-X'): array
+    protected function createTestOutcome(?string $code=null): array
     {
+        $code ??= 'CP-' . strtoupper(substr(hash('sha256', static::class . ':' . $this->name()), 0, 10));
         return \App\Services\LearningOutcomeService::create(['curriculum_version_id'=>$this->versionId,'subject_id'=>$this->subjectId,'grade_level_id'=>$this->gradeId,'code'=>$code,'phase'=>'E','statement'=>'Peserta didik mampu menerapkan berpikir komputasional.']);
     }
 
-    protected function createTestObjective(?array $outcome=null,string $code='TP-INF-01'): array
+    protected function createTestObjective(?array $outcome=null,?string $code=null): array
     {
         $outcome ??= $this->createTestOutcome();
+        $code ??= 'TP-' . strtoupper(substr(hash('sha256', static::class . ':' . $this->name()), 0, 10));
         return \App\Services\LearningObjectiveService::createNational(['learning_outcome_id'=>$outcome['id'],'code'=>$code,'statement'=>'Menganalisis persoalan dengan dekomposisi.','status'=>'DRAFT']);
     }
+
 }
