@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "WMVAA Akademia",
-  "short_name": "Akademia",
-  "description": "Sistem akademik terpadu SMP dan SMA WMVAA.",
+  "name": "IALOS Education",
+  "short_name": "IALOS",
+  "description": "Integrated Academic Learning Operating System untuk SMP dan SMA.",
   "lang": "id-ID",
   "dir": "ltr",
   "start_url": "./dashboard?source=pwa",

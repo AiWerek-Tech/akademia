@@ -331,7 +331,7 @@ class CoreSeeder extends Seeder
 
         // 5. Seed application_settings
         $settings = [
-            ['setting_group' => 'general', 'setting_key' => 'app_name', 'setting_value' => 'WMVAA Akademia', 'value_type' => 'string', 'is_public' => 1],
+            ['setting_group' => 'general', 'setting_key' => 'app_name', 'setting_value' => 'IALOS Education', 'value_type' => 'string', 'is_public' => 1],
             ['setting_group' => 'general', 'setting_key' => 'tagline', 'setting_value' => 'Perencanaan Akademik Terpadu SMP–SMA', 'value_type' => 'string', 'is_public' => 1],
             ['setting_group' => 'general', 'setting_key' => 'timezone', 'setting_value' => 'Asia/Jayapura', 'value_type' => 'string', 'is_public' => 1],
             ['setting_group' => 'security', 'setting_key' => 'max_login_attempts', 'setting_value' => '5', 'value_type' => 'int', 'is_public' => 0],

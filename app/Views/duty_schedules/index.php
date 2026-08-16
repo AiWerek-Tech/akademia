@@ -427,7 +427,7 @@
 <?php if (has_permission('duty_schedules.manage') || has_permission('schedules.manage') || is_super_admin()): ?>
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top border-light-subtle mb-4">
         <small class="text-muted fs-8">
-            <i data-lucide="shield" class="me-1 inline-block" style="width:14px;height:14px;"></i> Terintegrasi dengan Sistem Penugasan Mengajar & Jadwal Pelajaran WMVAA Akademia
+            <i data-lucide="shield" class="me-1 inline-block" style="width:14px;height:14px;"></i> Terintegrasi dengan Sistem Penugasan Mengajar & Jadwal Pelajaran IALOS Education
         </small>
 
         <form method="post" action="<?= base_url('duty-schedules/clear') ?>" onsubmit="return confirm('Apakah Anda yakin ingin MENGOSONGKAN SELURUH Jadwal Piket T.A. <?= esc($selectedYear['name']) ?>?')">

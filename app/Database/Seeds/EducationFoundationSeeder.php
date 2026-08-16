@@ -100,5 +100,8 @@ class EducationFoundationSeeder extends Seeder
         } else {
             $this->db->table('feature_flags')->insert($flagData + ['code' => 'ialos_education_foundation', 'created_at' => $now]);
         }
+
+        // Digital KSP adalah fase lanjutan dari bounded context yang sama.
+        (new DigitalKspSeeder($this->config))->run();
     }
 }

@@ -6,6 +6,7 @@ use App\Exceptions\ConcurrencyException;
 use App\Services\CurriculumCoverageService;
 use App\Services\EducationFoundationImportService;
 use App\Services\EducationFoundationService;
+use App\Services\EducationControlCenterService;
 use App\Services\FeatureFlagService;
 use App\Services\LearningObjectiveService;
 use App\Services\LearningOutcomeService;
@@ -17,6 +18,16 @@ use Config\Database;
 
 class EducationFoundationController extends BaseController
 {
+    public function dashboard()
+    {
+        if (!$this->enabled()) return $this->disabledResponse();
+        return view('education_foundation/dashboard', [
+            'title' => 'IALOS Education',
+            'breadcrumb_active' => 'Control Center',
+            'control' => EducationControlCenterService::build(),
+        ]);
+    }
+
     public function regulations() { return $this->page('regulations', RegulationRegistryService::regulations()); }
     public function sources() { return $this->page('sources', Database::connect()->table('curriculum_sources')->orderBy('code')->get()->getResultArray()); }
     public function profile() { return $this->page('profile', Database::connect()->table('graduate_profile_dimensions')->orderBy('sort_order')->get()->getResultArray()); }
@@ -77,10 +88,11 @@ class EducationFoundationController extends BaseController
 
     private function page(string $section,array $rows)
     {
-        if (!FeatureFlagService::isEnabled('ialos_education_foundation')) return $this->response->setStatusCode(404)->setBody('IALOS Education belum diaktifkan.');
+        if (!$this->enabled()) return $this->disabledResponse();
         $db=Database::connect();
-        return view('education_foundation/index',[
-            'title'=>'IALOS Education','breadcrumb_active'=>'IALOS Education','section'=>$section,'rows'=>$rows,
+        $labels=['regulations'=>'Regulasi Pendidikan','sources'=>'Sumber Kurikulum','profile'=>'Profil Lulusan','outcomes'=>'Capaian Pembelajaran','objectives'=>'Tujuan Pembelajaran','sequences'=>'Alur Tujuan Pembelajaran','coverage'=>'Coverage Kurikulum','packs'=>'Paket Pembelajaran','imports'=>'Import Data Pendidikan'];
+        return view('education_foundation/'.$section,[
+            'title'=>$labels[$section].' | IALOS Education','breadcrumb_active'=>$labels[$section],'section'=>$section,'rows'=>$rows,
             'units'=>UnitScopeService::accessibleUnits(),
             'subjects'=>$db->table('subjects')->where('is_active',1)->orderBy('name')->get()->getResultArray(),
             'gradeLevels'=>$db->table('grade_levels')->where('is_active',1)->orderBy('sort_order')->get()->getResultArray(),
@@ -93,7 +105,7 @@ class EducationFoundationController extends BaseController
 
     private function run(callable $operation,string $fallback,string $message)
     {
-        if (!FeatureFlagService::isEnabled('ialos_education_foundation')) return $this->response->setStatusCode(404)->setJSON(['ok'=>false,'error'=>'IALOS Education belum diaktifkan.']);
+        if (!$this->enabled()) return $this->disabledResponse(true);
         try { $result=$operation(); if ($this->request->isAJAX()) return $this->response->setJSON(['ok'=>true,'data'=>$result]); return redirect()->to($fallback)->with('success',$message); }
         catch (\Throwable $e) { return $this->failure($e,$fallback); }
     }
@@ -110,5 +122,16 @@ class EducationFoundationController extends BaseController
         try { $objective=EducationFoundationService::byUuid('learning_objectives_tp',$uuid); }
         catch (\Throwable $e) { return false; }
         return $objective['source_level']!=='NATIONAL' || has_permission('regulations.manage');
+    }
+
+    private function enabled(): bool
+    {
+        return FeatureFlagService::isEnabled('ialos_education_foundation');
+    }
+
+    private function disabledResponse(bool $json = false)
+    {
+        if ($json || $this->request->isAJAX()) return $this->response->setStatusCode(404)->setJSON(['ok'=>false,'error'=>'IALOS Education belum diaktifkan.']);
+        return $this->response->setStatusCode(404)->setBody('IALOS Education belum diaktifkan.');
     }
 }

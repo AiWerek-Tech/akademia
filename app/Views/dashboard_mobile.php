@@ -75,6 +75,9 @@ if ($mode === 'teacher') {
     $focus = ['eyebrow'=>'Portal peserta didik','title'=>'Pilihan belajar Anda','copy'=>($workspace['student']['classroom_name'] ?? 'Rombel belum ditautkan') . ' · ' . $activePeriodStr,'href'=>'my-electives','action'=>'Buka pilihan','icon'=>'graduation-cap'];
     $addAction($actions,'electives.selection.submit','my-electives','list-checks','Pilihan Mapel','purple');
 }
+if (has_permission('regulations.view') || has_permission('learning_outcomes.view') || has_permission('learning_objectives.view') || has_permission('learning_sequences.view') || has_permission('learning_packs.view') || has_permission('ksp.view')) {
+    array_unshift($actions, ['href'=>'education','icon'=>'network','label'=>'IALOS Education','tone'=>'purple']);
+}
 $actions = array_slice($actions, 0, 6);
 ?>
 <section class="native-mobile-dashboard" aria-labelledby="mobile-dashboard-title">

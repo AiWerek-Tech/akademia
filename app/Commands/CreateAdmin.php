@@ -12,7 +12,7 @@ class CreateAdmin extends BaseCommand
 {
     protected $group       = 'Akademia';
     protected $name        = 'akademia:create-admin';
-    protected $description = 'Create a new Super Admin user for WMVAA Akademia';
+    protected $description = 'Create a new Super Admin user for IALOS Education';
     protected $usage       = 'akademia:create-admin';
     protected $arguments   = [];
     protected $options     = [];

@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="Masuk ke WMVAA Akademia untuk mengelola master data, kurikulum, beban mengajar, dan jadwal sekolah.">
+    <meta name="description" content="Masuk ke IALOS Education untuk mengelola proses akademik sekolah secara terpadu.">
     <meta name="theme-color" content="#2f2f88">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Akademia">
-    <title>Masuk | WMVAA Akademia</title>
+    <meta name="apple-mobile-web-app-title" content="IALOS">
+    <title>Masuk | IALOS Education</title>
     <link rel="icon" type="image/svg+xml" href="<?= base_url('assets/img/brand-mark.svg') ?>">
     <link rel="manifest" href="<?= base_url('manifest.webmanifest') ?>">
     <link rel="apple-touch-icon" href="<?= base_url('assets/img/pwa-icon-192.png') ?>">
@@ -21,11 +21,11 @@
 </head>
 <body class="auth-page">
     <main class="auth-shell">
-        <section class="auth-story" aria-label="Tentang WMVAA Akademia">
-            <a class="auth-brand" href="<?= base_url('login') ?>" aria-label="WMVAA Akademia">
+        <section class="auth-story" aria-label="Tentang IALOS Education">
+            <a class="auth-brand" href="<?= base_url('login') ?>" aria-label="IALOS Education">
                 <img src="<?= base_url('assets/img/brand-mark.svg') ?>" alt="">
                 <span>
-                    <span class="auth-brand-name">WMVAA Akademia</span>
+                    <span class="auth-brand-name">IALOS Education</span>
                     <span class="auth-brand-subtitle">Academic Planning Suite</span>
                 </span>
             </a>
@@ -56,14 +56,14 @@
                 </div>
             </div>
 
-            <div class="auth-story-footer">&copy; <?= date('Y') ?> WMVAA Akademia · Dibangun untuk SMP dan SMA</div>
+            <div class="auth-story-footer">&copy; <?= date('Y') ?> IALOS Education · Dibangun untuk SMP dan SMA</div>
         </section>
 
         <section class="auth-main">
             <div class="auth-card">
                 <div class="auth-mobile-brand" aria-hidden="true">
                     <img src="<?= base_url('assets/img/brand-mark.svg') ?>" alt="">
-                    <span><strong>WMVAA Akademia</strong><span>Academic Planning Suite</span></span>
+                    <span><strong>IALOS Education</strong><span>Integrated Academic Learning Operating System</span></span>
                 </div>
 
                 <div class="auth-mobile-welcome" aria-hidden="true">
@@ -131,7 +131,7 @@
                     </div>
 
                     <button type="submit" class="auth-submit" id="btnLogin">
-                        <span id="loginBtnText">Masuk ke Akademia</span>
+                        <span id="loginBtnText">Masuk ke IALOS</span>
                         <i data-lucide="arrow-right"></i>
                     </button>
                 </form>
@@ -142,7 +142,7 @@
                 </div>
                 <button type="button" class="auth-install" data-pwa-install hidden>
                     <i data-lucide="download"></i>
-                    <span><strong>Instal WMVAA Akademia</strong><small>Akses cepat dari layar utama perangkat</small></span>
+                    <span><strong>Instal IALOS Education</strong><small>Akses cepat dari layar utama perangkat</small></span>
                     <i data-lucide="chevron-right"></i>
                 </button>
                 <div class="auth-footer">Butuh bantuan akses? Hubungi administrator sekolah.</div>

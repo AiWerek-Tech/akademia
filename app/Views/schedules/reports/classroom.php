@@ -471,7 +471,7 @@
     <div class="curriculum-section">
         <div class="curriculum-header">
             <span>DAFTAR MATA PELAJARAN & GURU PENGAMPU (LEGENDA KURIKULUM) <?= esc($fullClassTitle) ?></span>
-            <span style="font-size:5.8pt; font-weight:600; color:#64748b;">Sistem Informasi Kurikulum WMVAA Akademia</span>
+            <span style="font-size:5.8pt; font-weight:600; color:#64748b;">IALOS Education · Sistem Akademik Terpadu</span>
         </div>
 
         <div class="curriculum-layout">

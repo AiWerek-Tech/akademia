@@ -1,8 +1,8 @@
 <?php
 $globalThemeColor = 'purple';
-$schoolName = 'WMVAA Akademia';
+$schoolName = 'IALOS Education';
 $appInfo = (object) [
-    'name' => 'WMVAA Akademia',
+    'name' => 'IALOS Education',
     'version' => '2.0.0',
     'developer' => 'WMVAA'
 ];
@@ -159,7 +159,7 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Akademia">
+    <meta name="apple-mobile-web-app-title" content="IALOS">
     <link rel="manifest" href="<?= base_url('manifest.webmanifest') ?>">
     <link rel="apple-touch-icon" href="<?= base_url('assets/img/pwa-icon-192.png') ?>">
 
@@ -421,6 +421,40 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                     ],
                     ];
                 }
+
+                // IALOS adalah bounded context di dalam aplikasi yang sama. Semua shortcut
+                // IALOS lama dipindahkan ke satu kategori sidebar tanpa menduplikasi menu.
+                $ialosPaths = [
+                    'education', 'references/regulations', 'references/curriculum-sources',
+                    'references/graduate-profile', 'curriculum/outcomes', 'curriculum/objectives',
+                    'curriculum/sequences', 'curriculum/coverage', 'curriculum/learning-packs',
+                    'curriculum/education-imports',
+                ];
+                foreach ($menuGroups as &$existingGroup) {
+                    $existingGroup['items'] = array_values(array_filter(
+                        $existingGroup['items'],
+                        static fn (array $item): bool => !in_array(strtok($item['href'], '?'), $ialosPaths, true)
+                    ));
+                }
+                unset($existingGroup);
+                $menuGroups[] = [
+                    'key' => 'ialos-education',
+                    'label' => 'IALOS Education',
+                    'icon' => 'network',
+                    'items' => [
+                        ['permissionAny' => ['regulations.view','curriculum_sources.view','graduate_profile.view','learning_outcomes.view','learning_objectives.view','learning_sequences.view','learning_packs.view','ksp.view'], 'href' => 'education', 'icon' => 'layout-dashboard', 'label' => 'Control Center', 'patterns' => ['education'], 'excludePatterns' => ['education/ksp']],
+                        ['permission' => 'ksp.view', 'href' => 'education/ksp', 'icon' => 'book-open-check', 'label' => 'Digital KSP', 'patterns' => ['education/ksp']],
+                        ['permission' => 'regulations.view', 'href' => 'references/regulations', 'icon' => 'landmark', 'label' => 'Regulasi Pendidikan', 'patterns' => ['references/regulations']],
+                        ['permission' => 'curriculum_sources.view', 'href' => 'references/curriculum-sources', 'icon' => 'library', 'label' => 'Sumber Kurikulum', 'patterns' => ['references/curriculum-sources']],
+                        ['permission' => 'graduate_profile.view', 'href' => 'references/graduate-profile', 'icon' => 'badge-check', 'label' => 'Profil Lulusan', 'patterns' => ['references/graduate-profile']],
+                        ['permission' => 'learning_outcomes.view', 'href' => 'curriculum/outcomes', 'icon' => 'milestone', 'label' => 'CP & Elemen', 'patterns' => ['curriculum/outcomes']],
+                        ['permission' => 'learning_objectives.view', 'href' => 'curriculum/objectives', 'icon' => 'target', 'label' => 'Tujuan Pembelajaran', 'patterns' => ['curriculum/objectives']],
+                        ['permission' => 'learning_sequences.view', 'href' => 'curriculum/sequences', 'icon' => 'route', 'label' => 'ATP', 'patterns' => ['curriculum/sequences']],
+                        ['permission' => 'learning_sequences.view', 'href' => 'curriculum/coverage', 'icon' => 'scan-search', 'label' => 'Coverage Kurikulum', 'patterns' => ['curriculum/coverage']],
+                        ['permission' => 'learning_packs.view', 'href' => 'curriculum/learning-packs', 'icon' => 'package-open', 'label' => 'Paket Pembelajaran', 'patterns' => ['curriculum/learning-packs']],
+                        ['permission' => 'learning_outcomes.manage', 'href' => 'curriculum/education-imports', 'icon' => 'file-up', 'label' => 'Import Data Pendidikan', 'patterns' => ['curriculum/education-imports']],
+                    ],
+                ];
                 ?>
 
                 <?php foreach ($menuGroups as $group): ?>

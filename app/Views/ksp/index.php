@@ -1,0 +1,12 @@
+<?= $this->extend('layouts/admin') ?><?= $this->section('main_content') ?>
+<?php $pageTitle='Digital KSP'; $pageIcon='book-open-check'; $pageDescription='Susun Kurikulum Satuan Pendidikan sebagai dokumen hidup yang terhubung dengan unit dan periode akademik.'; ?>
+<?= view('education_foundation/_page_header', compact('pageTitle','pageIcon','pageDescription')) ?>
+<?php if (has_permission('ksp.manage')): ?><details class="card border-0 shadow-sm rounded-4 mb-4"><summary class="card-header bg-white fw-semibold p-3">Buat versi KSP</summary><div class="card-body"><form method="post" action="<?= base_url('education/ksp') ?>" class="row g-3"><?= csrf_field() ?>
+<div class="col-md-3"><label class="form-label">Unit</label><select class="form-select" name="unit_id" required><?php foreach($units as $unit): ?><option value="<?= $unit['id'] ?>"><?= esc($unit['name']) ?></option><?php endforeach ?></select></div>
+<div class="col-md-3"><label class="form-label">Periode</label><select class="form-select" name="academic_period_id" required><?php foreach($periods as $period): ?><option value="<?= $period['id'] ?>"><?= esc($period['name']) ?></option><?php endforeach ?></select></div>
+<div class="col-md-2"><label class="form-label">Kode</label><input class="form-control" name="code" required placeholder="KSP-2026"></div><div class="col-md-4"><label class="form-label">Judul</label><input class="form-control" name="title" required placeholder="KSP SMP Tahun 2026"></div><div class="col-12"><button class="btn btn-primary">Buat draft KSP</button></div>
+</form></div></details><?php endif ?>
+<div class="card border-0 shadow-sm rounded-4"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th class="ps-4">Kode & Judul</th><th>Unit</th><th>Periode</th><th>Status</th><th></th></tr></thead><tbody>
+<?php foreach($versions as $row): ?><tr><td class="ps-4"><div class="fw-semibold"><?= esc($row['code']) ?></div><small class="text-muted"><?= esc($row['title']) ?></small></td><td><?= esc($row['unit_name']) ?></td><td><?= esc($row['period_name']) ?></td><td><span class="badge text-bg-light"><?= esc($row['status']) ?></span></td><td><a class="btn btn-sm btn-outline-primary" href="<?= base_url('education/ksp/'.$row['uuid']) ?>">Buka control</a></td></tr><?php endforeach ?>
+<?php if(empty($versions)): ?><tr><td colspan="5" class="text-center text-muted p-5">Belum ada versi KSP.</td></tr><?php endif ?></tbody></table></div></div>
+<?= $this->endSection() ?>

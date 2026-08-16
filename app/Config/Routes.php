@@ -152,6 +152,20 @@ $routes->get('imports/master/(:segment)', 'MasterImportController::showBatch/$1'
 $routes->post('imports/master/(:segment)/apply', 'MasterImportController::apply/$1');
 
 // Curriculum Versions & Structures (Milestone 3)
+$routes->get('education', 'EducationFoundationController::dashboard', ['filter' => 'permission:regulations.view,curriculum_sources.view,graduate_profile.view,learning_outcomes.view,learning_objectives.view,learning_sequences.view,learning_packs.view,ksp.view']);
+$routes->get('education/ksp', 'DigitalKspController::index', ['filter' => 'permission:ksp.view']);
+$routes->post('education/ksp', 'DigitalKspController::store', ['filter' => 'permission:ksp.manage']);
+$routes->get('education/ksp/(:segment)', 'DigitalKspController::dashboard/$1', ['filter' => 'permission:ksp.view']);
+$routes->post('education/ksp/(:segment)/transition', 'DigitalKspController::transition/$1', ['filter' => 'permission:ksp.review,ksp.approve,ksp.lock']);
+$routes->post('education/ksp/(:segment)/sections/(:segment)', 'DigitalKspController::updateSection/$1/$2', ['filter' => 'permission:ksp.manage']);
+$routes->get('education/ksp/(:segment)/context', 'DigitalKspController::context/$1', ['filter' => 'permission:ksp.view']);
+$routes->post('education/ksp/(:segment)/context', 'DigitalKspController::storeContext/$1', ['filter' => 'permission:ksp.manage']);
+$routes->get('education/ksp/(:segment)/vision-goals', 'DigitalKspController::visionGoals/$1', ['filter' => 'permission:ksp.view']);
+$routes->post('education/ksp/(:segment)/vision-goals', 'DigitalKspController::storeGoal/$1', ['filter' => 'permission:ksp.manage']);
+$routes->get('education/ksp/(:segment)/organization', 'DigitalKspController::organization/$1', ['filter' => 'permission:ksp.view']);
+$routes->post('education/ksp/(:segment)/organization', 'DigitalKspController::storeOrganization/$1', ['filter' => 'permission:ksp.manage']);
+$routes->get('education/ksp/(:segment)/evaluation', 'DigitalKspController::evaluation/$1', ['filter' => 'permission:ksp.view']);
+$routes->post('education/ksp/(:segment)/evaluation', 'DigitalKspController::storeEvaluation/$1', ['filter' => 'permission:ksp.manage']);
 $routes->get('references/regulations', 'EducationFoundationController::regulations', ['filter' => 'permission:regulations.view']);
 $routes->post('references/regulations', 'EducationFoundationController::storeRegulation', ['filter' => 'permission:regulations.manage']);
 $routes->get('references/curriculum-sources', 'EducationFoundationController::sources', ['filter' => 'permission:curriculum_sources.view']);

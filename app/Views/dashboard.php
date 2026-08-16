@@ -22,6 +22,15 @@ $heroCopy = [
         </div>
     </div>
 
+    <?php if (has_permission('regulations.view') || has_permission('learning_outcomes.view') || has_permission('learning_objectives.view') || has_permission('learning_sequences.view') || has_permission('learning_packs.view') || has_permission('ksp.view')): ?>
+        <div class="card border-0 shadow-sm rounded-4 mb-4 border-start border-4 border-indigo">
+            <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div><span class="badge bg-primary-subtle text-primary rounded-pill mb-2">IALOS Education</span><h5 class="fw-bold mb-1">Control Center <?= $mode === 'teacher' ? 'Guru' : ($mode === 'executive' ? 'Pimpinan' : 'Akademik') ?></h5><p class="text-muted mb-0">Buka workspace pendidikan terpadu sesuai peran dan cakupan unit Anda.</p></div>
+                <a href="<?= base_url('education') ?>" class="btn btn-primary rounded-3"><i data-lucide="layout-dashboard" class="me-1"></i>Buka Control Center</a>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <?php if (($roleDashboard['code'] ?? '') === 'wali_kelas' || is_wali_kelas()): ?>
         <div class="card border-0 shadow-sm rounded-4 mb-4 border-start border-4 border-primary">
             <div class="card-body p-4">

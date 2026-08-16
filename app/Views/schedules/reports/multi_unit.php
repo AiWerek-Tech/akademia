@@ -299,7 +299,7 @@ $headerRightLogoUrl = base_url($configuredRightLogoPath !== '' ? ltrim($configur
             </div>
         </section>
     </div>
-    <div class="print-note">Dicetak dari WMVAA Akademia · <?= esc(date('d-m-Y H:i')) ?></div>
+    <div class="print-note">Dicetak dari IALOS Education · <?= esc(date('d-m-Y H:i')) ?></div>
 </main>
 </body>
 </html>

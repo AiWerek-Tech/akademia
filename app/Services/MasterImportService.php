@@ -245,9 +245,9 @@ class MasterImportService
 
         $spreadsheet->setActiveSheetIndex(0);
         $spreadsheet->getProperties()
-            ->setCreator('WMVAA Akademia')
+            ->setCreator('IALOS Education')
             ->setTitle('Template Import ' . $definition['title'])
-            ->setDescription('Template resmi untuk staging import master data WMVAA Akademia.');
+            ->setDescription('Template resmi untuk staging import master data IALOS Education.');
 
         $targetDirectory = $outputFilename === null ? WRITEPATH . 'imports/' : WRITEPATH . 'exports/';
         if (!is_dir($targetDirectory)) {

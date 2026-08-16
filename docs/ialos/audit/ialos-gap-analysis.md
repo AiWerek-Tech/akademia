@@ -15,6 +15,8 @@
 | Audit | Fondasi tersedia | Catat mutasi dan transisi workflow melalui `AuditService` |
 | UI | Belum ada | Tambah navigasi referensi/perencanaan dan halaman dasar bertahap |
 
+> Status terkini dan cakupan fase lanjutan dicatat di [`../IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md). Phase 1 kini memakai halaman domain terpisah dan Control Center berbasis peran; Digital KSP sedang dilanjutkan sebagai bagian dari aplikasi yang sama.
+
 ## Risiko dan mitigasi
 
 - Salah-scope data nasional: nasional selalu `unit_id IS NULL`, hanya read-only di workflow sekolah.
