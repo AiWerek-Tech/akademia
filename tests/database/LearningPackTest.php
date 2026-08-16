@@ -1,0 +1,7 @@
+<?php
+namespace Tests\Database;
+use App\Database\Seeds\CoreSeeder; use App\Services\LearningPackService; use App\Services\LearningSequenceService; use CodeIgniter\Test\CIUnitTestCase; use Tests\Support\EducationFoundationFixtureTrait; use Tests\Support\IsolatedDatabaseTestTrait;
+final class LearningPackTest extends CIUnitTestCase { use IsolatedDatabaseTestTrait, EducationFoundationFixtureTrait; protected $migrate=true; protected $namespace='App'; protected $seed=CoreSeeder::class; protected function setUp():void { parent::setUp(); $this->seedEducationFoundationFixture(); }
+public function testPackLinksObjectivesAndSequencesWithinScope():void { $tp=$this->createTestObjective(); $atp=LearningSequenceService::create(['curriculum_version_id'=>$this->versionId,'unit_id'=>$this->unitId,'subject_id'=>$this->subjectId,'grade_level_id'=>$this->gradeId,'code'=>'ATP-PACK','name'=>'ATP Pack','phase'=>'E']); $pack=LearningPackService::create(['curriculum_version_id'=>$this->versionId,'unit_id'=>$this->unitId,'subject_id'=>$this->subjectId,'grade_level_id'=>$this->gradeId,'code'=>'PACK-1','name'=>'Paket 1']); LearningPackService::attachObjective($pack['uuid'],$tp['uuid']); LearningPackService::attachSequence($pack['uuid'],$atp['uuid']); $this->assertSame(1,$this->db->table('subject_learning_pack_objectives')->countAllResults()); $this->assertSame(1,$this->db->table('subject_learning_pack_sequences')->countAllResults()); }
+}
+

@@ -1,0 +1,7 @@
+<?php
+namespace Tests\Database;
+use App\Database\Seeds\CoreSeeder; use App\Services\CurriculumCoverageService; use App\Services\LearningPackService; use App\Services\LearningSequenceService; use CodeIgniter\Test\CIUnitTestCase; use Tests\Support\EducationFoundationFixtureTrait; use Tests\Support\IsolatedDatabaseTestTrait;
+final class CurriculumCoverageTest extends CIUnitTestCase { use IsolatedDatabaseTestTrait, EducationFoundationFixtureTrait; protected $migrate=true; protected $namespace='App'; protected $seed=CoreSeeder::class; protected function setUp():void { parent::setUp(); $this->seedEducationFoundationFixture(); }
+public function testCoverageReportsMissingThenComplete():void { $tp=$this->createTestObjective(); $first=CurriculumCoverageService::analyze($this->versionId,$this->unitId,$this->subjectId,$this->gradeId); $this->assertCount(1,$first['missing']); $atp=LearningSequenceService::create(['curriculum_version_id'=>$this->versionId,'unit_id'=>$this->unitId,'subject_id'=>$this->subjectId,'grade_level_id'=>$this->gradeId,'code'=>'ATP-COV','name'=>'Coverage','phase'=>'E']); LearningSequenceService::addItem($atp['uuid'],$tp['uuid']); LearningPackService::create(['curriculum_version_id'=>$this->versionId,'unit_id'=>$this->unitId,'subject_id'=>$this->subjectId,'grade_level_id'=>$this->gradeId,'code'=>'PACK-COV','name'=>'Pack']); $last=CurriculumCoverageService::analyze($this->versionId,$this->unitId,$this->subjectId,$this->gradeId); $this->assertTrue($last['is_complete']); }
+}
+
