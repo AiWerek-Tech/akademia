@@ -5,7 +5,7 @@
 <?php if (session('error')): ?><div class="alert alert-danger"><?= esc(session('error')) ?></div><?php endif ?>
 <?php if (session('success')): ?><div class="alert alert-success"><?= esc(session('success')) ?></div><?php endif ?>
 <div class="row g-2 mb-4">
-<?php foreach ([['context','Konteks Sekolah','building-2'],['vision-goals','Visi, Misi & Tujuan','telescope'],['organization','Organisasi Pembelajaran','layers-3'],['evaluation','Evaluasi & Perbaikan','chart-no-axes-combined']] as [$path,$label,$icon]): ?>
-<div class="col-md-3"><a class="btn btn-outline-secondary w-100 text-start py-3" href="<?= base_url('education/ksp/'.$version['uuid'].'/'.$path) ?>"><i data-lucide="<?= $icon ?>" class="me-1"></i> <?= $label ?></a></div>
+<?php foreach ([['context','Konteks Sekolah','building-2'],['vision-goals','Visi, Misi & Tujuan','telescope'],['organization','Organisasi Pembelajaran','layers-3'],['evaluation','Evaluasi & Perbaikan','chart-no-axes-combined'],['evidence','Evidence','paperclip'],['compliance','Kepatuhan','shield-check'],['documents','Dokumen','file-output']] as [$path,$label,$icon]): ?>
+<div class="col-md-4 col-xl"><a class="btn btn-outline-secondary w-100 text-start py-3" href="<?= base_url('education/ksp/'.$version['uuid'].'/'.$path) ?>"><i data-lucide="<?= $icon ?>" class="me-1"></i> <?= $label ?></a></div>
 <?php endforeach ?>
 </div>

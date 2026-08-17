@@ -11,14 +11,14 @@ Dokumen ini adalah sumber status implementasi. Blueprint pada `docs/WMVAA_Academ
 - Control Center IALOS menyesuaikan persona platform, pimpinan, kurikulum, guru, dan viewer.
 - Menu berada dalam kategori `IALOS Education`; setiap domain memiliki route dan halaman terpisah, bukan satu halaman bertab.
 - Phase 1 Education Foundation: registry regulasi, sumber kurikulum, delapan dimensi profil lulusan, CP/elemen, TP/kriteria/lineage adaptasi, ATP/workflow/clone, coverage, paket pembelajaran, dan staged import.
-- Digital KSP foundation: versi KSP per unit/periode, sembilan checklist bagian, konteks sekolah, visi-misi-tujuan, organisasi pembelajaran, evaluasi periodik, improvement action beserta owner/due date/success indicator, readiness, lifecycle review/approval/lock/supersede, optimistic concurrency, audit, dan immutability setelah draft.
+- Digital KSP Phase 2 final: versi KSP per unit/periode, sembilan checklist bagian, konteks sekolah, visi-misi-tujuan, organisasi pembelajaran, evaluasi periodik, improvement action beserta owner/due date/success indicator, evidence/provenance, typed compliance preview terintegrasi Regulation Registry, readiness, lifecycle review/approval/lock/supersede, optimistic concurrency, audit, immutability setelah draft, serta historical DOCX/PDF generation.
 
 ## Status roadmap blueprint
 
 | Fase | Status | Catatan |
 |---|---|---|
 | 1. Fondasi pendidikan | Selesai | Domain, provenance, workflow, coverage, import, UI, dan test tersedia. |
-| 2. Digital KSP | Berjalan | Fondasi, workflow inti, evaluasi, dan improvement action tersedia; generator dokumen/PDF serta evidence attachment belum lengkap. |
+| 2. Digital KSP | Selesai | Empat exit area final closure lulus: compliance, evidence/provenance, immutable DOCX/PDF generation, dan pilot/browser acceptance end-to-end. |
 | 3. Teaching & Learning Engine | Belum lengkap | Modul ajar, jurnal, dan kehadiran yang sudah ada perlu disatukan ke model evidence blueprint. |
 | 4. Assessment & Mastery | Belum dimulai | Gradebook, mastery, remediation, dan reporting belum diimplementasikan sebagai domain IALOS. |
 | 5. Kokurikuler | Belum dimulai | Workflow proyek dan evidence belum tersedia. |
@@ -36,17 +36,20 @@ Jalankan migrasi dan seeder dalam maintenance window:
 php spark migrate
 php spark db:seed EducationFoundationSeeder
 php spark db:seed NumeracyImprovementActionSeeder
+php spark db:seed Phase2KspPilotSeeder
 ```
 
 `EducationFoundationSeeder` juga memasang permission Digital KSP secara idempotent. Setelah deploy, verifikasi role mapping pada halaman Role & Permission sebelum digunakan pengguna produksi.
 
 ## Verifikasi build ini
 
-- Focused IALOS Education: 27 test, 87 assertion, lulus.
-- Full regression IALOS Education: 287 test, 1.114 assertion, lulus tanpa error/failure.
-- Composer strict validation dan PHP syntax lint: lulus.
+- Focused Phase 2 closure: 16 test, 128 assertion, lulus.
+- Full regression IALOS Education: 303 test, 1.242 assertion, lulus tanpa error/failure (baseline sebelumnya 287/1.114).
+- Composer strict validation, Composer security audit, lint 569 file PHP, dan `git diff --check`: lulus.
+- Full migrate → rollback → reapply pada database disposable: 118 → 1 → 118 tabel, lulus.
 - Seluruh route IALOS/KSP membawa filter autentikasi, unit access, password-change guard, dan permission domain.
-- Browser smoke unauthenticated: route terlindungi mengarah ke login dan login render normal.
+- Pilot nyata `SMP Advent Sogokmo` / `KSP-SMP-2026-2027` / Semester Ganjil 2026/2027: context, evidence file+hash, VMG, organisasi, evaluasi, improvement action, compliance, REVIEW→APPROVED→LOCKED, DOCX, dan PDF lulus melalui browser lokal.
+- DOCX dibuka melalui Microsoft Word dan diperiksa visual 9 halaman; PDF dirender dan diperiksa visual 5 halaman tanpa clipping/overflow.
 
 ## Prinsip kelanjutan
 

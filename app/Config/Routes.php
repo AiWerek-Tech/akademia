@@ -168,6 +168,14 @@ $routes->get('education/ksp/(:segment)/evaluation', 'DigitalKspController::evalu
 $routes->post('education/ksp/(:segment)/evaluation', 'DigitalKspController::storeEvaluation/$1', ['filter' => 'permission:ksp.manage']);
 $routes->post('education/ksp/(:segment)/evaluation/(:segment)/actions', 'DigitalKspController::storeImprovementAction/$1/$2', ['filter' => 'permission:ksp.manage']);
 $routes->post('education/ksp/(:segment)/improvement-actions/(:segment)', 'DigitalKspController::updateImprovementAction/$1/$2', ['filter' => 'permission:ksp.manage']);
+$routes->get('education/ksp/(:segment)/compliance', 'DigitalKspController::compliance/$1', ['filter' => 'permission:ksp.view']);
+$routes->post('education/ksp/(:segment)/compliance', 'DigitalKspController::runCompliance/$1', ['filter' => 'permission:ksp.review']);
+$routes->get('education/ksp/(:segment)/evidence', 'DigitalKspController::evidence/$1', ['filter' => 'permission:ksp.view']);
+$routes->post('education/ksp/(:segment)/evidence', 'DigitalKspController::storeEvidence/$1', ['filter' => 'permission:ksp.manage']);
+$routes->get('education/ksp/(:segment)/evidence/(:segment)/download', 'DigitalKspController::downloadEvidence/$1/$2', ['filter' => 'permission:ksp.view']);
+$routes->get('education/ksp/(:segment)/documents', 'DigitalKspController::documents/$1', ['filter' => 'permission:ksp.view']);
+$routes->post('education/ksp/(:segment)/documents', 'DigitalKspController::generateDocument/$1', ['filter' => 'permission:ksp.export']);
+$routes->get('education/ksp/(:segment)/documents/(:segment)/download', 'DigitalKspController::downloadDocument/$1/$2', ['filter' => 'permission:ksp.export']);
 $routes->get('references/regulations', 'EducationFoundationController::regulations', ['filter' => 'permission:regulations.view']);
 $routes->post('references/regulations', 'EducationFoundationController::storeRegulation', ['filter' => 'permission:regulations.manage']);
 $routes->get('references/curriculum-sources', 'EducationFoundationController::sources', ['filter' => 'permission:curriculum_sources.view']);
