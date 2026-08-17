@@ -49,11 +49,21 @@ class CreateAcademicOperatingSettings extends Migration
 
     public function down(): void
     {
-        foreach (['working_days_json_snapshot', 'working_day_source', 'operating_setting_revision'] as $field) {
-            if ($this->db->fieldExists($field, 'academic_calendars')) {
-                $this->forge->dropColumn('academic_calendars', $field);
+        $this->dropColumnsIfPresent('academic_calendars', ['working_days_json_snapshot', 'working_day_source', 'operating_setting_revision']);
+        $this->forge->dropTable('academic_operating_settings', true);
+    }
+
+    private function dropColumnsIfPresent(string $table, array $columns): void
+    {
+        if (! $this->db->tableExists($table)) {
+            return;
+        }
+
+        foreach ($columns as $column) {
+            if ($this->db->fieldExists($column, $table)) {
+                $this->forge->dropColumn($table, $column);
+                $this->db->resetDataCache();
             }
         }
-        $this->forge->dropTable('academic_operating_settings', true);
     }
 }

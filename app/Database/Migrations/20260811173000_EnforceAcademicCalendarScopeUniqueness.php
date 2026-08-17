@@ -22,12 +22,17 @@ class EnforceAcademicCalendarScopeUniqueness extends Migration
 
     public function down(): void
     {
+        if (! $this->db->tableExists('academic_calendars')) {
+            return;
+        }
+
         $indexes = $this->db->getIndexData('academic_calendars');
         if (isset($indexes['uq_academic_calendar_year_scope'])) {
             $this->db->query('ALTER TABLE academic_calendars DROP INDEX uq_academic_calendar_year_scope');
         }
         if ($this->db->fieldExists('unit_scope_key', 'academic_calendars')) {
             $this->forge->dropColumn('academic_calendars', 'unit_scope_key');
+            $this->db->resetDataCache();
         }
     }
 }

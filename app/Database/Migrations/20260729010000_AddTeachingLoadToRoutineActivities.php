@@ -27,6 +27,20 @@ class AddTeachingLoadToRoutineActivities extends Migration
 
     public function down()
     {
-        $this->forge->dropColumn('school_routine_activities', ['counts_as_teaching_load', 'assignment_role_default']);
+        $this->dropColumnsIfPresent('school_routine_activities', ['counts_as_teaching_load', 'assignment_role_default']);
+    }
+
+    private function dropColumnsIfPresent(string $table, array $columns): void
+    {
+        if (! $this->db->tableExists($table)) {
+            return;
+        }
+
+        foreach ($columns as $column) {
+            if ($this->db->fieldExists($column, $table)) {
+                $this->forge->dropColumn($table, $column);
+                $this->db->resetDataCache();
+            }
+        }
     }
 }

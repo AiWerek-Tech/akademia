@@ -40,9 +40,14 @@ class AddTeacherSchedulePresentationFields extends Migration
 
     public function down()
     {
+        if (! $this->db->tableExists('teachers')) {
+            return;
+        }
+
         foreach (['color_code', 'teacher_initial'] as $column) {
             if ($this->columnExists($column)) {
                 $this->forge->dropColumn('teachers', $column);
+                $this->db->resetDataCache();
             }
         }
     }

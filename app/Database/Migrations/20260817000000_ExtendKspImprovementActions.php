@@ -16,6 +16,15 @@ class ExtendKspImprovementActions extends Migration
 
     public function down()
     {
-        $this->forge->dropColumn('improvement_actions', ['owner_role_code','success_indicator']);
+        if (! $this->db->tableExists('improvement_actions')) {
+            return;
+        }
+
+        foreach (['owner_role_code', 'success_indicator'] as $column) {
+            if ($this->db->fieldExists($column, 'improvement_actions')) {
+                $this->forge->dropColumn('improvement_actions', $column);
+                $this->db->resetDataCache();
+            }
+        }
     }
 }

@@ -30,15 +30,26 @@ class AddRequiredUsernameChange extends Migration
 
     public function down()
     {
+        if (! $this->db->tableExists('users')) {
+            return;
+        }
+
         $this->db->resetDataCache();
-        $columns = $this->db->getFieldNames('users');
-        if (in_array('username_changed_at', $columns, true)) {
+        if ($this->hasColumn('users', 'username_changed_at')) {
             $this->forge->dropColumn('users', 'username_changed_at');
             $this->db->resetDataCache();
         }
-        $columns = $this->db->getFieldNames('users');
-        if (in_array('must_change_username', $columns, true)) {
+        if ($this->hasColumn('users', 'must_change_username')) {
             $this->forge->dropColumn('users', 'must_change_username');
+            $this->db->resetDataCache();
         }
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        return $this->db->query(
+            'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1',
+            [$table, $column]
+        )->getRowArray() !== null;
     }
 }

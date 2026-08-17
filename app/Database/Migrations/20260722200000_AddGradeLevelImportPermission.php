@@ -52,8 +52,15 @@ class AddGradeLevelImportPermission extends Migration
 
     public function down()
     {
+        if (!$this->db->tableExists('permissions')) {
+            return;
+        }
+
         $permission = $this->db->table('permissions')->where('code', 'grade_levels.import')->get()->getRowArray();
         if ($permission) {
+            if ($this->db->tableExists('role_permissions')) {
+                $this->db->table('role_permissions')->where('permission_id', $permission['id'])->delete();
+            }
             $this->db->table('permissions')->where('id', $permission['id'])->delete();
         }
     }

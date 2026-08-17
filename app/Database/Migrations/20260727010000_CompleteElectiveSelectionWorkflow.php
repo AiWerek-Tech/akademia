@@ -135,9 +135,27 @@ class CompleteElectiveSelectionWorkflow extends Migration
         $this->forge->dropTable('student_elective_choices', true);
         $this->forge->dropTable('student_elective_submissions', true);
         $this->forge->dropTable('elective_students', true);
-        if (in_array('curriculum_version_id', $this->db->getFieldNames('elective_periods'), true)) {
-            $this->db->query('ALTER TABLE `elective_periods` DROP FOREIGN KEY `elective_periods_curriculum_version_id_foreign`');
+        if ($this->db->tableExists('elective_periods') && $this->hasColumn('elective_periods', 'curriculum_version_id')) {
+            if ($this->hasForeignKey('elective_periods', 'elective_periods_curriculum_version_id_foreign')) {
+                $this->db->query('ALTER TABLE `elective_periods` DROP FOREIGN KEY `elective_periods_curriculum_version_id_foreign`');
+            }
             $this->forge->dropColumn('elective_periods', 'curriculum_version_id');
         }
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        return $this->db->query(
+            'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1',
+            [$table, $column]
+        )->getRowArray() !== null;
+    }
+
+    private function hasForeignKey(string $table, string $constraint): bool
+    {
+        return $this->db->query(
+            'SELECT 1 FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ? AND CONSTRAINT_TYPE = ? LIMIT 1',
+            [$table, $constraint, 'FOREIGN KEY']
+        )->getRowArray() !== null;
     }
 }

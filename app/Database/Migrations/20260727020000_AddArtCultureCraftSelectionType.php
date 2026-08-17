@@ -36,6 +36,10 @@ class AddArtCultureCraftSelectionType extends Migration
 
     public function down()
     {
+        if (! $this->db->tableExists('elective_periods')) {
+            return;
+        }
+
         $keys = $this->db->getIndexData('elective_periods');
         foreach ($keys as $key) {
             if ($key->name === 'uq_elective_period_scope_type') {
@@ -48,7 +52,17 @@ class AddArtCultureCraftSelectionType extends Migration
             $this->forge->dropColumn('elective_periods', 'selection_type');
         }
 
-        $this->db->query('ALTER TABLE `elective_periods` ADD UNIQUE INDEX `uq_elective_period_scope` (`unit_id`, `academic_year_id`, `target_grade`)');
+        $hasLegacyKey = false;
+        foreach ($this->db->getIndexData('elective_periods') as $key) {
+            if ($key->name === 'uq_elective_period_scope') {
+                $hasLegacyKey = true;
+                break;
+            }
+        }
+
+        if (! $hasLegacyKey) {
+            $this->db->query('ALTER TABLE `elective_periods` ADD UNIQUE INDEX `uq_elective_period_scope` (`unit_id`, `academic_year_id`, `target_grade`)');
+        }
     }
 
     private function hasColumn(string $table, string $column): bool

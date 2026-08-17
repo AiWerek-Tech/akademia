@@ -105,19 +105,27 @@ class UpgradeIntegratedAttendanceJournal extends Migration
     public function down()
     {
         $this->forge->dropTable('attendance_operating_settings', true);
-        foreach (['arrival_time', 'late_minutes', 'source_session_id'] as $field) {
-            if ($this->db->fieldExists($field, 'student_attendances')) {
-                $this->forge->dropColumn('student_attendances', $field);
+        $this->dropColumnsIfPresent('student_attendances', ['arrival_time', 'late_minutes', 'source_session_id']);
+        $this->dropColumnsIfPresent('attendance_sessions', ['session_type', 'routine_code', 'source_type', 'source_key', 'learning_objectives', 'learning_activity', 'assessment_summary', 'follow_up', 'revision_number', 'submitted_at', 'submitted_by', 'verified_at', 'verified_by', 'locked_at']);
+        if ($this->db->tableExists('attendance_sessions')) {
+            $this->forge->modifyColumn('attendance_sessions', [
+                'subject_id' => ['type' => 'INT', 'unsigned' => true, 'null' => false],
+                'teacher_id' => ['type' => 'BIGINT', 'unsigned' => true, 'null' => false],
+            ]);
+        }
+    }
+
+    private function dropColumnsIfPresent(string $table, array $columns): void
+    {
+        if (! $this->db->tableExists($table)) {
+            return;
+        }
+
+        foreach ($columns as $column) {
+            if ($this->db->fieldExists($column, $table)) {
+                $this->forge->dropColumn($table, $column);
+                $this->db->resetDataCache();
             }
         }
-        foreach (['session_type', 'routine_code', 'source_type', 'source_key', 'learning_objectives', 'learning_activity', 'assessment_summary', 'follow_up', 'revision_number', 'submitted_at', 'submitted_by', 'verified_at', 'verified_by', 'locked_at'] as $field) {
-            if ($this->db->fieldExists($field, 'attendance_sessions')) {
-                $this->forge->dropColumn('attendance_sessions', $field);
-            }
-        }
-        $this->forge->modifyColumn('attendance_sessions', [
-            'subject_id' => ['type' => 'INT', 'unsigned' => true, 'null' => false],
-            'teacher_id' => ['type' => 'BIGINT', 'unsigned' => true, 'null' => false],
-        ]);
     }
 }

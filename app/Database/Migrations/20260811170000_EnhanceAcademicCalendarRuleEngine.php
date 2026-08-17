@@ -105,16 +105,30 @@ class EnhanceAcademicCalendarRuleEngine extends Migration
     public function down(): void
     {
         $this->forge->dropTable('academic_calendar_rules', true);
-        foreach (['profile_id', 'effective_week_min_days', 'target_hes_sem1', 'target_hes_sem2', 'target_heb_sem1', 'target_heb_sem2', 'validation_status', 'validation_summary_json', 'generated_at'] as $field) {
-            if ($this->db->fieldExists($field, 'academic_calendars')) {
-                $this->forge->dropColumn('academic_calendars', $field);
-            }
-        }
-        foreach (['source_layer', 'source_rule_id', 'is_manual_override'] as $field) {
-            if ($this->db->fieldExists($field, 'academic_calendar_days')) {
-                $this->forge->dropColumn('academic_calendar_days', $field);
-            }
-        }
+        $this->dropColumnsIfPresent('academic_calendars', ['profile_id', 'effective_week_min_days', 'target_hes_sem1', 'target_hes_sem2', 'target_heb_sem1', 'target_heb_sem2', 'validation_status', 'validation_summary_json', 'generated_at']);
+        $this->dropColumnsIfPresent('academic_calendar_days', ['source_layer', 'source_rule_id', 'is_manual_override']);
         $this->forge->dropTable('academic_calendar_profiles', true);
+    }
+
+    private function dropColumnsIfPresent(string $table, array $columns): void
+    {
+        if (! $this->db->tableExists($table)) {
+            return;
+        }
+
+        foreach ($columns as $column) {
+            if ($this->hasColumn($table, $column)) {
+                $this->forge->dropColumn($table, $column);
+                $this->db->resetDataCache();
+            }
+        }
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        return $this->db->query(
+            'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1',
+            [$table, $column]
+        )->getRowArray() !== null;
     }
 }

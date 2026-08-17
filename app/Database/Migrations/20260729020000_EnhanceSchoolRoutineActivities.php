@@ -49,7 +49,7 @@ class EnhanceSchoolRoutineActivities extends Migration
 
     public function down()
     {
-        $this->forge->dropColumn('school_routine_activities', [
+        $this->dropColumnsIfPresent('school_routine_activities', [
             'duration_mode',
             'duration_minutes',
             'assignment_strategy',
@@ -57,5 +57,19 @@ class EnhanceSchoolRoutineActivities extends Migration
             'locked_period_start',
             'locked_period_end',
         ]);
+    }
+
+    private function dropColumnsIfPresent(string $table, array $columns): void
+    {
+        if (! $this->db->tableExists($table)) {
+            return;
+        }
+
+        foreach ($columns as $column) {
+            if ($this->db->fieldExists($column, $table)) {
+                $this->forge->dropColumn($table, $column);
+                $this->db->resetDataCache();
+            }
+        }
     }
 }
