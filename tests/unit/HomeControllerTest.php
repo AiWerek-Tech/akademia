@@ -34,7 +34,7 @@ final class HomeControllerTest extends CIUnitTestCase
             'Dashboard response status: ' . $result->response()->getStatusCode()
                 . "\n" . $result->response()->getBody()
         );
-        $this->assertStringContainsString('WMVAA Akademia', $result->response()->getBody());
+        $this->assertStringContainsString('IALOS Education', $result->response()->getBody());
         $this->assertStringContainsString('Ringkasan Akademik', $result->response()->getBody());
     }
 }

@@ -50,6 +50,15 @@ class DigitalKspService
     public static function goals(string $uuid): array { $v=self::byUuid($uuid); return Database::connect()->table('ksp_vision_mission_goals')->where('ksp_version_id',$v['id'])->orderBy('sort_order')->get()->getResultArray(); }
     public static function organizations(string $uuid): array { $v=self::byUuid($uuid); return Database::connect()->table('ksp_learning_organizations')->where('ksp_version_id',$v['id'])->orderBy('category')->get()->getResultArray(); }
     public static function evaluations(string $uuid): array { $v=self::byUuid($uuid); return Database::connect()->table('ksp_evaluations')->where('ksp_version_id',$v['id'])->orderBy('id','DESC')->get()->getResultArray(); }
+    public static function improvementActions(string $uuid): array
+    {
+        $v=self::byUuid($uuid);
+        return Database::connect()->table('improvement_actions ia')
+            ->select('ia.*,ke.uuid AS evaluation_uuid,ke.objective AS evaluation_objective,u.full_name AS owner_name')
+            ->join('ksp_evaluations ke','ke.id=ia.ksp_evaluation_id')
+            ->join('users u','u.id=ia.owner_user_id','left')
+            ->where('ke.ksp_version_id',$v['id'])->orderBy('ia.due_date','ASC')->get()->getResultArray();
+    }
 
     public static function addContext(string $uuid,array $data): array
     {
@@ -74,6 +83,49 @@ class DigitalKspService
     {
         EducationFoundationService::requireFields($data,['evaluation_period','objective']); $v=self::mutable($uuid);
         return self::insertChild('ksp_evaluations',$v,['evaluation_period'=>trim($data['evaluation_period']),'objective'=>trim($data['objective']),'target_value'=>$data['target_value']??null,'actual_value'=>$data['actual_value']??null,'finding'=>$data['finding']??null,'root_cause'=>$data['root_cause']??null,'decision'=>$data['decision']??null,'status'=>'DRAFT'],'ADD_EVALUATION','EVALUATION');
+    }
+
+    public static function addImprovementAction(string $uuid,string $evaluationUuid,array $data): array
+    {
+        EducationFoundationService::requireFields($data,['title','due_date','success_indicator']);
+        $version=self::mutable($uuid); $db=Database::connect();
+        $evaluation=$db->table('ksp_evaluations')->where(['uuid'=>$evaluationUuid,'ksp_version_id'=>$version['id']])->get()->getRowArray();
+        if(!$evaluation) throw new InvalidArgumentException('Evaluasi KSP tidak ditemukan pada versi ini.');
+        $status=strtoupper((string)($data['status']??'OPEN'));
+        if(!in_array($status,['OPEN','IN_PROGRESS','COMPLETED','CANCELLED'],true)) throw new InvalidArgumentException('Status tindak lanjut tidak valid.');
+        $dueDate=(string)$data['due_date']; $date=\DateTimeImmutable::createFromFormat('!Y-m-d',$dueDate);
+        if(!$date || $date->format('Y-m-d')!==$dueDate) throw new InvalidArgumentException('Tanggal jatuh tempo tidak valid.');
+        $ownerUserId=!empty($data['owner_user_id'])?(int)$data['owner_user_id']:null;
+        $ownerRoleCode=trim((string)($data['owner_role_code']??''))?:null;
+        if(!$ownerUserId && !$ownerRoleCode) throw new InvalidArgumentException('Pemilik user atau role tindak lanjut wajib ditentukan.');
+        if($ownerRoleCode && !$db->table('roles')->where('code',$ownerRoleCode)->get()->getRowArray()) throw new InvalidArgumentException('Role pemilik tindak lanjut tidak valid.');
+        if($ownerUserId) {
+            $active=$db->table('users')->where(['id'=>$ownerUserId,'is_active'=>1])->get()->getRowArray();
+            $unitAccess=$db->table('user_unit_access')->where(['user_id'=>$ownerUserId,'unit_id'=>$version['unit_id']])->countAllResults();
+            $roleAccess=$db->table('user_roles')->where('user_id',$ownerUserId)->groupStart()->where('unit_id',$version['unit_id'])->orWhere('unit_id IS NULL')->groupEnd()->countAllResults();
+            if(!$active || ($unitAccess===0 && $roleAccess===0)) throw new InvalidArgumentException('Pemilik tindak lanjut tidak aktif atau tidak memiliki akses ke unit KSP.');
+        }
+        $record=['uuid'=>UuidService::v4(),'ksp_evaluation_id'=>$evaluation['id'],'unit_id'=>$version['unit_id'],'title'=>trim($data['title']),'description'=>trim((string)($data['description']??''))?:null,'owner_user_id'=>$ownerUserId,'owner_role_code'=>$ownerRoleCode,'due_date'=>$dueDate,'success_indicator'=>trim($data['success_indicator']),'status'=>$status,'revision_number'=>1,'created_by'=>EducationFoundationService::actorId(),'created_at'=>date('Y-m-d H:i:s')];
+        $db->transBegin();
+        try {
+            $db->table('improvement_actions')->insert($record); $id=(int)$db->insertID();
+            AuditService::log('ksp','ADD_IMPROVEMENT_ACTION','ImprovementAction',$id,null,$record,null,$record['uuid']);
+            if($db->transStatus()===false) throw new RuntimeException('Tindak lanjut perbaikan gagal disimpan.');
+            $db->transCommit(); return $db->table('improvement_actions')->where('id',$id)->get()->getRowArray();
+        } catch(\Throwable $e) { $db->transRollback(); throw $e; }
+    }
+
+    public static function updateImprovementAction(string $uuid,string $actionUuid,array $data): array
+    {
+        $version=self::mutable($uuid); $db=Database::connect();
+        $current=$db->table('improvement_actions ia')->select('ia.*')->join('ksp_evaluations ke','ke.id=ia.ksp_evaluation_id')->where(['ia.uuid'=>$actionUuid,'ke.ksp_version_id'=>$version['id']])->get()->getRowArray();
+        if(!$current) throw new InvalidArgumentException('Tindak lanjut tidak ditemukan pada versi KSP ini.');
+        $status=strtoupper((string)($data['status']??''));
+        if(!in_array($status,['OPEN','IN_PROGRESS','COMPLETED','CANCELLED'],true)) throw new InvalidArgumentException('Status tindak lanjut tidak valid.');
+        $current['revision_number']=(int)($data['revision_number']??0);
+        $updated=EducationFoundationService::atomicUpdate('improvement_actions',$current,['status'=>$status,'outcome'=>trim((string)($data['outcome']??''))?:null]);
+        AuditService::log('ksp','UPDATE_IMPROVEMENT_ACTION','ImprovementAction',(int)$current['id'],$current,$updated,null,$actionUuid);
+        return $updated;
     }
 
     public static function updateSection(string $uuid, string $sectionCode, array $data): array

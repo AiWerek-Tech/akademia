@@ -27,13 +27,15 @@ class DigitalKspController extends BaseController
     public function context(string $uuid) { return $this->page($uuid, 'context', ['rows' => DigitalKspService::context($uuid)]); }
     public function visionGoals(string $uuid) { return $this->page($uuid, 'vision_goals', ['rows' => DigitalKspService::goals($uuid)]); }
     public function organization(string $uuid) { return $this->page($uuid, 'organization', ['rows' => DigitalKspService::organizations($uuid)]); }
-    public function evaluation(string $uuid) { return $this->page($uuid, 'evaluation', ['rows' => DigitalKspService::evaluations($uuid)]); }
+    public function evaluation(string $uuid) { return $this->page($uuid, 'evaluation', ['rows' => DigitalKspService::evaluations($uuid),'actions'=>DigitalKspService::improvementActions($uuid)]); }
 
     public function store() { return $this->run(fn () => DigitalKspService::createVersion($this->request->getPost()), '/education/ksp', 'Draft KSP berhasil dibuat.'); }
     public function storeContext(string $uuid) { return $this->run(fn () => DigitalKspService::addContext($uuid, $this->request->getPost()), "/education/ksp/{$uuid}/context", 'Konteks sekolah berhasil disimpan.'); }
     public function storeGoal(string $uuid) { return $this->run(fn () => DigitalKspService::addGoal($uuid, $this->request->getPost()), "/education/ksp/{$uuid}/vision-goals", 'Pernyataan visi, misi, atau tujuan berhasil disimpan.'); }
     public function storeOrganization(string $uuid) { return $this->run(fn () => DigitalKspService::addOrganization($uuid, $this->request->getPost()), "/education/ksp/{$uuid}/organization", 'Organisasi pembelajaran berhasil disimpan.'); }
     public function storeEvaluation(string $uuid) { return $this->run(fn () => DigitalKspService::addEvaluation($uuid, $this->request->getPost()), "/education/ksp/{$uuid}/evaluation", 'Evaluasi KSP berhasil disimpan.'); }
+    public function storeImprovementAction(string $uuid,string $evaluationUuid) { return $this->run(fn () => DigitalKspService::addImprovementAction($uuid,$evaluationUuid,$this->request->getPost()), "/education/ksp/{$uuid}/evaluation", 'Tindak lanjut perbaikan berhasil disimpan.'); }
+    public function updateImprovementAction(string $uuid,string $actionUuid) { return $this->run(fn () => DigitalKspService::updateImprovementAction($uuid,$actionUuid,$this->request->getPost()), "/education/ksp/{$uuid}/evaluation", 'Status tindak lanjut berhasil diperbarui.'); }
     public function updateSection(string $uuid, string $section) { return $this->run(fn () => DigitalKspService::updateSection($uuid, $section, $this->request->getPost()), "/education/ksp/{$uuid}", 'Kesiapan bagian KSP berhasil diperbarui.'); }
 
     public function transition(string $uuid)

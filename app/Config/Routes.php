@@ -166,6 +166,8 @@ $routes->get('education/ksp/(:segment)/organization', 'DigitalKspController::org
 $routes->post('education/ksp/(:segment)/organization', 'DigitalKspController::storeOrganization/$1', ['filter' => 'permission:ksp.manage']);
 $routes->get('education/ksp/(:segment)/evaluation', 'DigitalKspController::evaluation/$1', ['filter' => 'permission:ksp.view']);
 $routes->post('education/ksp/(:segment)/evaluation', 'DigitalKspController::storeEvaluation/$1', ['filter' => 'permission:ksp.manage']);
+$routes->post('education/ksp/(:segment)/evaluation/(:segment)/actions', 'DigitalKspController::storeImprovementAction/$1/$2', ['filter' => 'permission:ksp.manage']);
+$routes->post('education/ksp/(:segment)/improvement-actions/(:segment)', 'DigitalKspController::updateImprovementAction/$1/$2', ['filter' => 'permission:ksp.manage']);
 $routes->get('references/regulations', 'EducationFoundationController::regulations', ['filter' => 'permission:regulations.view']);
 $routes->post('references/regulations', 'EducationFoundationController::storeRegulation', ['filter' => 'permission:regulations.manage']);
 $routes->get('references/curriculum-sources', 'EducationFoundationController::sources', ['filter' => 'permission:curriculum_sources.view']);
