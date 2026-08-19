@@ -117,6 +117,22 @@ class LessonPlanController extends BaseController
         return $this->run(fn () => LessonPlanService::addAssessment($uuid, $this->request->getPost()), $uuid, 'assessments', 'Asesmen berhasil ditambahkan.');
     }
 
+    public function addRubric(string $uuid, string $assessmentUuid)
+    {
+        return $this->run(fn () => LessonPlanService::addRubric($assessmentUuid, $this->request->getPost()), $uuid, 'assessments', 'Rubrik berhasil ditambahkan.');
+    }
+
+    public function linkActivityResource(string $uuid, string $activityUuid)
+    {
+        return $this->run(fn () => LessonPlanService::linkActivityResource($activityUuid, $this->request->getPost()), $uuid, 'activities', 'Resource berhasil ditautkan.');
+    }
+
+    public function validatePlan(string $uuid)
+    {
+        $result = LessonPlanService::validatePlan($uuid);
+        return $this->response->setJSON($result);
+    }
+
     public function transition(string $uuid)
     {
         $target = strtoupper((string) $this->request->getPost('target_status'));
@@ -124,6 +140,12 @@ class LessonPlanController extends BaseController
         $perm = $permMap[$target] ?? '';
         if ($perm === '' || ! has_permission($perm)) {
             return $this->response->setStatusCode(403)->setJSON(['ok' => false, 'error' => 'Hak akses tidak cukup.']);
+        }
+        if ($target === 'READY') {
+            $validation = LessonPlanService::validatePlan($uuid);
+            if (! $validation['valid']) {
+                return $this->response->setStatusCode(422)->setJSON(['ok' => false, 'errors' => $validation['errors'], 'error' => 'Rencana belum lengkap.']);
+            }
         }
         return $this->run(fn () => LessonPlanService::transition($uuid, $target, (int) $this->request->getPost('revision_number')), $uuid, 'overview', 'Status rencana pembelajaran berhasil diperbarui.');
     }

@@ -217,6 +217,26 @@ $tabs = [
     </div>
     <?php endif ?>
     <?= view('lesson_plans/_simple_table', ['headers' => ['Tujuan', 'Metode', 'Kriteria', 'Catatan'], 'rows' => array_map(fn ($a) => [esc($a['assessment_purpose']), esc($a['recommended_method']), esc($a['criteria_reference'] ?? '-'), esc($a['notes'] ?? '-')], $assessments)]) ?>
+    <?php if (! empty($assessments) && $canManage): ?>
+    <div class="card border-0 shadow-sm rounded-4 mt-4 mb-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3">Tambah Rubrik Kriteria</h5>
+            <form method="post" class="row g-3">
+                <?= csrf_field() ?>
+                <div class="col-md-4">
+                    <select class="form-select" name="assessment_uuid" required>
+                        <option value="">Pilih asesmen</option>
+                        <?php foreach ($assessments as $a): ?>
+                            <option value="<?= esc($a['uuid']) ?>"><?= esc($a['assessment_purpose'] . ' — ' . $a['recommended_method']) ?></option>
+                        <?php endforeach ?>
+                    </select>
+                </div>
+                <div class="col-md-6"><input class="form-control" name="criterion_description" placeholder="Deskripsi kriteria penilaian" required></div>
+                <div class="col-md-2"><button class="btn btn-primary w-100" formaction="<?= base_url('lesson-plans/' . $plan['uuid'] . '/assessments') ?>">Simpan</button></div>
+            </form>
+        </div>
+    </div>
+    <?php endif ?>
 
 <?php endif ?>
 

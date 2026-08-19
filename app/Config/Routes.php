@@ -244,6 +244,9 @@ $routes->post('lesson-plans/(:segment)/activities', 'LessonPlanController::addAc
 $routes->post('lesson-plans/(:segment)/assessments', 'LessonPlanController::addAssessment/$1', ['filter' => 'permission:lesson_plans.manage']);
 $routes->post('lesson-plans/(:segment)/transition', 'LessonPlanController::transition/$1', ['filter' => 'permission:lesson_plans.manage']);
 $routes->post('lesson-plans/(:segment)/clone', 'LessonPlanController::clonePlan/$1', ['filter' => 'permission:lesson_plans.clone']);
+$routes->post('lesson-plans/(:segment)/assessments/(:segment)/rubrics', 'LessonPlanController::addRubric/$1/$2', ['filter' => 'permission:lesson_plans.manage']);
+$routes->post('lesson-plans/(:segment)/activities/(:segment)/resources', 'LessonPlanController::linkActivityResource/$1/$2', ['filter' => 'permission:lesson_plans.manage']);
+$routes->get('lesson-plans/(:segment)/validate', 'LessonPlanController::validatePlan/$1', ['filter' => 'permission:lesson_plans.view']);
 
 $routes->get('curriculum', 'CurriculumController::index');
 $routes->get('curriculum/create', 'CurriculumController::create');

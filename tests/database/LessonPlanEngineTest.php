@@ -199,6 +199,80 @@ final class LessonPlanEngineTest extends CIUnitTestCase
         }
     }
 
+    public function testAddRubricToAssessment(): void
+    {
+        $plan = $this->createMinimalPlan();
+        $assessment = LessonPlanService::addAssessment($plan['uuid'], [
+            'assessment_purpose' => 'FORMATIVE',
+            'recommended_method' => 'Rubrik penilaian',
+        ]);
+
+        $rubric = LessonPlanService::addRubric($assessment['uuid'], [
+            'criterion_description' => 'Kemampuan menuliskan pseudocode',
+            'rubric_levels' => [
+                ['level' => 4, 'description' => 'Lengkap dan benar', 'score' => '90-100'],
+                ['level' => 3, 'description' => 'Hampir lengkap', 'score' => '70-89'],
+                ['level' => 2, 'description' => 'Sebagian benar', 'score' => '50-69'],
+                ['level' => 1, 'description' => 'Belum memahami', 'score' => '0-49'],
+            ],
+            'sequence_order' => 1,
+        ]);
+
+        $this->assertGreaterThan(0, (int) $rubric['id']);
+        $this->assertSame('Kemampuan menuliskan pseudocode', $rubric['criterion_description']);
+        $levels = json_decode((string) $rubric['rubric_levels'], true);
+        $this->assertCount(4, $levels);
+        $this->assertSame(4, $levels[0]['level']);
+    }
+
+    public function testLinkActivityResource(): void
+    {
+        $plan = $this->createMinimalPlan();
+        $activity = LessonPlanService::addActivity($plan['uuid'], [
+            'custom_title' => 'Praktik spreadsheet',
+            'delivery_mode' => 'PLUGGED',
+            'estimated_minutes' => 45,
+        ]);
+
+        $resource = LessonPlanService::linkActivityResource($activity['uuid'], [
+            'custom_description' => 'Komputer/laptop kelompok',
+            'quantity' => 8,
+            'is_required' => 1,
+        ]);
+
+        $this->assertGreaterThan(0, (int) $resource['id']);
+        $this->assertSame('Komputer/laptop kelompok', $resource['custom_description']);
+        $this->assertSame(8, (int) $resource['quantity']);
+    }
+
+    public function testPlanValidationFailsOnIncompletePlan(): void
+    {
+        $plan = $this->createMinimalPlan();
+        $result = LessonPlanService::validatePlan($plan['uuid']);
+
+        $this->assertFalse($result['valid']);
+        $this->assertContains('identification_notes_missing', $result['errors']);
+        $this->assertContains('no_objectives', $result['errors']);
+        $this->assertContains('no_stages', $result['errors']);
+        $this->assertContains('no_activities', $result['errors']);
+        $this->assertContains('no_assessments', $result['errors']);
+    }
+
+    public function testPlanValidationPassesOnCompletePlan(): void
+    {
+        $plan = $this->createMinimalPlan();
+        $objective = $this->createTestObjective();
+        LessonPlanService::addObjective($plan['uuid'], $objective['uuid']);
+        LessonPlanService::addStage($plan['uuid'], ['stage_type' => 'MEMAHAMI', 'estimated_minutes' => 10]);
+        LessonPlanService::addActivity($plan['uuid'], ['custom_title' => 'Diskusi', 'delivery_mode' => 'DISCUSSION', 'estimated_minutes' => 30]);
+        LessonPlanService::addAssessment($plan['uuid'], ['assessment_purpose' => 'FORMATIVE', 'recommended_method' => 'Observasi']);
+        LessonPlanService::updateDesign($plan['uuid'], ['identification_notes' => 'Kelas X, fase E']);
+
+        $result = LessonPlanService::validatePlan($plan['uuid']);
+        $this->assertTrue($result['valid']);
+        $this->assertEmpty($result['errors']);
+    }
+
     private function createMinimalPlan(): array
     {
         return LessonPlanService::create([

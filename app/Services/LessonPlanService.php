@@ -374,6 +374,84 @@ class LessonPlanService
         ];
     }
 
+    // ---- Rubric methods ----
+
+    /**
+     * Add an assessment rubric criterion.
+     */
+    public static function addRubric(string $assessmentUuid, array $data): array
+    {
+        $assessment = EducationFoundationService::byUuid('lesson_plan_assessments', $assessmentUuid);
+        $plan = self::planById((int) $assessment['lesson_plan_id']);
+
+        $rubricLevels = null;
+        if (isset($data['rubric_levels'])) {
+            $rubricLevels = is_string($data['rubric_levels']) ? $data['rubric_levels'] : json_encode($data['rubric_levels'], JSON_UNESCAPED_UNICODE);
+        }
+
+        return self::insert('lesson_plan_assessment_rubrics', [
+            'lesson_plan_assessment_id' => (int) $assessment['id'],
+            'criterion_description' => trim((string) ($data['criterion_description'] ?? '')),
+            'rubric_levels' => $rubricLevels,
+            'sequence_order' => (int) ($data['sequence_order'] ?? 1),
+        ], 'ADD_RUBRIC', $plan['uuid']);
+    }
+
+    // ---- Activity resource methods ----
+
+    /**
+     * Link a resource to an activity.
+     */
+    public static function linkActivityResource(string $activityUuid, array $data): array
+    {
+        $activity = EducationFoundationService::byUuid('lesson_plan_activities', $activityUuid);
+        $plan = self::planById((int) $activity['lesson_plan_id']);
+
+        return self::insert('lesson_plan_activity_resources', [
+            'lesson_plan_activity_id' => (int) $activity['id'],
+            'learning_resource_id' => isset($data['learning_resource_id']) ? (int) $data['learning_resource_id'] : null,
+            'custom_description' => $data['custom_description'] ?? null,
+            'quantity' => (int) ($data['quantity'] ?? 1),
+            'is_required' => ! empty($data['is_required']) ? 1 : 0,
+        ], 'LINK_ACTIVITY_RESOURCE', $plan['uuid']);
+    }
+
+    // ---- Plan validation ----
+
+    /**
+     * Validate a plan is complete enough to transition to READY.
+     */
+    public static function validatePlan(string $planUuid): array
+    {
+        $plan = self::planByUuid($planUuid);
+        $db = Database::connect();
+        $planId = (int) $plan['id'];
+
+        $objectives = $db->table('lesson_plan_objectives')->where('lesson_plan_id', $planId)->countAllResults();
+        $stages = $db->table('lesson_plan_stages')->where('lesson_plan_id', $planId)->countAllResults();
+        $activities = $db->table('lesson_plan_activities')->where('lesson_plan_id', $planId)->countAllResults();
+        $assessments = $db->table('lesson_plan_assessments')->where('lesson_plan_id', $planId)->countAllResults();
+
+        $errors = [];
+        if (empty($plan['identification_notes'])) {
+            $errors[] = 'identification_notes_missing';
+        }
+        if ($objectives === 0) {
+            $errors[] = 'no_objectives';
+        }
+        if ($stages === 0) {
+            $errors[] = 'no_stages';
+        }
+        if ($activities === 0) {
+            $errors[] = 'no_activities';
+        }
+        if ($assessments === 0) {
+            $errors[] = 'no_assessments';
+        }
+
+        return ['valid' => $errors === [], 'errors' => $errors];
+    }
+
     // ---- Internal helpers ----
 
     private static function planByUuid(string $uuid, bool $assertUnit = true): array
@@ -383,6 +461,16 @@ class LessonPlanService
             UnitScopeService::assertUnit((int) $plan['unit_id']);
         }
         return $plan;
+    }
+
+    private static function planById(int $id): array
+    {
+        $row = Database::connect()->table('lesson_plans')->where('id', $id)->get()->getRowArray();
+        if (! $row) {
+            throw new RuntimeException('Lesson plan tidak ditemukan.');
+        }
+        UnitScopeService::assertUnit((int) $row['unit_id']);
+        return $row;
     }
 
     private static function mutablePlan(string $uuid): array
