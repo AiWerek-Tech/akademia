@@ -287,6 +287,12 @@ $routes->post('teaching/session/(:segment)/observations/(:segment)/delete', 'Tea
 $routes->post('teaching/session/(:segment)/attendance/quick', 'TeachingWorkspaceController::quickAttendance/$1', ['filter' => 'permission:teaching.teach']);
 $routes->post('teaching/session/(:segment)/link-plan', 'TeachingWorkspaceController::linkPlan/$1', ['filter' => 'permission:teaching.teach']);
 
+// Attendance History & Reports
+$routes->get('teaching/attendance/history', 'TeachingWorkspaceController::attendanceHistory', ['filter' => 'permission:teaching.workspace']);
+$routes->get('teaching/attendance/recap', 'TeachingWorkspaceController::attendanceRecap', ['filter' => 'permission:teaching.workspace']);
+$routes->get('teaching/attendance/offline', 'TeachingWorkspaceController::offlineAttendance', ['filter' => 'permission:teaching.teach']);
+$routes->post('teaching/attendance/offline/save', 'TeachingWorkspaceController::saveOfflineAttendance', ['filter' => 'permission:teaching.teach']);
+
 // Assessment & Mastery Module (Phase 6)
 $routes->get('assessment', 'AssessmentController::index', ['filter' => 'permission:assessment.view']);
 $routes->get('assessment/create', 'AssessmentController::create', ['filter' => 'permission:assessment.manage']);
