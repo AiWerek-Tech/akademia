@@ -54,6 +54,21 @@ class TeacherAttendanceController extends BaseController
 
     public function index()
     {
+        // Phase 5 consolidation: redirect to new Teaching Workspace
+        $date = trim((string) $this->request->getGet('date')) ?: date('Y-m-d');
+        $teacherId = $this->resolveTeacherId();
+        $url = base_url('teaching/today?date=' . urlencode($date));
+        if ($teacherId > 0) {
+            $url .= '&teacher_id=' . $teacherId;
+        }
+        return redirect()->to($url)->with('info', 'Halaman Absensi & Jurnal telah dipindahkan ke Ruang Mengajar (Teaching Workspace). Semua data presensi sebelumnya tetap tersimpan dan dapat diakses dari sana.');
+    }
+
+    /**
+     * @deprecated Use TeachingWorkspaceController::initSession() or ::session() instead.
+     */
+    public function indexLegacy()
+    {
         if (!has_permission('teacher_attendance.view') && !has_permission('attendances.record')) {
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki akses ke Absensi & Jurnal.');
         }
@@ -100,6 +115,31 @@ class TeacherAttendanceController extends BaseController
     }
 
     public function form($sessionId = null)
+    {
+        // Phase 5: redirect new attendance creation to Teaching Workspace
+        if (empty($sessionId)) {
+            $date = trim((string) $this->request->getGet('date')) ?: date('Y-m-d');
+            return redirect()->to(base_url('teaching/today?date=' . urlencode($date)))
+                ->with('info', 'Pencatatan presensi baru kini melalui Ruang Mengajar. Klik \"Mulai Pembelajaran\" pada jadwal yang sesuai.');
+        }
+
+        // For existing legacy sessions, show a bridge view that links to new system
+        $legacySession = \App\Services\TeachingWorkspaceService::findLegacyAttendanceSession((int) $sessionId);
+        if ($legacySession) {
+            return view('teaching/legacy_bridge', [
+                'title'             => 'Data Presensi Lama',
+                'breadcrumb_active' => 'Data Presensi Lama',
+                'legacySession'     => $legacySession,
+            ]);
+        }
+
+        return redirect()->to('/teaching/today')->with('error', 'Data presensi tidak ditemukan.');
+    }
+
+    /**
+     * @deprecated Internal use — legacy form handler kept for backward compat.
+     */
+    public function formLegacy($sessionId = null)
     {
         if (!has_permission('attendances.record') && !has_permission('teacher_attendance.view')) {
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak menginput presensi.');

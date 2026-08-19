@@ -155,6 +155,8 @@ class Filters extends BaseConfig
                 'my-electives/*',
                 'portal',
                 'portal/*',
+                'teaching',
+                'teaching/*',
             ]
         ],
         'unit_access' => [
@@ -219,6 +221,8 @@ class Filters extends BaseConfig
                 'my-electives/*',
                 'portal',
                 'portal/*',
+                'teaching',
+                'teaching/*',
             ]
         ],
         'password_change_required' => [
@@ -283,6 +287,8 @@ class Filters extends BaseConfig
                 'my-electives/*',
                 'portal',
                 'portal/*',
+                'teaching',
+                'teaching/*',
             ]
         ]
     ];

@@ -32,7 +32,7 @@ if ($mode === 'teacher') {
         $addAction($actions,'class_electives.manage','electives','list-checks','Pilihan Kelas','coral');
     }
     $addAction($actions,'teacher_schedule.view','portal/schedule','calendar-days','Jadwal','purple');
-    $addAction($actions,'teacher_attendance.view','portal/attendance','clipboard-check','Absensi','blue');
+    $addAction($actions,'teaching.workspace','teaching/today','sparkles','Mengajar','blue');
     $addAction($actions,'teacher_electives.view','portal/electives','users-round','Mapel Pilihan','coral');
     $addAction($actions,'teacher_workload.view','portal/workload','bar-chart-3','Beban Saya','amber');
 } elseif (in_array($mode, ['administration','academic'], true)) {

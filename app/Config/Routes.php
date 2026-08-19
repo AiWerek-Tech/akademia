@@ -203,18 +203,34 @@ $routes->post('curriculum/learning-packs/(:segment)/objectives', 'EducationFound
 $routes->post('curriculum/learning-packs/(:segment)/sequences', 'EducationFoundationController::attachPackSequence/$1', ['filter' => 'permission:learning_packs.manage']);
 $routes->get('curriculum/learning-packs/(:segment)', 'SubjectLearningPackController::detail/$1', ['filter' => 'permission:learning_packs.view']);
 $routes->get('curriculum/learning-packs/(:segment)/overview', 'SubjectLearningPackController::detail/$1', ['filter' => 'permission:learning_packs.view']);
+$routes->get('curriculum/learning-packs/(:segment)/structure', 'SubjectLearningPackController::structure/$1', ['filter' => 'permission:learning_packs.view']);
+$routes->post('curriculum/learning-packs/(:segment)/clone', 'SubjectLearningPackController::clonePack/$1', ['filter' => 'permission:learning_packs.clone']);
 $routes->get('curriculum/learning-packs/(:segment)/units', 'SubjectLearningPackController::units/$1', ['filter' => 'permission:learning_packs.view']);
 $routes->post('curriculum/learning-packs/(:segment)/units', 'SubjectLearningPackController::storeUnit/$1', ['filter' => 'permission:learning_units.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/units/(:segment)/update', 'SubjectLearningPackController::updateUnit/$1/$2', ['filter' => 'permission:learning_units.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/units/(:segment)/delete', 'SubjectLearningPackController::deleteUnit/$1/$2', ['filter' => 'permission:learning_units.manage']);
 $routes->get('curriculum/learning-packs/(:segment)/concepts', 'SubjectLearningPackController::concepts/$1', ['filter' => 'permission:learning_packs.view']);
 $routes->post('curriculum/learning-packs/(:segment)/concepts', 'SubjectLearningPackController::storeConcept/$1', ['filter' => 'permission:learning_units.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/concepts/(:segment)/update', 'SubjectLearningPackController::updateConcept/$1/$2', ['filter' => 'permission:learning_units.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/concepts/(:segment)/delete', 'SubjectLearningPackController::deleteConcept/$1/$2', ['filter' => 'permission:learning_units.manage']);
 $routes->get('curriculum/learning-packs/(:segment)/activities', 'SubjectLearningPackController::activities/$1', ['filter' => 'permission:learning_packs.view']);
 $routes->post('curriculum/learning-packs/(:segment)/activities', 'SubjectLearningPackController::storeActivity/$1', ['filter' => 'permission:learning_activities.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/activities/(:segment)/update', 'SubjectLearningPackController::updateActivity/$1/$2', ['filter' => 'permission:learning_activities.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/activities/(:segment)/delete', 'SubjectLearningPackController::deleteActivity/$1/$2', ['filter' => 'permission:learning_activities.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/activities/(:segment)/resources', 'SubjectLearningPackController::attachActivityResource/$1/$2', ['filter' => 'permission:learning_activities.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/activities/(:segment)/resources/(:segment)/delete', 'SubjectLearningPackController::detachActivityResource/$1/$2/$3', ['filter' => 'permission:learning_activities.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/activities/(:segment)/alternatives', 'SubjectLearningPackController::addActivityAlternative/$1/$2', ['filter' => 'permission:learning_activities.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/activities/(:segment)/experiences', 'SubjectLearningPackController::addActivityExperience/$1/$2', ['filter' => 'permission:learning_activities.manage']);
 $routes->get('curriculum/learning-packs/(:segment)/resources', 'SubjectLearningPackController::resources/$1', ['filter' => 'permission:learning_packs.view']);
 $routes->post('curriculum/learning-packs/(:segment)/resources', 'SubjectLearningPackController::storeResource/$1', ['filter' => 'permission:learning_resources.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/resources/(:segment)/update', 'SubjectLearningPackController::updateResource/$1/$2', ['filter' => 'permission:learning_resources.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/resources/(:segment)/delete', 'SubjectLearningPackController::deleteResource/$1/$2', ['filter' => 'permission:learning_resources.manage']);
 $routes->get('curriculum/learning-packs/(:segment)/assessment', 'SubjectLearningPackController::assessment/$1', ['filter' => 'permission:learning_packs.view']);
 $routes->post('curriculum/learning-packs/(:segment)/assessment', 'SubjectLearningPackController::storeAssessment/$1', ['filter' => 'permission:learning_guidance.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/assessment/(:segment)/delete', 'SubjectLearningPackController::deleteAssessment/$1/$2', ['filter' => 'permission:learning_guidance.manage']);
 $routes->get('curriculum/learning-packs/(:segment)/followup', 'SubjectLearningPackController::followup/$1', ['filter' => 'permission:learning_packs.view']);
 $routes->post('curriculum/learning-packs/(:segment)/followup', 'SubjectLearningPackController::storeFollowup/$1', ['filter' => 'permission:learning_guidance.manage']);
+$routes->post('curriculum/learning-packs/(:segment)/followup/(:segment)/delete', 'SubjectLearningPackController::deleteFollowup/$1/$2', ['filter' => 'permission:learning_guidance.manage']);
 $routes->get('curriculum/learning-packs/(:segment)/coverage', 'SubjectLearningPackController::coverage/$1', ['filter' => 'permission:learning_packs.view']);
 $routes->get('curriculum/learning-packs/(:segment)/lineage', 'SubjectLearningPackController::lineage/$1', ['filter' => 'permission:learning_packs.view']);
 $routes->post('curriculum/learning-packs/(:segment)/lineage/imports', 'SubjectLearningPackController::stageImport/$1', ['filter' => 'permission:learning_packs.manage']);
@@ -246,7 +262,30 @@ $routes->post('lesson-plans/(:segment)/transition', 'LessonPlanController::trans
 $routes->post('lesson-plans/(:segment)/clone', 'LessonPlanController::clonePlan/$1', ['filter' => 'permission:lesson_plans.clone']);
 $routes->post('lesson-plans/(:segment)/assessments/(:segment)/rubrics', 'LessonPlanController::addRubric/$1/$2', ['filter' => 'permission:lesson_plans.manage']);
 $routes->post('lesson-plans/(:segment)/activities/(:segment)/resources', 'LessonPlanController::linkActivityResource/$1/$2', ['filter' => 'permission:lesson_plans.manage']);
+$routes->post('lesson-plans/(:segment)/activities/(:segment)', 'LessonPlanController::updateActivity/$1/$2', ['filter' => 'permission:lesson_plans.manage']);
+$routes->post('lesson-plans/(:segment)/rubrics/(:segment)/delete', 'LessonPlanController::deleteRubric/$1/$2', ['filter' => 'permission:lesson_plans.manage']);
+$routes->post('lesson-plans/(:segment)/resources/(:segment)/delete', 'LessonPlanController::deleteActivityResource/$1/$2', ['filter' => 'permission:lesson_plans.manage']);
 $routes->get('lesson-plans/(:segment)/validate', 'LessonPlanController::validatePlan/$1', ['filter' => 'permission:lesson_plans.view']);
+$routes->get('lesson-plans/(:segment)/print', 'LessonPlanController::printPlan/$1', ['filter' => 'permission:lesson_plans.view']);
+$routes->get('lesson-plans/(:segment)/export-docx', 'LessonPlanController::exportDocx/$1', ['filter' => 'permission:lesson_plans.view']);
+$routes->get('lesson-plans/(:segment)/export-pdf', 'LessonPlanController::exportPdf/$1', ['filter' => 'permission:lesson_plans.view']);
+
+// ====================================================================
+// PHASE 5: DAILY TEACHING WORKSPACE & EXECUTION ENGINE
+// ====================================================================
+$routes->get('teaching', 'TeachingWorkspaceController::today', ['filter' => 'permission:teaching.workspace']);
+$routes->get('teaching/today', 'TeachingWorkspaceController::today', ['filter' => 'permission:teaching.workspace']);
+$routes->post('teaching/session/init', 'TeachingWorkspaceController::initSession', ['filter' => 'permission:teaching.teach']);
+$routes->get('teaching/session/(:segment)', 'TeachingWorkspaceController::session/$1', ['filter' => 'permission:teaching.workspace']);
+$routes->post('teaching/session/(:segment)/start', 'TeachingWorkspaceController::startSession/$1', ['filter' => 'permission:teaching.teach']);
+$routes->post('teaching/session/(:segment)/complete', 'TeachingWorkspaceController::completeSession/$1', ['filter' => 'permission:teaching.teach']);
+$routes->get('teaching/session/(:segment)/reflect', 'TeachingWorkspaceController::reflectView/$1', ['filter' => 'permission:teaching.reflect']);
+$routes->post('teaching/session/(:segment)/reflect', 'TeachingWorkspaceController::saveReflection/$1', ['filter' => 'permission:teaching.reflect']);
+$routes->post('teaching/session/(:segment)/activities/toggle', 'TeachingWorkspaceController::toggleActivity/$1', ['filter' => 'permission:teaching.teach']);
+$routes->post('teaching/session/(:segment)/observations', 'TeachingWorkspaceController::addObservation/$1', ['filter' => 'permission:teaching.teach']);
+$routes->post('teaching/session/(:segment)/observations/(:segment)/delete', 'TeachingWorkspaceController::deleteObservation/$1/$2', ['filter' => 'permission:teaching.teach']);
+$routes->post('teaching/session/(:segment)/attendance/quick', 'TeachingWorkspaceController::quickAttendance/$1', ['filter' => 'permission:teaching.teach']);
+$routes->post('teaching/session/(:segment)/link-plan', 'TeachingWorkspaceController::linkPlan/$1', ['filter' => 'permission:teaching.teach']);
 
 $routes->get('curriculum', 'CurriculumController::index');
 $routes->get('curriculum/create', 'CurriculumController::create');

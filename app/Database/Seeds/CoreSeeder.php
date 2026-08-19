@@ -216,15 +216,24 @@ class CoreSeeder extends Seeder
                 'students.view', 'students.manage',
                 'attendances.view', 'attendances.record', 'attendances.admin',
                 'academic_calendar.view', 'academic_calendar.manage',
+                // Phase 5: daily teaching workspace (granted here because the
+                // phase-5 migration runs before CoreSeeder creates these roles).
+                'teaching.workspace', 'teaching.teach', 'teaching.reflect',
             ],
             'admin_sma' => [
                 'students.view', 'students.manage',
                 'attendances.view', 'attendances.record', 'attendances.admin',
                 'academic_calendar.view', 'academic_calendar.manage',
+                // Phase 5: daily teaching workspace (granted here because the
+                // phase-5 migration runs before CoreSeeder creates these roles).
+                'teaching.workspace', 'teaching.teach', 'teaching.reflect',
             ],
             'wakasek_kurikulum' => [
                 'students.view', 'attendances.view', 'attendances.record', 'attendances.admin',
                 'academic_calendar.view', 'academic_calendar.manage',
+                // Phase 5: daily teaching workspace (granted here because the
+                // phase-5 migration runs before CoreSeeder creates these roles).
+                'teaching.workspace', 'teaching.teach', 'teaching.reflect',
             ],
             'kepala_sekolah' => [
                 'students.view', 'attendances.view', 'attendances.admin',
