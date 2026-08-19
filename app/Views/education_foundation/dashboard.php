@@ -19,6 +19,8 @@ $areas=[
     ['permission'=>'learning_sequences.view','href'=>'curriculum/sequences','icon'=>'route','title'=>'ATP','copy'=>'Urutan TP dengan workflow validasi dan approval.'],
     ['permission'=>'learning_sequences.view','href'=>'curriculum/coverage','icon'=>'scan-search','title'=>'Coverage','copy'=>'Deteksi TP belum tercakup, duplikat, dan mismatch.'],
     ['permission'=>'learning_packs.view','href'=>'curriculum/learning-packs','icon'=>'package-open','title'=>'Paket Pembelajaran','copy'=>'Hubungkan paket mapel dengan TP dan ATP.'],
+    ['permission'=>'lesson_plans.view','href'=>'lesson-plans','icon'=>'book-open','title'=>'Rencana Belajar (RPP)','copy'=>'Penyusunan RPP/Modul Ajar harian Deep Learning (3D).'],
+    ['permissionAny'=>['teaching.workspace','lesson_plans.view'],'href'=>'teaching/today','icon'=>'sparkles','title'=>'Ruang Mengajar (Today)','copy'=>'Jalankan kelas harian, Teaching Mode, dan refleksi pedagogis.'],
 ];
 ?>
 <section class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style="background:linear-gradient(135deg,#172554,#4338ca);">
@@ -34,7 +36,20 @@ $areas=[
 </div>
 <div class="row g-4">
     <div class="col-xl-8"><h5 class="fw-bold mb-3">Area kerja</h5><div class="row g-3">
-    <?php foreach($areas as $area): if(!has_permission($area['permission'])) continue; ?><div class="col-md-6"><a href="<?= base_url($area['href']) ?>" class="card border-0 shadow-sm rounded-4 h-100 text-decoration-none text-body"><div class="card-body d-flex gap-3"><div class="rounded-3 bg-primary bg-opacity-10 text-primary p-3 align-self-start"><i data-lucide="<?= $area['icon'] ?>"></i></div><div><h6 class="fw-bold mb-1"><?= esc($area['title']) ?></h6><p class="small text-muted mb-0"><?= esc($area['copy']) ?></p></div></div></a></div><?php endforeach ?>
+    <?php foreach($areas as $area): 
+        $canAccess = false;
+        if (isset($area['permission']) && has_permission($area['permission'])) {
+            $canAccess = true;
+        } elseif (isset($area['permissionAny'])) {
+            foreach ($area['permissionAny'] as $p) {
+                if (has_permission($p)) {
+                    $canAccess = true;
+                    break;
+                }
+            }
+        }
+        if (!$canAccess) continue;
+    ?><div class="col-md-6"><a href="<?= base_url($area['href']) ?>" class="card border-0 shadow-sm rounded-4 h-100 text-decoration-none text-body"><div class="card-body d-flex gap-3"><div class="rounded-3 bg-primary bg-opacity-10 text-primary p-3 align-self-start"><i data-lucide="<?= $area['icon'] ?>"></i></div><div><h6 class="fw-bold mb-1"><?= esc($area['title']) ?></h6><p class="small text-muted mb-0"><?= esc($area['copy']) ?></p></div></div></a></div><?php endforeach ?>
     </div></div>
     <div class="col-xl-4"><h5 class="fw-bold mb-3">Antrian tindakan</h5><div class="card border-0 shadow-sm rounded-4"><div class="list-group list-group-flush">
     <?php foreach($control['work_queue'] as $item): ?><a href="<?= base_url($item['href']) ?>" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3"><span><?= esc($item['label']) ?></span><span class="badge text-bg-primary rounded-pill"><?= (int)$item['count'] ?></span></a><?php endforeach ?>

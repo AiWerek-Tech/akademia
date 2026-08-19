@@ -51,7 +51,7 @@ final class PwaAssetsTest extends CIUnitTestCase
         $this->assertStringContainsString('.persona-teacher.native-role-page', $css);
         $this->assertStringContainsString('text-decoration:none!important', $css);
         $this->assertStringContainsString("\$bodyClasses[] = 'persona-teacher'", $layout);
-        $this->assertStringContainsString("'portal/attendance'  => 'Absensi & Jurnal'", $layout);
+        $this->assertStringContainsString("'teaching'           => 'Ruang Mengajar Harian'", $layout);
         $this->assertStringContainsString("'bar-chart-3','Beban Saya'", $dashboard);
         $this->assertStringNotContainsString('chart-no-axes-column', $dashboard);
         $this->assertStringContainsString('viewport-fit=cover', $assignmentDocument);

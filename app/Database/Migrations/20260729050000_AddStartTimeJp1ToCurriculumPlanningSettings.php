@@ -23,6 +23,8 @@ class AddStartTimeJp1ToCurriculumPlanningSettings extends Migration
 
     public function down()
     {
-        $this->forge->dropColumn('curriculum_planning_settings', 'start_time_jp1');
+        if ($this->db->tableExists('curriculum_planning_settings') && $this->db->fieldExists('start_time_jp1', 'curriculum_planning_settings')) {
+            $this->forge->dropColumn('curriculum_planning_settings', 'start_time_jp1');
+        }
     }
 }

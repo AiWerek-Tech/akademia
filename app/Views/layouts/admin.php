@@ -43,7 +43,6 @@ $routeTitles = [
     'portal/electives'   => 'Mapel Pilihan Saya',
     'portal/schedule'    => 'Jadwal Mengajar',
     'portal/workload'    => 'Beban Mengajar',
-    'portal/attendance'  => 'Absensi & Jurnal',
     'portal/duty-schedule' => 'Jadwal Piket',
     'portal/classroom'   => 'Kelas Binaan',
     'portal/assignment-document' => 'SK Pembagian Tugas',
@@ -54,6 +53,8 @@ $routeTitles = [
     'imports/master'     => 'Import Master Data',
     'students'           => 'Master Peserta Didik',
     'schedules'          => 'Jadwal Pelajaran',
+    'lesson-plans'       => 'Rencana Pembelajaran',
+    'teaching'           => 'Ruang Mengajar Harian',
 ];
 $inferredTitle = null;
 foreach ($routeTitles as $routePrefix => $routeTitle) {
@@ -99,16 +100,14 @@ if (has_role('super_admin', 'superadmin', 'admin_smp', 'admin_sma')) {
     $appendMobileNav($mobileNavItems, 'classrooms.view', 'classrooms', 'school', 'Rombel', ['classrooms']);
     $appendMobileNav($mobileNavItems, 'teachers.view', 'teachers', 'contact', 'Guru', ['teachers']);
 } elseif (is_wali_kelas()) {
+    $appendMobileNav($mobileNavItems, 'teaching.workspace', 'teaching/today', 'sparkles', 'Mengajar', ['teaching']);
     $appendMobileNav($mobileNavItems, 'class_students.view', 'portal/classroom', 'school', 'Kelas', ['portal/classroom']);
     $appendMobileNav($mobileNavItems, 'teacher_schedule.view', 'portal/schedule', 'calendar-days', 'Jadwal', ['portal/schedule']);
     $appendMobileNav($mobileNavItems, 'teacher_electives.view', 'portal/electives', 'users-round', 'Pilihan', ['portal/electives']);
 } elseif (is_guru()) {
+    $appendMobileNav($mobileNavItems, 'teaching.workspace', 'teaching/today', 'sparkles', 'Mengajar', ['teaching']);
     $appendMobileNav($mobileNavItems, 'teacher_schedule.view', 'portal/schedule', 'calendar-days', 'Jadwal', ['portal/schedule']);
-    if (has_permission('teacher_attendance.view')) {
-        $appendMobileNav($mobileNavItems, 'teacher_attendance.view', 'portal/attendance', 'clipboard-check', 'Absensi', ['portal/attendance']);
-    } else {
-        $appendMobileNav($mobileNavItems, 'teacher_electives.view', 'portal/electives', 'users-round', 'Pilihan', ['portal/electives']);
-    }
+    $appendMobileNav($mobileNavItems, 'teacher_electives.view', 'portal/electives', 'users-round', 'Pilihan', ['portal/electives']);
     $appendMobileNav($mobileNavItems, 'teacher_workload.view', 'portal/workload', 'bar-chart-3', 'Beban', ['portal/workload']);
 } elseif (has_role('siswa')) {
     $appendMobileNav($mobileNavItems, 'electives.selection.submit', 'my-electives', 'list-checks', 'Pilihan', ['my-electives']);
@@ -296,14 +295,12 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                             'label' => 'Tugas Mengajar Saya',
                             'icon' => 'briefcase',
                             'items' => [
+                                ['permissionAny' => ['teaching.workspace', 'teacher_schedule.view'], 'href' => 'teaching/today', 'icon' => 'sparkles', 'label' => 'Ruang Mengajar Harian', 'patterns' => ['teaching']],
                                 ['permission' => 'teacher_schedule.view', 'href' => 'portal/schedule', 'icon' => 'calendar-days', 'label' => 'Jadwal Mengajar', 'patterns' => ['portal/schedule'], 'excludeQueryScopes' => ['classroom']],
-                                ['permission' => 'teacher_attendance.view', 'href' => 'portal/attendance', 'icon' => 'clipboard-check', 'label' => 'Absensi & Jurnal Saya', 'patterns' => ['portal/attendance']],
                                 ['permission' => 'teacher_electives.view', 'href' => 'portal/electives', 'icon' => 'users-round', 'label' => 'Mapel Pilihan Saya', 'patterns' => ['portal/electives']],
                                 ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart-2', 'label' => 'Beban Mengajar', 'patterns' => ['portal/workload']],
                                 ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Pembagian Tugas', 'patterns' => ['portal/assignment-document']],
                                 ['permission' => 'teacher_duty_schedule.view', 'href' => 'portal/duty-schedule', 'icon' => 'shield-check', 'label' => 'Jadwal Piket', 'patterns' => ['portal/duty-schedule']],
-                                ['permission' => 'learning_objectives.view', 'href' => 'curriculum/objectives', 'icon' => 'network', 'label' => 'IALOS Education', 'patterns' => ['curriculum/objectives']],
-                                ['permission' => 'learning_packs.view', 'href' => 'curriculum/learning-packs', 'icon' => 'package-open', 'label' => 'Paket Pembelajaran', 'patterns' => ['curriculum/learning-packs']],
                             ],
                         ],
                     ];
@@ -313,12 +310,11 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                         'label' => 'Tugas Mengajar Saya',
                         'icon' => 'briefcase',
                         'items' => [
+                            ['permissionAny' => ['teaching.workspace', 'teacher_schedule.view'], 'href' => 'teaching/today', 'icon' => 'sparkles', 'label' => 'Ruang Mengajar Harian', 'patterns' => ['teaching']],
                             ['permission' => 'teacher_schedule.view', 'href' => 'portal/schedule', 'icon' => 'calendar-days', 'label' => 'Jadwal Mengajar', 'patterns' => ['portal/schedule']],
-                            ['permission' => 'teacher_attendance.view', 'href' => 'portal/attendance', 'icon' => 'clipboard-check', 'label' => 'Absensi & Jurnal Saya', 'patterns' => ['portal/attendance']],
                             ['permission' => 'teacher_electives.view', 'href' => 'portal/electives', 'icon' => 'users-round', 'label' => 'Mapel Pilihan Saya', 'patterns' => ['portal/electives']],
                             ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart-2', 'label' => 'Beban Mengajar', 'patterns' => ['portal/workload']],
                             ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Pembagian Tugas', 'patterns' => ['portal/assignment-document']],
-                            ['permission' => 'teacher_duty_schedule.view', 'href' => 'portal/duty-schedule', 'icon' => 'shield-check', 'label' => 'Jadwal Piket', 'patterns' => ['portal/duty-schedule']],
                         ],
                     ]];
                 } elseif (!$hasAdministrativePersona && has_role('siswa')) {
@@ -395,14 +391,12 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                         'label' => 'Portal',
                         'icon' => 'panel-left',
                         'items' => [
+                            ['permissionAny' => ['teaching.workspace', 'teacher_schedule.view'], 'href' => 'teaching/today', 'icon' => 'sparkles', 'label' => 'Ruang Mengajar Harian', 'patterns' => ['teaching']],
                             ['permission' => 'teacher_schedule.view', 'href' => 'portal/schedule', 'icon' => 'calendar', 'label' => 'Jadwal Mengajar Saya', 'patterns' => ['portal/schedule']],
-                            ['permission' => 'teacher_attendance.view', 'href' => 'portal/attendance', 'icon' => 'clipboard-check', 'label' => 'Absensi & Jurnal Saya', 'patterns' => ['portal/attendance']],
                             ['permission' => 'teacher_electives.view', 'href' => 'portal/electives', 'icon' => 'users-round', 'label' => 'Mapel Pilihan Saya', 'patterns' => ['portal/electives']],
                             ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart', 'label' => 'Penugasan & Beban Saya', 'patterns' => ['portal/workload']],
                             ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Tugas Saya', 'patterns' => ['portal/assignment-document']],
                             ['permission' => 'teacher_duty_schedule.view', 'href' => 'portal/duty-schedule', 'icon' => 'shield-check', 'label' => 'Piket Saya', 'patterns' => ['portal/duty-schedule']],
-                            ['permission' => 'learning_objectives.view', 'href' => 'curriculum/objectives', 'icon' => 'network', 'label' => 'IALOS Education', 'patterns' => ['curriculum/objectives']],
-                            ['permission' => 'learning_packs.view', 'href' => 'curriculum/learning-packs', 'icon' => 'package-open', 'label' => 'Paket Pembelajaran', 'patterns' => ['curriculum/learning-packs']],
                             ['permission' => 'class_students.view', 'href' => 'portal/classroom', 'icon' => 'school', 'label' => 'Kelas Binaan Saya', 'patterns' => ['portal/classroom']],
                         ],
                     ],
@@ -428,7 +422,7 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                     'education', 'references/regulations', 'references/curriculum-sources',
                     'references/graduate-profile', 'curriculum/outcomes', 'curriculum/objectives',
                     'curriculum/sequences', 'curriculum/coverage', 'curriculum/learning-packs',
-                    'curriculum/education-imports',
+                    'curriculum/education-imports', 'lesson-plans', 'teaching',
                 ];
                 foreach ($menuGroups as &$existingGroup) {
                     $existingGroup['items'] = array_values(array_filter(
@@ -442,7 +436,7 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                     'label' => 'IALOS Education',
                     'icon' => 'network',
                     'items' => [
-                        ['permissionAny' => ['regulations.view','curriculum_sources.view','graduate_profile.view','learning_outcomes.view','learning_objectives.view','learning_sequences.view','learning_packs.view','ksp.view'], 'href' => 'education', 'icon' => 'layout-dashboard', 'label' => 'Control Center', 'patterns' => ['education'], 'excludePatterns' => ['education/ksp']],
+                        ['permissionAny' => ['regulations.view','curriculum_sources.view','graduate_profile.view','learning_outcomes.view','learning_objectives.view','learning_sequences.view','learning_packs.view','lesson_plans.view','teaching.workspace','ksp.view'], 'href' => 'education', 'icon' => 'layout-dashboard', 'label' => 'Control Center', 'patterns' => ['education'], 'excludePatterns' => ['education/ksp']],
                         ['permission' => 'ksp.view', 'href' => 'education/ksp', 'icon' => 'book-open-check', 'label' => 'Digital KSP', 'patterns' => ['education/ksp']],
                         ['permission' => 'regulations.view', 'href' => 'references/regulations', 'icon' => 'landmark', 'label' => 'Regulasi Pendidikan', 'patterns' => ['references/regulations']],
                         ['permission' => 'curriculum_sources.view', 'href' => 'references/curriculum-sources', 'icon' => 'library', 'label' => 'Sumber Kurikulum', 'patterns' => ['references/curriculum-sources']],
@@ -452,6 +446,8 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                         ['permission' => 'learning_sequences.view', 'href' => 'curriculum/sequences', 'icon' => 'route', 'label' => 'ATP', 'patterns' => ['curriculum/sequences']],
                         ['permission' => 'learning_sequences.view', 'href' => 'curriculum/coverage', 'icon' => 'scan-search', 'label' => 'Coverage Kurikulum', 'patterns' => ['curriculum/coverage']],
                         ['permission' => 'learning_packs.view', 'href' => 'curriculum/learning-packs', 'icon' => 'package-open', 'label' => 'Paket Pembelajaran', 'patterns' => ['curriculum/learning-packs']],
+                        ['permission' => 'lesson_plans.view', 'href' => 'lesson-plans', 'icon' => 'book-open', 'label' => 'Rencana Belajar (RPP)', 'patterns' => ['lesson-plans']],
+                        ['permissionAny' => ['teaching.workspace', 'teacher_schedule.view'], 'href' => 'teaching/today', 'icon' => 'sparkles', 'label' => 'Ruang Mengajar (Today)', 'patterns' => ['teaching']],
                         ['permission' => 'learning_outcomes.manage', 'href' => 'curriculum/education-imports', 'icon' => 'file-up', 'label' => 'Import Data Pendidikan', 'patterns' => ['curriculum/education-imports']],
                     ],
                 ];
