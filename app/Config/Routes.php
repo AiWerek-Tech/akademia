@@ -225,6 +225,26 @@ $routes->get('curriculum/education-imports', 'EducationFoundationController::imp
 $routes->post('curriculum/education-imports', 'EducationFoundationController::stageImport', ['filter' => 'permission:learning_outcomes.manage']);
 $routes->post('curriculum/education-imports/(:segment)/apply', 'EducationFoundationController::applyImport/$1', ['filter' => 'permission:learning_outcomes.manage']);
 
+// ====================================================================
+// PHASE 4: LESSON PLAN ENGINE
+// ====================================================================
+$routes->get('lesson-plans', 'LessonPlanController::index', ['filter' => 'permission:lesson_plans.view']);
+$routes->get('lesson-plans/create', 'LessonPlanController::create', ['filter' => 'permission:lesson_plans.manage']);
+$routes->post('lesson-plans', 'LessonPlanController::store', ['filter' => 'permission:lesson_plans.manage']);
+$routes->get('lesson-plans/(:segment)', 'LessonPlanController::detail/$1', ['filter' => 'permission:lesson_plans.view']);
+$routes->get('lesson-plans/(:segment)/overview', 'LessonPlanController::detail/$1', ['filter' => 'permission:lesson_plans.view']);
+$routes->get('lesson-plans/(:segment)/design', 'LessonPlanController::design/$1', ['filter' => 'permission:lesson_plans.view']);
+$routes->get('lesson-plans/(:segment)/stages', 'LessonPlanController::stages/$1', ['filter' => 'permission:lesson_plans.view']);
+$routes->get('lesson-plans/(:segment)/activities', 'LessonPlanController::activities/$1', ['filter' => 'permission:lesson_plans.view']);
+$routes->get('lesson-plans/(:segment)/assessments', 'LessonPlanController::assessments/$1', ['filter' => 'permission:lesson_plans.view']);
+$routes->post('lesson-plans/(:segment)/design', 'LessonPlanController::updateDesign/$1', ['filter' => 'permission:lesson_plans.manage']);
+$routes->post('lesson-plans/(:segment)/objectives', 'LessonPlanController::addObjective/$1', ['filter' => 'permission:lesson_plans.manage']);
+$routes->post('lesson-plans/(:segment)/stages', 'LessonPlanController::addStage/$1', ['filter' => 'permission:lesson_plans.manage']);
+$routes->post('lesson-plans/(:segment)/activities', 'LessonPlanController::addActivity/$1', ['filter' => 'permission:lesson_plans.manage']);
+$routes->post('lesson-plans/(:segment)/assessments', 'LessonPlanController::addAssessment/$1', ['filter' => 'permission:lesson_plans.manage']);
+$routes->post('lesson-plans/(:segment)/transition', 'LessonPlanController::transition/$1', ['filter' => 'permission:lesson_plans.manage']);
+$routes->post('lesson-plans/(:segment)/clone', 'LessonPlanController::clonePlan/$1', ['filter' => 'permission:lesson_plans.clone']);
+
 $routes->get('curriculum', 'CurriculumController::index');
 $routes->get('curriculum/create', 'CurriculumController::create');
 $routes->post('curriculum', 'CurriculumController::store');
