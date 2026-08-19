@@ -14,6 +14,10 @@ class LessonPlanService
     private const STAGE_TYPES = ['MEMAHAMI', 'MENGAPLIKASI', 'MEREFLEKSI'];
     private const ASSESSMENT_PURPOSES = ['INITIAL', 'FORMATIVE', 'SUMMATIVE'];
     private const ACTIVITY_STATUSES = ['PLANNED', 'DONE', 'SKIPPED'];
+    private const DELIVERY_MODES = ['DISCUSSION', 'PLUGGED', 'UNPLUGGED', 'HYBRID', 'PRACTICE', 'PROJECT', 'OTHER'];
+    private const GROUPING_MODES = ['FLEXIBLE', 'INDIVIDUAL', 'PAIR', 'SMALL_GROUP', 'LARGE_GROUP', 'WHOLE_CLASS'];
+    private const EXPERIENCE_TO_STAGE = ['UNDERSTAND' => 'MEMAHAMI', 'APPLY' => 'MENGAPLIKASI', 'REFLECT' => 'MEREFLEKSI'];
+    private const STAGE_TITLES = ['MEMAHAMI' => 'Memahami', 'MENGAPLIKASI' => 'Mengaplikasi', 'MEREFLEKSI' => 'Merefleksi'];
 
     /**
      * Create a new lesson plan.
@@ -138,6 +142,7 @@ class LessonPlanService
             ->where('lesson_plan_id', (int) $source['id'])
             ->orderBy('sequence_order')
             ->get()->getResultArray();
+        $activityMap = [];
         foreach ($activities as $act) {
             $newStageId = isset($act['lesson_plan_stage_id']) ? ($stageMap[(int) $act['lesson_plan_stage_id']] ?? null) : null;
             $db->table('lesson_plan_activities')->insert([
@@ -152,16 +157,19 @@ class LessonPlanService
                 'estimated_minutes' => $act['estimated_minutes'],
                 'sequence_order' => (int) $act['sequence_order'],
                 'status' => 'PLANNED',
+                'graduate_profile_alignment' => $act['graduate_profile_alignment'] ?? null,
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ]);
+            $activityMap[(int) $act['id']] = (int) $db->insertID();
         }
 
-        // Clone assessments
+        // Clone assessments and their rubrics
         $assessments = $db->table('lesson_plan_assessments')
             ->where('lesson_plan_id', (int) $source['id'])
             ->orderBy('sequence_order')
             ->get()->getResultArray();
+        $assessmentMap = [];
         foreach ($assessments as $assess) {
             $db->table('lesson_plan_assessments')->insert([
                 'uuid' => UuidService::v4(),
@@ -173,11 +181,223 @@ class LessonPlanService
                 'sequence_order' => (int) $assess['sequence_order'],
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
+            $assessmentMap[(int) $assess['id']] = (int) $db->insertID();
+        }
+        // Clone rubrics for each assessment
+        if ($assessmentMap) {
+            $allRubrics = $db->table('lesson_plan_assessment_rubrics')
+                ->whereIn('lesson_plan_assessment_id', array_keys($assessmentMap))
+                ->orderBy('sequence_order')
+                ->get()->getResultArray();
+            foreach ($allRubrics as $rubric) {
+                $newAssessId = $assessmentMap[(int) $rubric['lesson_plan_assessment_id']] ?? null;
+                if ($newAssessId !== null) {
+                    $db->table('lesson_plan_assessment_rubrics')->insert([
+                        'uuid' => UuidService::v4(),
+                        'lesson_plan_assessment_id' => $newAssessId,
+                        'criterion_description' => $rubric['criterion_description'],
+                        'rubric_levels' => $rubric['rubric_levels'],
+                        'sequence_order' => (int) $rubric['sequence_order'],
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                }
+            }
+        }
+
+        // Clone activity resources
+        if ($activityMap) {
+            $allResources = $db->table('lesson_plan_activity_resources')
+                ->whereIn('lesson_plan_activity_id', array_keys($activityMap))
+                ->get()->getResultArray();
+            foreach ($allResources as $res) {
+                $newActId = $activityMap[(int) $res['lesson_plan_activity_id']] ?? null;
+                if ($newActId !== null) {
+                    $db->table('lesson_plan_activity_resources')->insert([
+                        'uuid' => UuidService::v4(),
+                        'lesson_plan_activity_id' => $newActId,
+                        'learning_resource_id' => $res['learning_resource_id'] ? (int) $res['learning_resource_id'] : null,
+                        'custom_description' => $res['custom_description'],
+                        'quantity' => (int) $res['quantity'],
+                        'is_required' => (int) $res['is_required'],
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                }
+            }
         }
 
         AuditService::log('lesson_plans', 'CLONE_PLAN', 'LessonPlan', (int) $plan['id'], $source, $plan, null, $plan['uuid']);
 
         return self::planByUuid($plan['uuid']);
+    }
+
+    /**
+     * Auto-populate a DRAFT lesson plan from a Phase 3 learning pack structure.
+     *
+     * Maps pack objectives → plan objectives, experience types → stages,
+     * pack activities → plan activities, assessment references → plan assessments,
+     * and activity resources → plan activity resources.
+     *
+     * If $learningUnitId is given, only that unit's data is pulled;
+     * otherwise every unit in the pack is consumed.
+     */
+    public static function populateFromPack(string $planUuid, ?int $learningUnitId = null): array
+    {
+        $plan = self::mutablePlan($planUuid);
+        if (empty($plan['learning_pack_id'])) {
+            throw new InvalidArgumentException('Rencana ini tidak memiliki learning pack terkait.');
+        }
+
+        // Load full pack structure from Phase 3 engine
+        $packUuid = Database::connect()
+            ->table('subject_learning_packs')
+            ->where('id', (int) $plan['learning_pack_id'])
+            ->get()->getRowArray()['uuid'] ?? null;
+        if (! $packUuid) {
+            throw new RuntimeException('Learning pack tidak ditemukan.');
+        }
+        $structure = SubjectLearningPackEngineService::getPackStructureForPlanning($packUuid);
+
+        // Determine which units to consume
+        $units = $structure['units'] ?? [];
+        if ($learningUnitId !== null) {
+            $units = array_values(array_filter($units, static fn (array $u) => (int) $u['id'] === $learningUnitId));
+        }
+        if ($units === []) {
+            return self::planByUuid($planUuid);
+        }
+
+        $planId = (int) $plan['id'];
+        $db = Database::connect();
+        $now = date('Y-m-d H:i:s');
+        $seqObj = 0;
+        $seqAct = 0;
+        $seqAssess = 0;
+
+        // ── 1. Collect all experience types across every activity to build stages ──
+        $experienceSet = [];
+        foreach ($units as $u) {
+            foreach ($u['activities'] ?? [] as $act) {
+                foreach ($act['experiences'] ?? [] as $exp) {
+                    $type = strtoupper((string) ($exp['experience_type'] ?? ''));
+                    if (isset(self::EXPERIENCE_TO_STAGE[$type])) {
+                        $experienceSet[$type] = true;
+                    }
+                }
+            }
+        }
+        // Ensure canonical ordering MEMAHAMI → MENGAPLIKASI → MEREFLEKSI
+        $orderedExperiences = array_filter(['UNDERSTAND', 'APPLY', 'REFLECT'], static fn (string $e) => isset($experienceSet[$e]));
+
+        // Create stages and build experience_type → stage_id map
+        $expStageMap = [];
+        $stageOrder = 1;
+        foreach ($orderedExperiences as $expType) {
+            $stageType = self::EXPERIENCE_TO_STAGE[$expType];
+            $db->table('lesson_plan_stages')->insert([
+                'uuid' => UuidService::v4(),
+                'lesson_plan_id' => $planId,
+                'stage_type' => $stageType,
+                'sequence_order' => $stageOrder++,
+                'title' => self::STAGE_TITLES[$stageType] ?? $stageType,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            $expStageMap[$expType] = (int) $db->insertID();
+        }
+        AuditService::log('lesson_plans', 'POPULATE_STAGES', 'lesson_plan_stages', $planId, null, ['count' => count($expStageMap)], null, $planUuid);
+
+        // ── 2. Objectives ──
+        foreach ($units as $u) {
+            foreach ($u['objectives'] ?? [] as $obj) {
+                $seqObj++;
+                $db->table('lesson_plan_objectives')->insert([
+                    'uuid' => UuidService::v4(),
+                    'lesson_plan_id' => $planId,
+                    'learning_objective_id' => (int) $obj['learning_objective_id'],
+                    'role' => $obj['role'] ?? 'PRIMARY',
+                    'sequence_order' => $seqObj,
+                    'created_at' => $now,
+                ]);
+            }
+        }
+        AuditService::log('lesson_plans', 'POPULATE_OBJECTIVES', 'lesson_plan_objectives', $planId, null, ['count' => $seqObj], null, $planUuid);
+
+        // ── 3. Activities (with stage link and resources) ──
+        $activityResourceSeq = [];
+        foreach ($units as $u) {
+            foreach ($u['activities'] ?? [] as $act) {
+                $seqAct++;
+                // Determine stage: use the first experience type mapped to a stage
+                $stageId = null;
+                $expTypes = [];
+                foreach ($act['experiences'] ?? [] as $exp) {
+                    $t = strtoupper((string) ($exp['experience_type'] ?? ''));
+                    if (isset($expStageMap[$t])) {
+                        $expTypes[] = $t;
+                    }
+                }
+                if ($expTypes !== []) {
+                    $stageId = $expStageMap[$expTypes[0]];
+                }
+
+                $db->table('lesson_plan_activities')->insert([
+                    'uuid' => UuidService::v4(),
+                    'lesson_plan_id' => $planId,
+                    'lesson_plan_stage_id' => $stageId,
+                    'learning_activity_id' => (int) $act['id'],
+                    'custom_title' => $act['title'] ?? null,
+                    'custom_description' => $act['description'] ?? null,
+                    'delivery_mode' => $act['delivery_mode'] ?? 'OTHER',
+                    'grouping_mode' => $act['grouping_mode'] ?? 'FLEXIBLE',
+                    'estimated_minutes' => (int) ($act['estimated_minutes'] ?? 0) ?: null,
+                    'sequence_order' => $seqAct,
+                    'status' => 'PLANNED',
+                    'teacher_notes' => $act['teacher_guidance'] ?? null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+                $newActId = (int) $db->insertID();
+
+                // Link activity resources
+                foreach ($act['resources'] ?? [] as $res) {
+                    $resKey = $newActId;
+                    $activityResourceSeq[$resKey] = ($activityResourceSeq[$resKey] ?? 0) + 1;
+                    $db->table('lesson_plan_activity_resources')->insert([
+                        'uuid' => UuidService::v4(),
+                        'lesson_plan_activity_id' => $newActId,
+                        'learning_resource_id' => isset($res['resource_id']) ? (int) $res['resource_id'] : null,
+                        'custom_description' => $res['resource_title'] ?? $res['title'] ?? null,
+                        'quantity' => isset($res['quantity']) ? (int) $res['quantity'] : 1,
+                        'is_required' => isset($res['is_required']) ? (int) $res['is_required'] : 1,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+                }
+            }
+        }
+        AuditService::log('lesson_plans', 'POPULATE_ACTIVITIES', 'lesson_plan_activities', $planId, null, ['count' => $seqAct], null, $planUuid);
+
+        // ── 4. Assessments ──
+        foreach ($units as $u) {
+            foreach ($u['assessment_references'] ?? [] as $ref) {
+                $seqAssess++;
+                $db->table('lesson_plan_assessments')->insert([
+                    'uuid' => UuidService::v4(),
+                    'lesson_plan_id' => $planId,
+                    'assessment_purpose' => $ref['assessment_purpose'] ?? 'FORMATIVE',
+                    'recommended_method' => $ref['recommended_method'] ?? '',
+                    'criteria_reference' => $ref['criteria_reference'] ?? null,
+                    'notes' => $ref['notes'] ?? null,
+                    'sequence_order' => $seqAssess,
+                    'created_at' => $now,
+                ]);
+            }
+        }
+        AuditService::log('lesson_plans', 'POPULATE_ASSESSMENTS', 'lesson_plan_assessments', $planId, null, ['count' => $seqAssess], null, $planUuid);
+
+        return self::planByUuid($planUuid);
     }
 
     /**
@@ -280,6 +500,7 @@ class LessonPlanService
             'estimated_minutes' => $data['estimated_minutes'] ?? null,
             'sequence_order' => (int) ($data['sequence_order'] ?? 1),
             'teacher_notes' => $data['teacher_notes'] ?? null,
+            'graduate_profile_alignment' => $data['graduate_profile_alignment'] ?? null,
         ], 'ADD_ACTIVITY', $planUuid);
     }
 
@@ -346,6 +567,22 @@ class LessonPlanService
             ->where('lesson_plan_id', $planId)
             ->countAllResults();
 
+        $assessmentIds = array_column(
+            $db->table('lesson_plan_assessments')->where('lesson_plan_id', $planId)->get()->getResultArray(),
+            'id'
+        );
+        $rubrics = $assessmentIds
+            ? $db->table('lesson_plan_assessment_rubrics')->whereIn('lesson_plan_assessment_id', $assessmentIds)->countAllResults()
+            : 0;
+
+        $activityIds = array_column(
+            $db->table('lesson_plan_activities')->where('lesson_plan_id', $planId)->get()->getResultArray(),
+            'id'
+        );
+        $activityResources = $activityIds
+            ? $db->table('lesson_plan_activity_resources')->whereIn('lesson_plan_activity_id', $activityIds)->countAllResults()
+            : 0;
+
         $minutesRow = $db->query('SELECT COALESCE(SUM(estimated_minutes), 0) AS total FROM lesson_plan_activities WHERE lesson_plan_id = ?', [$planId])->getRowArray();
         $totalMinutes = (int) ($minutesRow['total'] ?? 0);
 
@@ -369,6 +606,8 @@ class LessonPlanService
             'stages_count' => $stages,
             'activities_count' => $activities,
             'assessments_count' => $assessments,
+            'rubrics_count' => $rubrics,
+            'activity_resources_count' => $activityResources,
             'total_estimated_minutes' => (int) $totalMinutes,
             'warnings' => $warnings,
         ];
@@ -397,6 +636,115 @@ class LessonPlanService
         ], 'ADD_RUBRIC', $plan['uuid']);
     }
 
+    /**
+     * List rubric criteria for an assessment.
+     */
+    public static function listRubrics(string $assessmentUuid): array
+    {
+        $assessment = EducationFoundationService::byUuid('lesson_plan_assessments', $assessmentUuid);
+        UnitScopeService::assertUnit((int) (self::planById((int) $assessment['lesson_plan_id']))['unit_id']);
+
+        return Database::connect()
+            ->table('lesson_plan_assessment_rubrics')
+            ->where('lesson_plan_assessment_id', (int) $assessment['id'])
+            ->orderBy('sequence_order', 'ASC')
+            ->get()->getResultArray();
+    }
+
+    /**
+     * Update a rubric criterion.
+     */
+    public static function updateRubric(string $rubricUuid, array $data): array
+    {
+        $rubric = EducationFoundationService::byUuid('lesson_plan_assessment_rubrics', $rubricUuid);
+        $assessment = Database::connect()->table('lesson_plan_assessments')
+            ->where('id', (int) $rubric['lesson_plan_assessment_id'])->get()->getRowArray();
+        $plan = self::planById((int) $assessment['lesson_plan_id']);
+        self::assertMutable($plan);
+
+        $fields = [];
+        if (array_key_exists('criterion_description', $data)) {
+            $fields['criterion_description'] = trim((string) $data['criterion_description']);
+        }
+        if (array_key_exists('rubric_levels', $data)) {
+            $fields['rubric_levels'] = is_string($data['rubric_levels'])
+                ? $data['rubric_levels']
+                : json_encode($data['rubric_levels'], JSON_UNESCAPED_UNICODE);
+        }
+        if (array_key_exists('sequence_order', $data)) {
+            $fields['sequence_order'] = (int) $data['sequence_order'];
+        }
+        if ($fields === []) {
+            return $rubric;
+        }
+        $fields['updated_at'] = date('Y-m-d H:i:s');
+
+        $db = Database::connect();
+        $db->table('lesson_plan_assessment_rubrics')->where('id', (int) $rubric['id'])->update($fields);
+        AuditService::log('lesson_plans', 'UPDATE_RUBRIC', 'lesson_plan_assessment_rubrics', (int) $rubric['id'], $rubric, $fields, null, $plan['uuid']);
+
+        return $db->table('lesson_plan_assessment_rubrics')->where('id', (int) $rubric['id'])->get()->getRowArray();
+    }
+
+    /**
+     * Delete a rubric criterion.
+     */
+    public static function deleteRubric(string $rubricUuid): void
+    {
+        $rubric = EducationFoundationService::byUuid('lesson_plan_assessment_rubrics', $rubricUuid);
+        $assessment = Database::connect()->table('lesson_plan_assessments')
+            ->where('id', (int) $rubric['lesson_plan_assessment_id'])->get()->getRowArray();
+        $plan = self::planById((int) $assessment['lesson_plan_id']);
+        self::assertMutable($plan);
+
+        $db = Database::connect();
+        $db->table('lesson_plan_assessment_rubrics')->where('id', (int) $rubric['id'])->delete();
+        AuditService::log('lesson_plans', 'DELETE_RUBRIC', 'lesson_plan_assessment_rubrics', (int) $rubric['id'], $rubric, null, null, $plan['uuid']);
+    }
+
+    /**
+     * Update an activity's editable fields.
+     */
+    public static function updateActivity(string $activityUuid, array $data): array
+    {
+        $activity = EducationFoundationService::byUuid('lesson_plan_activities', $activityUuid);
+        $plan = self::planById((int) $activity['lesson_plan_id']);
+        self::assertMutable($plan);
+
+        $fields = [];
+        if (array_key_exists('custom_title', $data)) {
+            $fields['custom_title'] = $data['custom_title'];
+        }
+        if (array_key_exists('custom_description', $data)) {
+            $fields['custom_description'] = $data['custom_description'];
+        }
+        if (array_key_exists('delivery_mode', $data)) {
+            $fields['delivery_mode'] = self::enum($data['delivery_mode'], self::DELIVERY_MODES, 'delivery_mode');
+        }
+        if (array_key_exists('grouping_mode', $data)) {
+            $fields['grouping_mode'] = self::enum($data['grouping_mode'], self::GROUPING_MODES, 'grouping_mode');
+        }
+        if (array_key_exists('estimated_minutes', $data)) {
+            $fields['estimated_minutes'] = $data['estimated_minutes'] !== null ? (int) $data['estimated_minutes'] : null;
+        }
+        if (array_key_exists('teacher_notes', $data)) {
+            $fields['teacher_notes'] = $data['teacher_notes'];
+        }
+        if (array_key_exists('graduate_profile_alignment', $data)) {
+            $fields['graduate_profile_alignment'] = $data['graduate_profile_alignment'];
+        }
+        if ($fields === []) {
+            return $activity;
+        }
+        $fields['updated_at'] = date('Y-m-d H:i:s');
+
+        $db = Database::connect();
+        $db->table('lesson_plan_activities')->where('id', (int) $activity['id'])->update($fields);
+        AuditService::log('lesson_plans', 'UPDATE_ACTIVITY', 'lesson_plan_activities', (int) $activity['id'], $activity, $fields, null, $plan['uuid']);
+
+        return $db->table('lesson_plan_activities')->where('id', (int) $activity['id'])->get()->getRowArray();
+    }
+
     // ---- Activity resource methods ----
 
     /**
@@ -414,6 +762,74 @@ class LessonPlanService
             'quantity' => (int) ($data['quantity'] ?? 1),
             'is_required' => ! empty($data['is_required']) ? 1 : 0,
         ], 'LINK_ACTIVITY_RESOURCE', $plan['uuid']);
+    }
+
+    /**
+     * List resources linked to an activity.
+     */
+    public static function listActivityResources(string $activityUuid): array
+    {
+        $activity = EducationFoundationService::byUuid('lesson_plan_activities', $activityUuid);
+        UnitScopeService::assertUnit((int) (self::planById((int) $activity['lesson_plan_id']))['unit_id']);
+
+        return Database::connect()
+            ->table('lesson_plan_activity_resources lar')
+            ->select('lar.*, lr.title resource_title, lr.resource_type')
+            ->join('learning_resources lr', 'lr.id = lar.learning_resource_id', 'left')
+            ->where('lar.lesson_plan_activity_id', (int) $activity['id'])
+            ->get()->getResultArray();
+    }
+
+    /**
+     * Update an activity resource link.
+     */
+    public static function updateActivityResource(string $resourceUuid, array $data): array
+    {
+        $resource = EducationFoundationService::byUuid('lesson_plan_activity_resources', $resourceUuid);
+        $activity = Database::connect()->table('lesson_plan_activities')
+            ->where('id', (int) $resource['lesson_plan_activity_id'])->get()->getRowArray();
+        $plan = self::planById((int) $activity['lesson_plan_id']);
+        self::assertMutable($plan);
+
+        $fields = [];
+        if (array_key_exists('learning_resource_id', $data)) {
+            $fields['learning_resource_id'] = isset($data['learning_resource_id']) ? (int) $data['learning_resource_id'] : null;
+        }
+        if (array_key_exists('custom_description', $data)) {
+            $fields['custom_description'] = $data['custom_description'];
+        }
+        if (array_key_exists('quantity', $data)) {
+            $fields['quantity'] = (int) $data['quantity'];
+        }
+        if (array_key_exists('is_required', $data)) {
+            $fields['is_required'] = ! empty($data['is_required']) ? 1 : 0;
+        }
+        if ($fields === []) {
+            return $resource;
+        }
+        $fields['updated_at'] = date('Y-m-d H:i:s');
+
+        $db = Database::connect();
+        $db->table('lesson_plan_activity_resources')->where('id', (int) $resource['id'])->update($fields);
+        AuditService::log('lesson_plans', 'UPDATE_ACTIVITY_RESOURCE', 'lesson_plan_activity_resources', (int) $resource['id'], $resource, $fields, null, $plan['uuid']);
+
+        return $db->table('lesson_plan_activity_resources')->where('id', (int) $resource['id'])->get()->getRowArray();
+    }
+
+    /**
+     * Unlink a resource from an activity.
+     */
+    public static function deleteActivityResource(string $resourceUuid): void
+    {
+        $resource = EducationFoundationService::byUuid('lesson_plan_activity_resources', $resourceUuid);
+        $activity = Database::connect()->table('lesson_plan_activities')
+            ->where('id', (int) $resource['lesson_plan_activity_id'])->get()->getRowArray();
+        $plan = self::planById((int) $activity['lesson_plan_id']);
+        self::assertMutable($plan);
+
+        $db = Database::connect();
+        $db->table('lesson_plan_activity_resources')->where('id', (int) $resource['id'])->delete();
+        AuditService::log('lesson_plans', 'DELETE_ACTIVITY_RESOURCE', 'lesson_plan_activity_resources', (int) $resource['id'], $resource, null, null, $plan['uuid']);
     }
 
     // ---- Plan validation ----
@@ -480,6 +896,13 @@ class LessonPlanService
             throw new RuntimeException('Lesson plan yang sudah selesai tidak dapat diubah.');
         }
         return $plan;
+    }
+
+    private static function assertMutable(array $plan): void
+    {
+        if (in_array($plan['status'], ['COMPLETED', 'REFLECTED'], true)) {
+            throw new RuntimeException('Lesson plan yang sudah selesai tidak dapat diubah.');
+        }
     }
 
     private static function stageByUuid(string $uuid): array

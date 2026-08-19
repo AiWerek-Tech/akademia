@@ -74,6 +74,28 @@ class SubjectLearningPackEngineService
         return $db->table('subject_learning_packs')->where('id', $id)->get()->getRowArray();
     }
 
+    public static function updatePack(string $uuid, array $data): array
+    {
+        $current = self::mutablePack($uuid);
+        $changes = [];
+        foreach (['name', 'description', 'phase', 'source_locator'] as $f) {
+            if (array_key_exists($f, $data)) {
+                $changes[$f] = $data[$f] !== null ? trim((string) $data[$f]) : null;
+            }
+        }
+        if (isset($data['source_type'])) {
+            $changes['source_type'] = self::enum($data['source_type'], self::SOURCE_TYPES, 'source_type');
+        }
+        if (isset($data['revision_number'])) {
+            $changes['revision_number'] = (int) $data['revision_number'];
+        }
+
+        $updated = EducationFoundationService::atomicUpdate('subject_learning_packs', $current, $changes);
+        AuditService::log('learning_packs', 'UPDATE_PACK', 'SubjectLearningPack', (int) $current['id'], $current, $updated, null, $uuid);
+
+        return $updated;
+    }
+
     public static function clonePack(string $sourceUuid, array $data): array
     {
         $source = self::packByUuid($sourceUuid, false);
@@ -149,6 +171,39 @@ class SubjectLearningPackEngineService
         ], 'CREATE_UNIT', $pack['uuid']);
     }
 
+    public static function updateUnit(string $unitUuid, array $data): array
+    {
+        $unit = self::unitByUuid($unitUuid);
+        self::mutablePackById((int) $unit['learning_pack_id']);
+
+        $changes = [];
+        if (isset($data['code'])) $changes['code'] = strtoupper(trim((string) $data['code']));
+        if (isset($data['title'])) $changes['title'] = trim((string) $data['title']);
+        if (array_key_exists('description', $data)) $changes['description'] = $data['description'];
+        if (isset($data['unit_type'])) $changes['unit_type'] = self::enum($data['unit_type'], self::UNIT_TYPES, 'unit_type');
+        if (isset($data['sequence_order'])) $changes['sequence_order'] = (int) $data['sequence_order'];
+        if (array_key_exists('estimated_hours', $data)) $changes['estimated_hours'] = $data['estimated_hours'];
+        if (array_key_exists('source_locator', $data)) $changes['source_locator'] = $data['source_locator'];
+        if (array_key_exists('copyright_notes', $data)) $changes['copyright_notes'] = $data['copyright_notes'];
+        if (array_key_exists('license_notes', $data)) $changes['license_notes'] = $data['license_notes'];
+        if (isset($data['status'])) $changes['status'] = strtoupper((string) $data['status']);
+        if (isset($data['revision_number'])) $changes['revision_number'] = (int) $data['revision_number'];
+
+        $updated = EducationFoundationService::atomicUpdate('learning_units', $unit, $changes);
+        AuditService::log('learning_packs', 'UPDATE_UNIT', 'LearningUnit', (int) $unit['id'], $unit, $updated, null, $unitUuid);
+
+        return $updated;
+    }
+
+    public static function deleteUnit(string $unitUuid): void
+    {
+        $unit = self::unitByUuid($unitUuid);
+        self::mutablePackById((int) $unit['learning_pack_id']);
+
+        Database::connect()->table('learning_units')->where('id', (int) $unit['id'])->delete();
+        AuditService::log('learning_packs', 'DELETE_UNIT', 'LearningUnit', (int) $unit['id'], $unit, null, null, $unitUuid);
+    }
+
     public static function mapUnitObjective(string $unitUuid, string $objectiveUuid, array $data = []): void
     {
         $unit = self::unitByUuid($unitUuid);
@@ -167,6 +222,19 @@ class SubjectLearningPackEngineService
         AuditService::log('learning_packs', 'MAP_UNIT_OBJECTIVE', 'LearningUnit', (int) $unit['id'], null, ['objective_id' => $objective['id'], 'role' => $role], null, $unitUuid);
     }
 
+    public static function unmapUnitObjective(string $unitUuid, string $objectiveUuid): void
+    {
+        $unit = self::unitByUuid($unitUuid);
+        self::mutablePackById((int) $unit['learning_pack_id']);
+        $objective = EducationFoundationService::byUuid('learning_objectives_tp', $objectiveUuid);
+
+        Database::connect()->table('learning_unit_objectives')
+            ->where('learning_unit_id', (int) $unit['id'])
+            ->where('learning_objective_id', (int) $objective['id'])
+            ->delete();
+        AuditService::log('learning_packs', 'UNMAP_UNIT_OBJECTIVE', 'LearningUnit', (int) $unit['id'], ['objective_id' => $objective['id']], null, null, $unitUuid);
+    }
+
     public static function createConcept(string $packUuid, array $data): array
     {
         $pack = self::mutablePack($packUuid);
@@ -182,6 +250,34 @@ class SubjectLearningPackEngineService
             'source_locator' => $data['source_locator'] ?? null,
             'revision_number' => 1,
         ], 'CREATE_CONCEPT', $pack['uuid']);
+    }
+
+    public static function updateConcept(string $conceptUuid, array $data): array
+    {
+        $concept = self::conceptByUuid($conceptUuid);
+        self::mutablePackById((int) $concept['learning_pack_id']);
+
+        $changes = [];
+        if (isset($data['code'])) $changes['code'] = strtoupper(trim((string) $data['code']));
+        if (isset($data['title'])) $changes['title'] = trim((string) $data['title']);
+        if (array_key_exists('description', $data)) $changes['description'] = $data['description'];
+        if (isset($data['concept_type'])) $changes['concept_type'] = self::enum($data['concept_type'], self::CONCEPT_TYPES, 'concept_type');
+        if (array_key_exists('source_locator', $data)) $changes['source_locator'] = $data['source_locator'];
+        if (isset($data['revision_number'])) $changes['revision_number'] = (int) $data['revision_number'];
+
+        $updated = EducationFoundationService::atomicUpdate('learning_concepts', $concept, $changes);
+        AuditService::log('learning_packs', 'UPDATE_CONCEPT', 'LearningConcept', (int) $concept['id'], $concept, $updated, null, $conceptUuid);
+
+        return $updated;
+    }
+
+    public static function deleteConcept(string $conceptUuid): void
+    {
+        $concept = self::conceptByUuid($conceptUuid);
+        self::mutablePackById((int) $concept['learning_pack_id']);
+
+        Database::connect()->table('learning_concepts')->where('id', (int) $concept['id'])->delete();
+        AuditService::log('learning_packs', 'DELETE_CONCEPT', 'LearningConcept', (int) $concept['id'], $concept, null, null, $conceptUuid);
     }
 
     public static function relateConcepts(string $fromUuid, string $toUuid, string $relationType): void
@@ -211,11 +307,19 @@ class SubjectLearningPackEngineService
     {
         $unit = self::unitByUuid($unitUuid);
         self::mutablePackById((int) $unit['learning_pack_id']);
+
+        $prereqUnitId = null;
+        if (! empty($data['prerequisite_unit_uuid'])) {
+            $prereqUnit = self::unitByUuid((string) $data['prerequisite_unit_uuid']);
+            $prereqUnitId = (int) $prereqUnit['id'];
+        }
+
         $refs = array_filter([
-            'prerequisite_unit_id' => self::optionalScopedUnitId($data['prerequisite_unit_uuid'] ?? null, (int) $unit['learning_pack_id']),
+            'prerequisite_unit_id' => $prereqUnitId,
             'prerequisite_objective_id' => isset($data['prerequisite_objective_uuid']) ? (int) EducationFoundationService::byUuid('learning_objectives_tp', (string) $data['prerequisite_objective_uuid'])['id'] : null,
             'prerequisite_concept_id' => isset($data['prerequisite_concept_uuid']) ? (int) self::conceptByUuid((string) $data['prerequisite_concept_uuid'])['id'] : null,
         ], static fn ($value) => $value !== null);
+
         if (count($refs) !== 1) {
             throw new InvalidArgumentException('Prasyarat unit harus menunjuk tepat satu unit, TP, atau konsep.');
         }
@@ -226,6 +330,16 @@ class SubjectLearningPackEngineService
         return self::insert('learning_unit_prerequisites', ['learning_unit_id' => (int) $unit['id']] + $refs + [
             'description' => $data['description'] ?? null,
         ], 'ADD_UNIT_PREREQUISITE', $unitUuid);
+    }
+
+    public static function deleteUnitPrerequisite(string $prerequisiteUuid): void
+    {
+        $row = EducationFoundationService::byUuid('learning_unit_prerequisites', $prerequisiteUuid);
+        $unit = Database::connect()->table('learning_units')->where('id', (int) $row['learning_unit_id'])->get()->getRowArray();
+        self::mutablePackById((int) $unit['learning_pack_id']);
+
+        Database::connect()->table('learning_unit_prerequisites')->where('id', (int) $row['id'])->delete();
+        AuditService::log('learning_packs', 'DELETE_UNIT_PREREQUISITE', 'LearningUnitPrerequisite', (int) $row['id'], $row, null, null, $prerequisiteUuid);
     }
 
     public static function addMaterialTopic(string $unitUuid, array $data): array
@@ -243,6 +357,36 @@ class SubjectLearningPackEngineService
             'source_locator' => $data['source_locator'] ?? null,
             'teacher_notes' => $data['teacher_notes'] ?? null,
         ], 'ADD_MATERIAL_TOPIC', $unitUuid);
+    }
+
+    public static function updateMaterialTopic(string $topicUuid, array $data): array
+    {
+        $topic = EducationFoundationService::byUuid('learning_material_topics', $topicUuid);
+        $unit = Database::connect()->table('learning_units')->where('id', (int) $topic['learning_unit_id'])->get()->getRowArray();
+        self::mutablePackById((int) $unit['learning_pack_id']);
+
+        $changes = [];
+        if (isset($data['code'])) $changes['code'] = strtoupper(trim((string) $data['code']));
+        if (isset($data['title'])) $changes['title'] = trim((string) $data['title']);
+        if (array_key_exists('description', $data)) $changes['description'] = $data['description'];
+        if (isset($data['material_level'])) $changes['material_level'] = self::enum($data['material_level'], self::MATERIAL_LEVELS, 'material_level');
+        if (isset($data['sequence_order'])) $changes['sequence_order'] = (int) $data['sequence_order'];
+        if (array_key_exists('teacher_notes', $data)) $changes['teacher_notes'] = $data['teacher_notes'];
+
+        $updated = EducationFoundationService::atomicUpdate('learning_material_topics', $topic, $changes);
+        AuditService::log('learning_packs', 'UPDATE_MATERIAL_TOPIC', 'LearningMaterialTopic', (int) $topic['id'], $topic, $updated, null, $topicUuid);
+
+        return $updated;
+    }
+
+    public static function deleteMaterialTopic(string $topicUuid): void
+    {
+        $topic = EducationFoundationService::byUuid('learning_material_topics', $topicUuid);
+        $unit = Database::connect()->table('learning_units')->where('id', (int) $topic['learning_unit_id'])->get()->getRowArray();
+        self::mutablePackById((int) $unit['learning_pack_id']);
+
+        Database::connect()->table('learning_material_topics')->where('id', (int) $topic['id'])->delete();
+        AuditService::log('learning_packs', 'DELETE_MATERIAL_TOPIC', 'LearningMaterialTopic', (int) $topic['id'], $topic, null, null, $topicUuid);
     }
 
     public static function addMisconception(string $unitUuid, array $data): array
@@ -263,6 +407,37 @@ class SubjectLearningPackEngineService
             'status' => strtoupper((string) ($data['status'] ?? 'ACTIVE')),
             'revision_number' => 1,
         ], 'ADD_MISCONCEPTION', $unitUuid);
+    }
+
+    public static function updateMisconception(string $misconceptionUuid, array $data): array
+    {
+        $row = EducationFoundationService::byUuid('learning_misconceptions', $misconceptionUuid);
+        $unit = Database::connect()->table('learning_units')->where('id', (int) $row['learning_unit_id'])->get()->getRowArray();
+        self::mutablePackById((int) $unit['learning_pack_id']);
+
+        $changes = [];
+        if (isset($data['title'])) $changes['title'] = trim((string) $data['title']);
+        if (isset($data['description'])) $changes['description'] = trim((string) $data['description']);
+        if (array_key_exists('detection_hint', $data)) $changes['detection_hint'] = $data['detection_hint'];
+        if (array_key_exists('teacher_response_suggestion', $data)) $changes['teacher_response_suggestion'] = $data['teacher_response_suggestion'];
+        if (isset($data['severity'])) $changes['severity'] = self::enum($data['severity'], self::MISCONCEPTION_SEVERITIES, 'severity');
+        if (isset($data['status'])) $changes['status'] = strtoupper((string) $data['status']);
+        if (isset($data['revision_number'])) $changes['revision_number'] = (int) $data['revision_number'];
+
+        $updated = EducationFoundationService::atomicUpdate('learning_misconceptions', $row, $changes);
+        AuditService::log('learning_packs', 'UPDATE_MISCONCEPTION', 'LearningMisconception', (int) $row['id'], $row, $updated, null, $misconceptionUuid);
+
+        return $updated;
+    }
+
+    public static function deleteMisconception(string $misconceptionUuid): void
+    {
+        $row = EducationFoundationService::byUuid('learning_misconceptions', $misconceptionUuid);
+        $unit = Database::connect()->table('learning_units')->where('id', (int) $row['learning_unit_id'])->get()->getRowArray();
+        self::mutablePackById((int) $unit['learning_pack_id']);
+
+        Database::connect()->table('learning_misconceptions')->where('id', (int) $row['id'])->delete();
+        AuditService::log('learning_packs', 'DELETE_MISCONCEPTION', 'LearningMisconception', (int) $row['id'], $row, null, null, $misconceptionUuid);
     }
 
     public static function addActivation(string $unitUuid, array $data): array
@@ -302,6 +477,36 @@ class SubjectLearningPackEngineService
         ], 'CREATE_RESOURCE', $pack['uuid']);
     }
 
+    public static function updateResource(string $resourceUuid, array $data): array
+    {
+        $resource = self::resourceByUuid($resourceUuid);
+        self::mutablePackById((int) $resource['learning_pack_id']);
+
+        $changes = [];
+        if (isset($data['resource_type'])) $changes['resource_type'] = self::enum($data['resource_type'], self::RESOURCE_TYPES, 'resource_type');
+        if (isset($data['title'])) $changes['title'] = trim((string) $data['title']);
+        if (array_key_exists('description', $data)) $changes['description'] = $data['description'];
+        if (array_key_exists('url', $data)) $changes['url'] = $data['url'];
+        if (array_key_exists('device_count', $data)) $changes['device_count'] = $data['device_count'];
+        if (array_key_exists('internet_required', $data)) $changes['internet_required'] = ! empty($data['internet_required']) ? 1 : 0;
+        if (isset($data['status'])) $changes['status'] = strtoupper((string) $data['status']);
+        if (isset($data['revision_number'])) $changes['revision_number'] = (int) $data['revision_number'];
+
+        $updated = EducationFoundationService::atomicUpdate('learning_resources', $resource, $changes);
+        AuditService::log('learning_packs', 'UPDATE_RESOURCE', 'LearningResource', (int) $resource['id'], $resource, $updated, null, $resourceUuid);
+
+        return $updated;
+    }
+
+    public static function deleteResource(string $resourceUuid): void
+    {
+        $resource = self::resourceByUuid($resourceUuid);
+        self::mutablePackById((int) $resource['learning_pack_id']);
+
+        Database::connect()->table('learning_resources')->where('id', (int) $resource['id'])->delete();
+        AuditService::log('learning_packs', 'DELETE_RESOURCE', 'LearningResource', (int) $resource['id'], $resource, null, null, $resourceUuid);
+    }
+
     public static function createActivity(string $unitUuid, array $data): array
     {
         $unit = self::unitByUuid($unitUuid);
@@ -334,6 +539,40 @@ class SubjectLearningPackEngineService
         ], 'CREATE_ACTIVITY', $unitUuid);
     }
 
+    public static function updateActivity(string $activityUuid, array $data): array
+    {
+        $activity = self::activityByUuid($activityUuid);
+        self::mutablePackById((int) $activity['learning_pack_id']);
+
+        $changes = [];
+        if (isset($data['code'])) $changes['code'] = strtoupper(trim((string) $data['code']));
+        if (isset($data['title'])) $changes['title'] = trim((string) $data['title']);
+        if (array_key_exists('description', $data)) $changes['description'] = $data['description'];
+        if (isset($data['activity_type'])) $changes['activity_type'] = strtoupper((string) $data['activity_type']);
+        if (isset($data['delivery_mode'])) $changes['delivery_mode'] = self::enum($data['delivery_mode'], self::DELIVERY_MODES, 'delivery_mode');
+        if (isset($data['grouping_mode'])) $changes['grouping_mode'] = self::enum($data['grouping_mode'], self::GROUPING_MODES, 'grouping_mode');
+        if (isset($data['estimated_minutes'])) $changes['estimated_minutes'] = (int) $data['estimated_minutes'];
+        if (array_key_exists('teacher_guidance', $data)) $changes['teacher_guidance'] = $data['teacher_guidance'];
+        if (array_key_exists('student_instructions', $data)) $changes['student_instructions'] = $data['student_instructions'];
+        if (array_key_exists('expected_output', $data)) $changes['expected_output'] = $data['expected_output'];
+        if (isset($data['status'])) $changes['status'] = strtoupper((string) $data['status']);
+        if (isset($data['revision_number'])) $changes['revision_number'] = (int) $data['revision_number'];
+
+        $updated = EducationFoundationService::atomicUpdate('learning_activities', $activity, $changes);
+        AuditService::log('learning_packs', 'UPDATE_ACTIVITY', 'LearningActivity', (int) $activity['id'], $activity, $updated, null, $activityUuid);
+
+        return $updated;
+    }
+
+    public static function deleteActivity(string $activityUuid): void
+    {
+        $activity = self::activityByUuid($activityUuid);
+        self::mutablePackById((int) $activity['learning_pack_id']);
+
+        Database::connect()->table('learning_activities')->where('id', (int) $activity['id'])->delete();
+        AuditService::log('learning_packs', 'DELETE_ACTIVITY', 'LearningActivity', (int) $activity['id'], $activity, null, null, $activityUuid);
+    }
+
     public static function attachActivityResource(string $activityUuid, string $resourceUuid, array $data = []): void
     {
         $activity = self::activityByUuid($activityUuid);
@@ -350,6 +589,20 @@ class SubjectLearningPackEngineService
             'is_required' => ! array_key_exists('is_required', $data) || (bool) $data['is_required'] ? 1 : 0,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+        AuditService::log('learning_packs', 'ATTACH_ACTIVITY_RESOURCE', 'LearningActivity', (int) $activity['id'], null, ['resource_id' => $resource['id']], null, $activityUuid);
+    }
+
+    public static function detachActivityResource(string $activityUuid, string $resourceUuid): void
+    {
+        $activity = self::activityByUuid($activityUuid);
+        $resource = self::resourceByUuid($resourceUuid);
+        self::mutablePackById((int) $activity['learning_pack_id']);
+
+        Database::connect()->table('learning_activity_resources')
+            ->where('activity_id', (int) $activity['id'])
+            ->where('resource_id', (int) $resource['id'])
+            ->delete();
+        AuditService::log('learning_packs', 'DETACH_ACTIVITY_RESOURCE', 'LearningActivity', (int) $activity['id'], ['resource_id' => $resource['id']], null, null, $activityUuid);
     }
 
     public static function addAlternative(string $groupUuid, string $activityUuid, array $data = []): void
@@ -371,9 +624,20 @@ class SubjectLearningPackEngineService
         ]);
     }
 
-    public static function addTeacherGuidance(array $data): array
+    public static function removeAlternative(string $groupUuid, string $activityUuid): void
     {
-        $owner = self::resolveGuidanceOwner($data);
+        $activity = self::activityByUuid($activityUuid);
+        self::mutablePackById((int) $activity['learning_pack_id']);
+
+        Database::connect()->table('learning_activity_alternatives')
+            ->where('group_uuid', $groupUuid)
+            ->where('activity_id', (int) $activity['id'])
+            ->delete();
+    }
+
+    public static function addTeacherGuidance(array $data, ?string $packUuid = null): array
+    {
+        $owner = self::resolveGuidanceOwner($data, $packUuid);
         self::mutablePackById((int) $owner['learning_pack_id']);
         return self::insert('learning_teacher_guidance', [
             'guidance_type' => self::enum($data['guidance_type'] ?? 'INSTRUCTION', self::GUIDANCE_TYPES, 'guidance_type'),
@@ -385,7 +649,29 @@ class SubjectLearningPackEngineService
             'sequence_order' => (int) ($data['sequence_order'] ?? 1),
             'source_id' => $data['source_id'] ?? null,
             'source_locator' => $data['source_locator'] ?? null,
-        ], 'ADD_TEACHER_GUIDANCE', $data['learning_unit_uuid'] ?? $data['activity_uuid'] ?? $data['concept_uuid']);
+        ], 'ADD_TEACHER_GUIDANCE', $data['learning_unit_uuid'] ?? $data['activity_uuid'] ?? $data['concept_uuid'] ?? $packUuid ?? null);
+    }
+
+    public static function deleteTeacherGuidance(string $guidanceUuid): void
+    {
+        $guidance = EducationFoundationService::byUuid('learning_teacher_guidance', $guidanceUuid);
+        $packId = null;
+        if ($guidance['learning_unit_id']) {
+            $unit = Database::connect()->table('learning_units')->where('id', (int) $guidance['learning_unit_id'])->get()->getRowArray();
+            $packId = (int) $unit['learning_pack_id'];
+        } elseif ($guidance['activity_id']) {
+            $act = Database::connect()->table('learning_activities')->where('id', (int) $guidance['activity_id'])->get()->getRowArray();
+            $packId = (int) $act['learning_pack_id'];
+        } elseif ($guidance['concept_id']) {
+            $concept = Database::connect()->table('learning_concepts')->where('id', (int) $guidance['concept_id'])->get()->getRowArray();
+            $packId = (int) $concept['learning_pack_id'];
+        }
+        if ($packId) {
+            self::mutablePackById($packId);
+        }
+
+        Database::connect()->table('learning_teacher_guidance')->where('id', (int) $guidance['id'])->delete();
+        AuditService::log('learning_packs', 'DELETE_TEACHER_GUIDANCE', 'LearningTeacherGuidance', (int) $guidance['id'], $guidance, null, null, $guidanceUuid);
     }
 
     public static function addExpectedResponse(string $activityUuid, array $data): array
@@ -401,6 +687,15 @@ class SubjectLearningPackEngineService
         ], 'ADD_EXPECTED_RESPONSE', $activityUuid);
     }
 
+    public static function deleteExpectedResponse(string $responseUuid): void
+    {
+        $resp = EducationFoundationService::byUuid('learning_expected_responses', $responseUuid);
+        $act = Database::connect()->table('learning_activities')->where('id', (int) $resp['activity_id'])->get()->getRowArray();
+        self::mutablePackById((int) $act['learning_pack_id']);
+
+        Database::connect()->table('learning_expected_responses')->where('id', (int) $resp['id'])->delete();
+    }
+
     public static function addExperience(string $activityUuid, string $experienceType, int $sequenceOrder = 1): void
     {
         $activity = self::activityByUuid($activityUuid);
@@ -411,6 +706,16 @@ class SubjectLearningPackEngineService
             'sequence_order' => $sequenceOrder,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+    }
+
+    public static function removeExperience(string $activityUuid, string $experienceType): void
+    {
+        $activity = self::activityByUuid($activityUuid);
+        self::mutablePackById((int) $activity['learning_pack_id']);
+        Database::connect()->table('learning_activity_experiences')
+            ->where('activity_id', (int) $activity['id'])
+            ->where('experience_type', strtoupper($experienceType))
+            ->delete();
     }
 
     public static function mapPracticeToUnit(string $unitUuid, string $practiceCode): void
@@ -472,9 +777,17 @@ class SubjectLearningPackEngineService
         ], 'ADD_INTERDISCIPLINARY_LINK', $packUuid);
     }
 
-    public static function addAssessmentReference(array $data): array
+    public static function deleteInterdisciplinaryLink(string $linkUuid): void
     {
-        $owner = self::resolveUnitOrActivityOwner($data);
+        $link = EducationFoundationService::byUuid('learning_interdisciplinary_links', $linkUuid);
+        self::mutablePackById((int) $link['learning_pack_id']);
+
+        Database::connect()->table('learning_interdisciplinary_links')->where('id', (int) $link['id'])->delete();
+    }
+
+    public static function addAssessmentReference(array $data, ?string $packUuid = null): array
+    {
+        $owner = self::resolveUnitOrActivityOwner($data, $packUuid);
         self::mutablePackById((int) $owner['learning_pack_id']);
         return self::insert('learning_assessment_references', [
             'learning_unit_id' => $owner['learning_unit_id'] ?? null,
@@ -485,12 +798,31 @@ class SubjectLearningPackEngineService
             'notes' => $data['notes'] ?? null,
             'source_id' => $data['source_id'] ?? null,
             'source_locator' => $data['source_locator'] ?? null,
-        ], 'ADD_ASSESSMENT_REFERENCE', $data['learning_unit_uuid'] ?? $data['activity_uuid']);
+        ], 'ADD_ASSESSMENT_REFERENCE', $data['learning_unit_uuid'] ?? $data['activity_uuid'] ?? $packUuid ?? null);
     }
 
-    public static function addFollowupGuidance(array $data): array
+    public static function deleteAssessmentReference(string $referenceUuid): void
     {
-        $owner = self::resolveUnitOrActivityOwner($data);
+        $ref = EducationFoundationService::byUuid('learning_assessment_references', $referenceUuid);
+        $packId = null;
+        if ($ref['learning_unit_id']) {
+            $unit = Database::connect()->table('learning_units')->where('id', (int) $ref['learning_unit_id'])->get()->getRowArray();
+            $packId = (int) $unit['learning_pack_id'];
+        } elseif ($ref['activity_id']) {
+            $act = Database::connect()->table('learning_activities')->where('id', (int) $ref['activity_id'])->get()->getRowArray();
+            $packId = (int) $act['learning_pack_id'];
+        }
+        if ($packId) {
+            self::mutablePackById($packId);
+        }
+
+        Database::connect()->table('learning_assessment_references')->where('id', (int) $ref['id'])->delete();
+        AuditService::log('learning_packs', 'DELETE_ASSESSMENT_REFERENCE', 'LearningAssessmentReference', (int) $ref['id'], $ref, null, null, $referenceUuid);
+    }
+
+    public static function addFollowupGuidance(array $data, ?string $packUuid = null): array
+    {
+        $owner = self::resolveUnitOrActivityOwner($data, $packUuid);
         self::mutablePackById((int) $owner['learning_pack_id']);
         return self::insert('learning_followup_guidance', [
             'guidance_type' => self::enum($data['guidance_type'] ?? 'REMEDIAL', self::FOLLOWUP_TYPES, 'guidance_type'),
@@ -500,12 +832,31 @@ class SubjectLearningPackEngineService
             'trigger_description' => trim((string) $data['trigger_description']),
             'guidance' => trim((string) $data['guidance']),
             'recommended_activity_id' => isset($data['recommended_activity_uuid']) ? (int) self::activityByUuid((string) $data['recommended_activity_uuid'])['id'] : null,
-        ], 'ADD_FOLLOWUP_GUIDANCE', $data['learning_unit_uuid'] ?? $data['activity_uuid']);
+        ], 'ADD_FOLLOWUP_GUIDANCE', $data['learning_unit_uuid'] ?? $data['activity_uuid'] ?? $packUuid ?? null);
     }
 
-    public static function addReflectionPrompt(array $data): array
+    public static function deleteFollowupGuidance(string $guidanceUuid): void
     {
-        $owner = self::resolveUnitOrActivityOwner($data);
+        $row = EducationFoundationService::byUuid('learning_followup_guidance', $guidanceUuid);
+        $packId = null;
+        if ($row['learning_unit_id']) {
+            $unit = Database::connect()->table('learning_units')->where('id', (int) $row['learning_unit_id'])->get()->getRowArray();
+            $packId = (int) $unit['learning_pack_id'];
+        } elseif ($row['activity_id']) {
+            $act = Database::connect()->table('learning_activities')->where('id', (int) $row['activity_id'])->get()->getRowArray();
+            $packId = (int) $act['learning_pack_id'];
+        }
+        if ($packId) {
+            self::mutablePackById($packId);
+        }
+
+        Database::connect()->table('learning_followup_guidance')->where('id', (int) $row['id'])->delete();
+        AuditService::log('learning_packs', 'DELETE_FOLLOWUP_GUIDANCE', 'LearningFollowupGuidance', (int) $row['id'], $row, null, null, $guidanceUuid);
+    }
+
+    public static function addReflectionPrompt(array $data, ?string $packUuid = null): array
+    {
+        $owner = self::resolveUnitOrActivityOwner($data, $packUuid);
         self::mutablePackById((int) $owner['learning_pack_id']);
         return self::insert('learning_reflection_prompts', [
             'audience' => self::enum($data['audience'] ?? 'STUDENT', self::REFLECTION_AUDIENCES, 'audience'),
@@ -514,7 +865,25 @@ class SubjectLearningPackEngineService
             'prompt' => trim((string) $data['prompt']),
             'prompt_type' => strtoupper((string) ($data['prompt_type'] ?? 'OPEN')),
             'sequence_order' => (int) ($data['sequence_order'] ?? 1),
-        ], 'ADD_REFLECTION_PROMPT', $data['learning_unit_uuid'] ?? $data['activity_uuid']);
+        ], 'ADD_REFLECTION_PROMPT', $data['learning_unit_uuid'] ?? $data['activity_uuid'] ?? $packUuid ?? null);
+    }
+
+    public static function deleteReflectionPrompt(string $promptUuid): void
+    {
+        $row = EducationFoundationService::byUuid('learning_reflection_prompts', $promptUuid);
+        $packId = null;
+        if ($row['learning_unit_id']) {
+            $unit = Database::connect()->table('learning_units')->where('id', (int) $row['learning_unit_id'])->get()->getRowArray();
+            $packId = (int) $unit['learning_pack_id'];
+        } elseif ($row['activity_id']) {
+            $act = Database::connect()->table('learning_activities')->where('id', (int) $row['activity_id'])->get()->getRowArray();
+            $packId = (int) $act['learning_pack_id'];
+        }
+        if ($packId) {
+            self::mutablePackById($packId);
+        }
+
+        Database::connect()->table('learning_reflection_prompts')->where('id', (int) $row['id'])->delete();
     }
 
     public static function coverage(string $packUuid): array
@@ -529,7 +898,8 @@ class SubjectLearningPackEngineService
             ->select('luo.learning_objective_id')
             ->distinct()
             ->countAllResults();
-        $unitIds = array_map('intval', array_column($db->table('learning_units')->select('id')->where('learning_pack_id', $packId)->get()->getResultArray(), 'id'));
+        $units = $db->table('learning_units')->where('learning_pack_id', $packId)->get()->getResultArray();
+        $unitIds = array_map('intval', array_column($units, 'id'));
         $activityCount = $unitIds === [] ? 0 : $db->table('learning_activities')->whereIn('learning_unit_id', $unitIds)->countAllResults();
         $assessmentRefs = $unitIds === [] ? 0 : $db->table('learning_assessment_references')->whereIn('learning_unit_id', $unitIds)->countAllResults();
         $unitsWithoutObjective = $unitIds === [] ? 0 : $db->table('learning_units lu')
@@ -538,6 +908,34 @@ class SubjectLearningPackEngineService
             ->where('luo.learning_unit_id IS NULL')
             ->countAllResults();
         $sourceRows = $db->table('learning_units')->where('learning_pack_id', $packId)->groupStart()->where('source_id IS NULL')->where('source_locator IS NULL')->groupEnd()->countAllResults();
+
+        // Deep Learning 3 Experiences Analysis (Understand, Apply, Reflect)
+        $expCounts = ['UNDERSTAND' => 0, 'APPLY' => 0, 'REFLECT' => 0];
+        if ($unitIds !== []) {
+            $expRows = $db->table('learning_activity_experiences lae')
+                ->join('learning_activities la', 'la.id=lae.activity_id')
+                ->whereIn('la.learning_unit_id', $unitIds)
+                ->select('lae.experience_type, COUNT(*) as cnt')
+                ->groupBy('lae.experience_type')
+                ->get()->getResultArray();
+            foreach ($expRows as $row) {
+                $type = strtoupper((string) $row['experience_type']);
+                if (isset($expCounts[$type])) {
+                    $expCounts[$type] = (int) $row['cnt'];
+                }
+            }
+        }
+
+        $unitsWithoutActivities = 0;
+        $unitsMissingExperiences = [];
+        foreach ($units as $u) {
+            $actCnt = $db->table('learning_activities')->where('learning_unit_id', (int) $u['id'])->countAllResults();
+            if ($actCnt === 0) {
+                $unitsWithoutActivities++;
+                $unitsMissingExperiences[] = $u['code'] . ' (Belum ada aktivitas)';
+            }
+        }
+
         $warnings = [];
         if ($totalTp === 0) {
             $warnings[] = 'Learning pack belum menautkan TP.';
@@ -545,12 +943,51 @@ class SubjectLearningPackEngineService
         if ($unitsWithoutObjective > 0) {
             $warnings[] = $unitsWithoutObjective . ' unit belum memiliki TP.';
         }
+        if ($unitsWithoutActivities > 0) {
+            $warnings[] = $unitsWithoutActivities . ' unit belum memiliki aktivitas belajar.';
+        }
         if ($assessmentRefs === 0) {
             $warnings[] = 'Belum ada assessment reference.';
         }
         if ($sourceRows > 0) {
             $warnings[] = $sourceRows . ' unit belum memiliki provenance lengkap.';
         }
+        if ($expCounts['UNDERSTAND'] === 0 || $expCounts['APPLY'] === 0 || $expCounts['REFLECT'] === 0) {
+            $missingList = [];
+            if ($expCounts['UNDERSTAND'] === 0) $missingList[] = 'Memahami (Understand)';
+            if ($expCounts['APPLY'] === 0) $missingList[] = 'Mengaplikasi (Apply)';
+            if ($expCounts['REFLECT'] === 0) $missingList[] = 'Merefleksi (Reflect)';
+            $warnings[] = 'Pengalaman Pembelajaran Mendalam belum lengkap: ' . implode(', ', $missingList) . '.';
+        }
+
+        // Composite readiness score calculation
+        $scoreWeights = 0;
+        $scoreEarned = 0;
+
+        // 1. TP linked
+        $scoreWeights += 25;
+        if ($totalTp > 0) $scoreEarned += 25;
+
+        // 2. Units have TP
+        $scoreWeights += 25;
+        if ($units !== [] && $unitsWithoutObjective === 0) $scoreEarned += 25;
+        elseif ($units !== []) $scoreEarned += (int) (25 * ($tpWithUnit / max(1, $totalTp)));
+
+        // 3. Activities available
+        $scoreWeights += 20;
+        if ($activityCount > 0 && $unitsWithoutActivities === 0) $scoreEarned += 20;
+        elseif ($activityCount > 0) $scoreEarned += 10;
+
+        // 4. Deep Learning Experiences
+        $scoreWeights += 15;
+        $dlCount = ($expCounts['UNDERSTAND'] > 0 ? 1 : 0) + ($expCounts['APPLY'] > 0 ? 1 : 0) + ($expCounts['REFLECT'] > 0 ? 1 : 0);
+        $scoreEarned += (int) (15 * ($dlCount / 3));
+
+        // 5. Assessment References
+        $scoreWeights += 15;
+        if ($assessmentRefs > 0) $scoreEarned += 15;
+
+        $readinessScore = (int) round(($scoreEarned / $scoreWeights) * 100);
 
         return [
             'tp_total' => $totalTp,
@@ -558,9 +995,13 @@ class SubjectLearningPackEngineService
             'tp_with_activity' => $activityCount > 0 ? $tpWithUnit : 0,
             'tp_with_assessment_reference' => $assessmentRefs > 0 ? $tpWithUnit : 0,
             'units_without_objective' => $unitsWithoutObjective,
+            'units_without_activities' => $unitsWithoutActivities,
             'activity_count' => $activityCount,
             'assessment_reference_count' => $assessmentRefs,
             'source_provenance_gaps' => $sourceRows,
+            'deep_learning_experiences' => $expCounts,
+            'units_missing_experiences' => $unitsMissingExperiences,
+            'readiness_score' => $readinessScore,
             'warnings' => $warnings,
         ];
     }
@@ -576,6 +1017,94 @@ class SubjectLearningPackEngineService
             $errors[] = 'unit_without_objective';
         }
         return ['valid' => $errors === [], 'errors' => $errors, 'coverage' => $coverage];
+    }
+
+    /**
+     * Eager loads the entire structured Learning Pack tree for Phase 4 (Lesson Planner).
+     */
+    public static function getPackStructureForPlanning(string $packUuid): array
+    {
+        $pack = self::packByUuid($packUuid);
+        $db = Database::connect();
+        $packId = (int) $pack['id'];
+
+        $units = $db->table('learning_units')->where('learning_pack_id', $packId)->orderBy('sequence_order', 'ASC')->get()->getResultArray();
+        $unitIds = array_map('intval', array_column($units, 'id')) ?: [0];
+
+        // Eager load child relations
+        $unitObjectives = $db->table('learning_unit_objectives luo')
+            ->select('luo.*, tp.uuid as tp_uuid, tp.code as tp_code, tp.statement as tp_statement')
+            ->join('learning_objectives_tp tp', 'tp.id=luo.learning_objective_id')
+            ->whereIn('luo.learning_unit_id', $unitIds)
+            ->orderBy('luo.sequence_order', 'ASC')
+            ->get()->getResultArray();
+
+        $concepts = $db->table('learning_concepts')->where('learning_pack_id', $packId)->orderBy('code', 'ASC')->get()->getResultArray();
+        $materials = $db->table('learning_material_topics')->whereIn('learning_unit_id', $unitIds)->orderBy('sequence_order', 'ASC')->get()->getResultArray();
+        $misconceptions = $db->table('learning_misconceptions')->whereIn('learning_unit_id', $unitIds)->get()->getResultArray();
+        $activations = $db->table('learning_activations')->whereIn('learning_unit_id', $unitIds)->get()->getResultArray();
+        $activities = $db->table('learning_activities')->where('learning_pack_id', $packId)->orderBy('code', 'ASC')->get()->getResultArray();
+        $activityIds = array_map('intval', array_column($activities, 'id')) ?: [0];
+
+        $resources = $db->table('learning_resources')->where('learning_pack_id', $packId)->orderBy('title', 'ASC')->get()->getResultArray();
+        $activityResources = $db->table('learning_activity_resources lar')
+            ->select('lar.*, lr.uuid as resource_uuid, lr.title as resource_title, lr.resource_type')
+            ->join('learning_resources lr', 'lr.id=lar.resource_id')
+            ->whereIn('lar.activity_id', $activityIds)
+            ->get()->getResultArray();
+
+        $alternatives = $db->table('learning_activity_alternatives')->whereIn('activity_id', $activityIds)->orderBy('priority', 'ASC')->get()->getResultArray();
+        $experiences = $db->table('learning_activity_experiences')->whereIn('activity_id', $activityIds)->orderBy('sequence_order', 'ASC')->get()->getResultArray();
+        $guidances = $db->table('learning_teacher_guidance')->whereIn('learning_unit_id', $unitIds)->orWhereIn('activity_id', $activityIds)->get()->getResultArray();
+        $expectedResponses = $db->table('learning_expected_responses')->whereIn('activity_id', $activityIds)->orderBy('sequence_order', 'ASC')->get()->getResultArray();
+        $assessmentRefs = $db->table('learning_assessment_references')->whereIn('learning_unit_id', $unitIds)->orWhereIn('activity_id', $activityIds)->get()->getResultArray();
+        $followups = $db->table('learning_followup_guidance')->whereIn('learning_unit_id', $unitIds)->get()->getResultArray();
+        $reflectionPrompts = $db->table('learning_reflection_prompts')->whereIn('learning_unit_id', $unitIds)->orWhereIn('activity_id', $activityIds)->get()->getResultArray();
+
+        // Assemble tree structure
+        $structuredUnits = [];
+        foreach ($units as $u) {
+            $uId = (int) $u['id'];
+            $uObjectives = array_values(array_filter($unitObjectives, static fn ($o) => (int) $o['learning_unit_id'] === $uId));
+            $uMaterials = array_values(array_filter($materials, static fn ($m) => (int) $m['learning_unit_id'] === $uId));
+            $uMisconceptions = array_values(array_filter($misconceptions, static fn ($mc) => (int) $mc['learning_unit_id'] === $uId));
+            $uActivations = array_values(array_filter($activations, static fn ($ac) => (int) $ac['learning_unit_id'] === $uId));
+            $uAssessments = array_values(array_filter($assessmentRefs, static fn ($ar) => (int) $ar['learning_unit_id'] === $uId));
+            $uFollowups = array_values(array_filter($followups, static fn ($fu) => (int) $fu['learning_unit_id'] === $uId));
+            $uReflections = array_values(array_filter($reflectionPrompts, static fn ($rp) => (int) $rp['learning_unit_id'] === $uId));
+
+            $uActivities = [];
+            foreach ($activities as $act) {
+                if ((int) $act['learning_unit_id'] !== $uId) continue;
+                $actId = (int) $act['id'];
+                $act['resources'] = array_values(array_filter($activityResources, static fn ($r) => (int) $r['activity_id'] === $actId));
+                $act['alternatives'] = array_values(array_filter($alternatives, static fn ($alt) => (int) $alt['activity_id'] === $actId));
+                $act['experiences'] = array_values(array_filter($experiences, static fn ($e) => (int) $e['activity_id'] === $actId));
+                $act['guidance'] = array_values(array_filter($guidances, static fn ($g) => (int) $g['activity_id'] === $actId));
+                $act['expected_responses'] = array_values(array_filter($expectedResponses, static fn ($er) => (int) $er['activity_id'] === $actId));
+                $act['assessment_references'] = array_values(array_filter($assessmentRefs, static fn ($ar) => (int) $ar['activity_id'] === $actId));
+                $act['reflection_prompts'] = array_values(array_filter($reflectionPrompts, static fn ($rp) => (int) $rp['activity_id'] === $actId));
+                $uActivities[] = $act;
+            }
+
+            $u['objectives'] = $uObjectives;
+            $u['materials'] = $uMaterials;
+            $u['misconceptions'] = $uMisconceptions;
+            $u['activations'] = $uActivations;
+            $u['activities'] = $uActivities;
+            $u['assessment_references'] = $uAssessments;
+            $u['followup_guidance'] = $uFollowups;
+            $u['reflection_prompts'] = $uReflections;
+
+            $structuredUnits[] = $u;
+        }
+
+        $pack['units'] = $structuredUnits;
+        $pack['concepts'] = $concepts;
+        $pack['resources'] = $resources;
+        $pack['coverage'] = self::coverage($packUuid);
+
+        return $pack;
     }
 
     private static function insert(string $table, array $data, string $action, ?string $uuidForAudit = null): array
@@ -744,15 +1273,15 @@ class SubjectLearningPackEngineService
         return false;
     }
 
-    private static function resolveGuidanceOwner(array $data): array
+    private static function resolveGuidanceOwner(array $data, ?string $packUuid = null): array
     {
         $set = array_filter([
             'learning_unit_uuid' => $data['learning_unit_uuid'] ?? null,
             'activity_uuid' => $data['activity_uuid'] ?? null,
             'concept_uuid' => $data['concept_uuid'] ?? null,
         ]);
-        if (count($set) !== 1) {
-            throw new InvalidArgumentException('Guidance harus ditautkan tepat ke satu unit, aktivitas, atau konsep.');
+        if (count($set) > 1) {
+            throw new InvalidArgumentException('Guidance tidak dapat ditautkan ke lebih dari satu entitas anak.');
         }
         if (isset($set['learning_unit_uuid'])) {
             $unit = self::unitByUuid((string) $set['learning_unit_uuid']);
@@ -762,25 +1291,45 @@ class SubjectLearningPackEngineService
             $activity = self::activityByUuid((string) $set['activity_uuid']);
             return ['learning_pack_id' => (int) $activity['learning_pack_id'], 'activity_id' => (int) $activity['id']];
         }
-        $concept = self::conceptByUuid((string) $set['concept_uuid']);
-        return ['learning_pack_id' => (int) $concept['learning_pack_id'], 'concept_id' => (int) $concept['id']];
+        if (isset($set['concept_uuid'])) {
+            $concept = self::conceptByUuid((string) $set['concept_uuid']);
+            return ['learning_pack_id' => (int) $concept['learning_pack_id'], 'concept_id' => (int) $concept['id']];
+        }
+
+        $pUuid = $packUuid ?? $data['learning_pack_uuid'] ?? null;
+        if ($pUuid) {
+            $pack = self::packByUuid((string) $pUuid);
+            return ['learning_pack_id' => (int) $pack['id']];
+        }
+
+        throw new InvalidArgumentException('Guidance harus ditautkan ke unit, aktivitas, konsep, atau paket belajar.');
     }
 
-    private static function resolveUnitOrActivityOwner(array $data): array
+    private static function resolveUnitOrActivityOwner(array $data, ?string $packUuid = null): array
     {
         $set = array_filter([
             'learning_unit_uuid' => $data['learning_unit_uuid'] ?? null,
             'activity_uuid' => $data['activity_uuid'] ?? null,
         ]);
-        if (count($set) !== 1) {
-            throw new InvalidArgumentException('Data harus ditautkan tepat ke satu unit atau aktivitas.');
+        if (count($set) > 1) {
+            throw new InvalidArgumentException('Data tidak dapat ditautkan ke lebih dari satu entitas.');
         }
         if (isset($set['learning_unit_uuid'])) {
             $unit = self::unitByUuid((string) $set['learning_unit_uuid']);
             return ['learning_pack_id' => (int) $unit['learning_pack_id'], 'learning_unit_id' => (int) $unit['id']];
         }
-        $activity = self::activityByUuid((string) $set['activity_uuid']);
-        return ['learning_pack_id' => (int) $activity['learning_pack_id'], 'activity_id' => (int) $activity['id']];
+        if (isset($set['activity_uuid'])) {
+            $activity = self::activityByUuid((string) $set['activity_uuid']);
+            return ['learning_pack_id' => (int) $activity['learning_pack_id'], 'activity_id' => (int) $activity['id']];
+        }
+
+        $pUuid = $packUuid ?? $data['learning_pack_uuid'] ?? null;
+        if ($pUuid) {
+            $pack = self::packByUuid((string) $pUuid);
+            return ['learning_pack_id' => (int) $pack['id']];
+        }
+
+        throw new InvalidArgumentException('Data harus ditautkan ke unit, aktivitas, atau paket belajar.');
     }
 
     private static function enum($value, array $allowed, string $field): string

@@ -26,15 +26,45 @@ class SubjectLearningPackController extends BaseController
         return $this->run(fn () => SubjectLearningPackEngineService::createUnit($uuid, $this->request->getPost()), $uuid, 'units', 'Unit berhasil ditambahkan.');
     }
 
+    public function updateUnit(string $uuid, string $unitUuid)
+    {
+        return $this->run(fn () => SubjectLearningPackEngineService::updateUnit($unitUuid, $this->request->getPost()), $uuid, 'units', 'Unit berhasil diperbarui.');
+    }
+
+    public function deleteUnit(string $uuid, string $unitUuid)
+    {
+        return $this->run(fn () => SubjectLearningPackEngineService::deleteUnit($unitUuid), $uuid, 'units', 'Unit berhasil dihapus.');
+    }
+
     public function storeConcept(string $uuid)
     {
         $data = $this->request->getPost();
         return $this->run(fn () => SubjectLearningPackEngineService::createConcept($uuid, $data), $uuid, 'concepts', 'Konsep berhasil ditambahkan.');
     }
 
+    public function updateConcept(string $uuid, string $conceptUuid)
+    {
+        return $this->run(fn () => SubjectLearningPackEngineService::updateConcept($conceptUuid, $this->request->getPost()), $uuid, 'concepts', 'Konsep berhasil diperbarui.');
+    }
+
+    public function deleteConcept(string $uuid, string $conceptUuid)
+    {
+        return $this->run(fn () => SubjectLearningPackEngineService::deleteConcept($conceptUuid), $uuid, 'concepts', 'Konsep berhasil dihapus.');
+    }
+
     public function storeResource(string $uuid)
     {
         return $this->run(fn () => SubjectLearningPackEngineService::createResource($uuid, $this->request->getPost()), $uuid, 'resources', 'Resource berhasil ditambahkan.');
+    }
+
+    public function updateResource(string $uuid, string $resourceUuid)
+    {
+        return $this->run(fn () => SubjectLearningPackEngineService::updateResource($resourceUuid, $this->request->getPost()), $uuid, 'resources', 'Resource berhasil diperbarui.');
+    }
+
+    public function deleteResource(string $uuid, string $resourceUuid)
+    {
+        return $this->run(fn () => SubjectLearningPackEngineService::deleteResource($resourceUuid), $uuid, 'resources', 'Resource berhasil dihapus.');
     }
 
     public function storeActivity(string $uuid)
@@ -43,14 +73,80 @@ class SubjectLearningPackController extends BaseController
         return $this->run(fn () => SubjectLearningPackEngineService::createActivity($unitUuid, $this->request->getPost()), $uuid, 'activities', 'Aktivitas berhasil ditambahkan.');
     }
 
+    public function updateActivity(string $uuid, string $activityUuid)
+    {
+        return $this->run(fn () => SubjectLearningPackEngineService::updateActivity($activityUuid, $this->request->getPost()), $uuid, 'activities', 'Aktivitas berhasil diperbarui.');
+    }
+
+    public function deleteActivity(string $uuid, string $activityUuid)
+    {
+        return $this->run(fn () => SubjectLearningPackEngineService::deleteActivity($activityUuid), $uuid, 'activities', 'Aktivitas berhasil dihapus.');
+    }
+
+    public function attachActivityResource(string $uuid, string $activityUuid)
+    {
+        $resourceUuid = (string) $this->request->getPost('resource_uuid');
+        return $this->run(fn () => SubjectLearningPackEngineService::attachActivityResource($activityUuid, $resourceUuid, $this->request->getPost()), $uuid, 'activities', 'Resource berhasil ditautkan ke aktivitas.');
+    }
+
+    public function detachActivityResource(string $uuid, string $activityUuid, string $resourceUuid)
+    {
+        return $this->run(fn () => SubjectLearningPackEngineService::detachActivityResource($activityUuid, $resourceUuid), $uuid, 'activities', 'Resource berhasil dilepas dari aktivitas.');
+    }
+
+    public function addActivityAlternative(string $uuid, string $activityUuid)
+    {
+        $groupUuid = (string) ($this->request->getPost('group_uuid') ?: \App\Services\UuidService::v4());
+        return $this->run(fn () => SubjectLearningPackEngineService::addAlternative($groupUuid, $activityUuid, $this->request->getPost()), $uuid, 'activities', 'Alternatif aktivitas berhasil ditambahkan.');
+    }
+
+    public function addActivityExperience(string $uuid, string $activityUuid)
+    {
+        $experienceType = (string) $this->request->getPost('experience_type');
+        $seq = (int) ($this->request->getPost('sequence_order') ?? 1);
+        return $this->run(fn () => SubjectLearningPackEngineService::addExperience($activityUuid, $experienceType, $seq), $uuid, 'activities', 'Pengalaman belajar (Understand/Apply/Reflect) berhasil ditambahkan.');
+    }
+
     public function storeAssessment(string $uuid)
     {
         return $this->run(fn () => SubjectLearningPackEngineService::addAssessmentReference($this->request->getPost()), $uuid, 'assessment', 'Assessment guidance berhasil ditambahkan.');
     }
 
+    public function deleteAssessment(string $uuid, string $refUuid)
+    {
+        return $this->run(fn () => SubjectLearningPackEngineService::deleteAssessmentReference($refUuid), $uuid, 'assessment', 'Assessment guidance berhasil dihapus.');
+    }
+
     public function storeFollowup(string $uuid)
     {
         return $this->run(fn () => SubjectLearningPackEngineService::addFollowupGuidance($this->request->getPost()), $uuid, 'followup', 'Follow-up guidance berhasil ditambahkan.');
+    }
+
+    public function deleteFollowup(string $uuid, string $guideUuid)
+    {
+        return $this->run(fn () => SubjectLearningPackEngineService::deleteFollowupGuidance($guideUuid), $uuid, 'followup', 'Follow-up guidance berhasil dihapus.');
+    }
+
+    public function clonePack(string $uuid)
+    {
+        try {
+            $clone = SubjectLearningPackEngineService::clonePack($uuid, $this->request->getPost());
+            return redirect()->to('curriculum/learning-packs/' . $clone['uuid'])->with('success', 'Learning pack berhasil dikloning.');
+        } catch (\Throwable $e) {
+            return redirect()->to('curriculum/learning-packs/' . $uuid . '/overview')->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    public function structure(string $uuid)
+    {
+        try {
+            $data = SubjectLearningPackEngineService::getPackStructureForPlanning($uuid);
+            $json = json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            return $this->response->setHeader('Content-Type', 'application/json')->setBody($json);
+        } catch (\Throwable $e) {
+            $errJson = json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            return $this->response->setStatusCode(400)->setHeader('Content-Type', 'application/json')->setBody($errJson);
+        }
     }
 
     public function transition(string $uuid)

@@ -46,6 +46,24 @@ class LessonPlanController extends BaseController
         $teachers = $db->table('teachers')->where('primary_unit_id', $unitId)->where('is_active', 1)->get()->getResultArray();
         $packs = $db->table('subject_learning_packs')->where('unit_id', $unitId)->get()->getResultArray();
 
+        // Build pack → units mapping for the create form
+        $packUnits = [];
+        $packIds = array_column($packs, 'id');
+        if ($packIds !== []) {
+            $allUnits = $db->table('learning_units')
+                ->whereIn('learning_pack_id', $packIds)
+                ->select('id, learning_pack_id, code, title')
+                ->orderBy('sequence_order')
+                ->get()->getResultArray();
+            foreach ($allUnits as $u) {
+                $packUnits[(int) $u['learning_pack_id']][] = [
+                    'id' => (int) $u['id'],
+                    'code' => $u['code'],
+                    'title' => $u['title'],
+                ];
+            }
+        }
+
         return view('lesson_plans/create', [
             'title' => 'Buat Rencana Pembelajaran',
             'breadcrumb_active' => 'Lesson Plans',
@@ -54,6 +72,7 @@ class LessonPlanController extends BaseController
             'classes' => $classes,
             'teachers' => $teachers,
             'packs' => $packs,
+            'packUnits' => $packUnits,
         ]);
     }
 
@@ -61,7 +80,18 @@ class LessonPlanController extends BaseController
     {
         try {
             $plan = LessonPlanService::create($this->request->getPost());
-            return redirect()->to('lesson-plans/' . $plan['uuid'])->with('success', 'Rencana pembelajaran berhasil dibuat.');
+
+            // Auto-populate from Phase 3 pack if one was selected
+            $learningPackId = $this->request->getPost('learning_pack_id');
+            if (! empty($learningPackId)) {
+                $learningUnitId = $this->request->getPost('learning_unit_id');
+                LessonPlanService::populateFromPack(
+                    $plan['uuid'],
+                    ! empty($learningUnitId) ? (int) $learningUnitId : null
+                );
+            }
+
+            return redirect()->to('lesson-plans/' . $plan['uuid'])->with('success', 'Rencana pembelajaran berhasil dibuat dan diisi otomatis dari paket pembelajaran.');
         } catch (\Throwable $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
@@ -119,12 +149,84 @@ class LessonPlanController extends BaseController
 
     public function addRubric(string $uuid, string $assessmentUuid)
     {
+        $rules = [
+            'criterion_description' => 'required|min_length[3]|max_length[500]',
+        ];
+        $messages = [
+            'criterion_description' => [
+                'required'   => 'Deskripsi kriteria penilaian wajib diisi.',
+                'min_length' => 'Deskripsi kriteria minimal 3 karakter.',
+                'max_length' => 'Deskripsi kriteria maksimal 500 karakter.',
+            ],
+        ];
+        if (! $this->validate($rules, $messages)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
         return $this->run(fn () => LessonPlanService::addRubric($assessmentUuid, $this->request->getPost()), $uuid, 'assessments', 'Rubrik berhasil ditambahkan.');
+    }
+
+    public function updateActivity(string $uuid, string $activityUuid)
+    {
+        $rules = [
+            'custom_title' => 'max_length[255]',
+            'delivery_mode' => 'required|in_list[DISCUSSION,PLUGGED,UNPLUGGED,HYBRID,PRACTICE,PROJECT,OTHER]',
+            'grouping_mode' => 'required|in_list[FLEXIBLE,INDIVIDUAL,PAIR,SMALL_GROUP,LARGE_GROUP,WHOLE_CLASS]',
+            'estimated_minutes' => 'permit_empty|integer|greater_than[0]',
+        ];
+        $messages = [
+            'delivery_mode' => [
+                'required'  => 'Mode penyampaian wajib dipilih.',
+                'in_list'   => 'Mode penyampaian tidak valid.',
+            ],
+            'grouping_mode' => [
+                'required'  => 'Mode pengelompokan wajib dipilih.',
+                'in_list'   => 'Mode pengelompokan tidak valid.',
+            ],
+            'estimated_minutes' => [
+                'integer'     => 'Estimasi menit harus berupa angka.',
+                'greater_than' => 'Estimasi menit minimal 1.',
+            ],
+        ];
+        if (! $this->validate($rules, $messages)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        return $this->run(fn () => LessonPlanService::updateActivity($activityUuid, $this->request->getPost()), $uuid, 'activities', 'Aktivitas berhasil diperbarui.');
     }
 
     public function linkActivityResource(string $uuid, string $activityUuid)
     {
+        $rules = [
+            'custom_description' => 'required|max_length[500]',
+            'quantity'           => 'required|integer|greater_than[0]',
+        ];
+        $messages = [
+            'custom_description' => [
+                'required'   => 'Deskripsi sumber daya wajib diisi.',
+                'max_length' => 'Deskripsi sumber daya maksimal 500 karakter.',
+            ],
+            'quantity' => [
+                'required'    => 'Jumlah wajib diisi.',
+                'integer'     => 'Jumlah harus berupa angka.',
+                'greater_than' => 'Jumlah minimal 1.',
+            ],
+        ];
+        if (! $this->validate($rules, $messages)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
         return $this->run(fn () => LessonPlanService::linkActivityResource($activityUuid, $this->request->getPost()), $uuid, 'activities', 'Resource berhasil ditautkan.');
+    }
+
+    public function deleteRubric(string $uuid, string $rubricUuid)
+    {
+        return $this->run(fn () => LessonPlanService::deleteRubric($rubricUuid), $uuid, 'assessments', 'Rubrik berhasil dihapus.');
+    }
+
+    public function deleteActivityResource(string $uuid, string $resourceUuid)
+    {
+        return $this->run(fn () => LessonPlanService::deleteActivityResource($resourceUuid), $uuid, 'activities', 'Resource berhasil dilepaskan.');
     }
 
     public function validatePlan(string $uuid)
@@ -195,6 +297,8 @@ class LessonPlanController extends BaseController
                 ->where('lesson_plan_id', $planId)
                 ->orderBy('sequence_order')
                 ->get()->getResultArray(),
+            'rubricsByAssessment' => self::fetchRubricsByAssessment($db, $planId),
+            'resourcesByActivity' => self::fetchResourcesByActivity($db, $planId),
             'packActivities' => $plan['learning_pack_id']
                 ? $db->table('learning_activities')->where('learning_pack_id', (int) $plan['learning_pack_id'])->get()->getResultArray()
                 : [],
@@ -217,9 +321,9 @@ class LessonPlanController extends BaseController
             ->join('subjects s', 's.id=lp.subject_id')
             ->join('grade_levels gl', 'gl.id=lp.grade_level_id')
             ->join('teachers t', 't.id=lp.teacher_id', 'left')
-            ->leftJoin('subject_learning_packs pk', 'pk.id=lp.learning_pack_id')
-            ->leftJoin('curriculum_versions cv', 'cv.id=pk.curriculum_version_id')
-            ->leftJoin('learning_units lu', 'lu.id=lp.learning_unit_id')
+            ->join('subject_learning_packs pk', 'pk.id=lp.learning_pack_id', 'left')
+            ->join('curriculum_versions cv', 'cv.id=pk.curriculum_version_id', 'left')
+            ->join('learning_units lu', 'lu.id=lp.learning_unit_id', 'left')
             ->where('lp.uuid', $uuid)
             ->get()->getRowArray();
         if (! $plan) {
@@ -240,5 +344,121 @@ class LessonPlanController extends BaseController
             }
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
+    }
+
+    private static function fetchRubricsByAssessment($db, int $planId): array
+    {
+        $assessRows = $db->table('lesson_plan_assessments')
+            ->select('id, uuid')
+            ->where('lesson_plan_id', $planId)
+            ->get()->getResultArray();
+        if ($assessRows === []) {
+            return [];
+        }
+        $ids = array_column($assessRows, 'id');
+        $uuidMap = array_column($assessRows, 'uuid', 'id');
+        $rubrics = $db->table('lesson_plan_assessment_rubrics')
+            ->whereIn('lesson_plan_assessment_id', $ids)
+            ->orderBy('sequence_order')
+            ->get()->getResultArray();
+        $grouped = [];
+        foreach ($rubrics as $r) {
+            $assessmentUuid = $uuidMap[(int) $r['lesson_plan_assessment_id']] ?? '';
+            $grouped[$assessmentUuid][] = $r;
+        }
+        return $grouped;
+    }
+
+    public function printPlan(string $uuid)
+    {
+        $plan = $this->plan($uuid);
+        $db = Database::connect();
+        $planId = (int) $plan['id'];
+
+        $data = [
+            'plan' => $plan,
+            'summary' => LessonPlanService::summary($uuid),
+            'objectives' => $db->table('lesson_plan_objectives lpo')
+                ->join('learning_objectives_tp tp', 'tp.id=lpo.learning_objective_id')
+                ->where('lpo.lesson_plan_id', $planId)
+                ->orderBy('lpo.sequence_order')
+                ->get()->getResultArray(),
+            'stages' => $db->table('lesson_plan_stages')
+                ->where('lesson_plan_id', $planId)
+                ->orderBy('sequence_order')
+                ->get()->getResultArray(),
+            'activities' => $db->table('lesson_plan_activities')
+                ->where('lesson_plan_id', $planId)
+                ->orderBy('sequence_order')
+                ->get()->getResultArray(),
+            'assessments' => $db->table('lesson_plan_assessments')
+                ->where('lesson_plan_id', $planId)
+                ->orderBy('sequence_order')
+                ->get()->getResultArray(),
+            'rubricsByAssessment' => self::fetchRubricsByAssessment($db, $planId),
+            'resourcesByActivity' => self::fetchResourcesByActivity($db, $planId),
+        ];
+
+        return view('lesson_plans/print', $data);
+    }
+
+    public function exportDocx(string $uuid)
+    {
+        try {
+            $this->plan($uuid); // validates access + existence
+            $path = \App\Services\LessonPlanDocxService::generate($uuid);
+            $filename = basename($path);
+            $response = $this->response
+                ->setContentType('application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->setHeader('Cache-Control', 'no-cache')
+                ->setBody(file_get_contents($path));
+            @unlink($path);
+            return $response;
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Gagal mengekspor DOCX: ' . $e->getMessage());
+        }
+    }
+
+    public function exportPdf(string $uuid)
+    {
+        try {
+            $this->plan($uuid); // validates access + existence
+            $path = \App\Services\LessonPlanPdfService::generate($uuid);
+            $filename = basename($path);
+            $response = $this->response
+                ->setContentType('application/pdf')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->setHeader('Cache-Control', 'no-cache')
+                ->setBody(file_get_contents($path));
+            @unlink($path);
+            return $response;
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Gagal mengekspor PDF: ' . $e->getMessage());
+        }
+    }
+
+    private static function fetchResourcesByActivity($db, int $planId): array
+    {
+        $actRows = $db->table('lesson_plan_activities')
+            ->select('id, uuid')
+            ->where('lesson_plan_id', $planId)
+            ->get()->getResultArray();
+        if ($actRows === []) {
+            return [];
+        }
+        $ids = array_column($actRows, 'id');
+        $uuidMap = array_column($actRows, 'uuid', 'id');
+        $resources = $db->table('lesson_plan_activity_resources lar')
+            ->select('lar.*, lr.title resource_title, lr.type resource_type')
+            ->join('learning_resources lr', 'lr.id = lar.learning_resource_id', 'left')
+            ->whereIn('lar.lesson_plan_activity_id', $ids)
+            ->get()->getResultArray();
+        $grouped = [];
+        foreach ($resources as $res) {
+            $actUuid = $uuidMap[(int) $res['lesson_plan_activity_id']] ?? '';
+            $grouped[$actUuid][] = $res;
+        }
+        return $grouped;
     }
 }

@@ -137,6 +137,7 @@ class CreatePhase4LessonPlanTables extends Migration
             'sequence_order' => ['type' => 'INT', 'unsigned' => true, 'default' => 1],
             'status' => ['type' => 'VARCHAR', 'constraint' => 20, 'default' => 'PLANNED'],
             'teacher_notes' => ['type' => 'TEXT', 'null' => true],
+            'graduate_profile_alignment' => ['type' => 'TEXT', 'null' => true],
         ] + $this->auditFields());
         $this->forge->addKey('id', true);
         $this->forge->addUniqueKey('uuid');

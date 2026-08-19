@@ -29,6 +29,21 @@ final class SubjectLearningPackEngineTest extends CIUnitTestCase
     {
         parent::setUp();
         $this->seedEducationFoundationFixture();
+        $role = $this->db->table('roles')->where('code', 'super_admin')->get()->getRowArray();
+        if ($role && $this->db->table('user_roles')->where(['user_id' => 1, 'role_id' => $role['id']])->countAllResults() === 0) {
+            $this->db->table('user_roles')->insert(['user_id' => 1, 'role_id' => $role['id'], 'unit_id' => $this->unitId, 'created_at' => date('Y-m-d H:i:s')]);
+        }
+        session()->set([
+            'logged_in' => true,
+            'role_code' => 'super_admin',
+            'all_role_codes' => ['super_admin'],
+            'username' => 'ialos_test',
+            'full_name' => 'IALOS Test',
+            'must_change_password' => 0,
+            'user_id' => 1,
+            'active_unit_id' => $this->unitId,
+            'active_period_id' => $this->periodId,
+        ]);
     }
 
     public function testPhase3SchemaIsGenericAndAvailable(): void
@@ -132,6 +147,8 @@ final class SubjectLearningPackEngineTest extends CIUnitTestCase
             'teacher_response' => 'Minta mereka menandai langkah utama dahulu.',
         ]);
         SubjectLearningPackEngineService::addExperience($plugged['uuid'], 'UNDERSTAND');
+        SubjectLearningPackEngineService::addExperience($plugged['uuid'], 'APPLY');
+        SubjectLearningPackEngineService::addExperience($unplugged['uuid'], 'REFLECT');
         SubjectLearningPackEngineService::mapPracticeToUnit($unit['uuid'], 'PROBLEM_BASED');
         SubjectLearningPackEngineService::mapPracticeToActivity($plugged['uuid'], 'COLLABORATIVE');
         SubjectLearningPackEngineService::alignGraduateProfile('UNIT', $unit['uuid'], 'CRITICAL_REASONING');
@@ -158,6 +175,150 @@ final class SubjectLearningPackEngineTest extends CIUnitTestCase
         $this->assertSame(1, $coverage['tp_with_activity']);
         $this->assertSame(1, $coverage['tp_with_assessment_reference']);
         $this->assertSame(2, $coverage['activity_count']);
+        $this->assertSame(1, $coverage['deep_learning_experiences']['UNDERSTAND']);
+        $this->assertSame(1, $coverage['deep_learning_experiences']['APPLY']);
+        $this->assertSame(1, $coverage['deep_learning_experiences']['REFLECT']);
+        $this->assertGreaterThan(70, $coverage['readiness_score']);
+
+        $planningTree = SubjectLearningPackEngineService::getPackStructureForPlanning($pack['uuid']);
+        $this->assertSame($pack['uuid'], $planningTree['uuid']);
+        $this->assertCount(1, $planningTree['units']);
+        $this->assertCount(2, $planningTree['units'][0]['activities']);
+        $this->assertCount(1, $planningTree['units'][0]['activities'][0]['resources']);
+    }
+
+    public function testChildEntitiesMutationsAndUpdateWithOcc(): void
+    {
+        $pack = $this->createPack('INF-X-MUT', 'Mutation Test Pack');
+        $unit = SubjectLearningPackEngineService::createUnit($pack['uuid'], [
+            'code' => 'MUT-U1',
+            'title' => 'Original Unit Title',
+            'sequence_order' => 1,
+        ]);
+
+        $updatedUnit = SubjectLearningPackEngineService::updateUnit($unit['uuid'], [
+            'title' => 'Updated Unit Title',
+            'revision_number' => 1,
+        ]);
+        $this->assertSame('Updated Unit Title', $updatedUnit['title']);
+        $this->assertSame(2, (int) $updatedUnit['revision_number']);
+
+        // OCC test on child unit
+        $this->expectException(ConcurrencyException::class);
+        SubjectLearningPackEngineService::updateUnit($unit['uuid'], [
+            'title' => 'Stale Unit Edit',
+            'revision_number' => 1,
+        ]);
+    }
+
+    public function testChildEntitiesDeletion(): void
+    {
+        $pack = $this->createPack('INF-X-DEL', 'Deletion Test Pack');
+        $unit = SubjectLearningPackEngineService::createUnit($pack['uuid'], [
+            'code' => 'DEL-U1',
+            'title' => 'Unit to Delete',
+            'sequence_order' => 1,
+        ]);
+        $concept = SubjectLearningPackEngineService::createConcept($pack['uuid'], [
+            'learning_unit_uuid' => $unit['uuid'],
+            'code' => 'DEL-C1',
+            'title' => 'Concept to Delete',
+        ]);
+        $resource = SubjectLearningPackEngineService::createResource($pack['uuid'], [
+            'title' => 'Resource to Delete',
+        ]);
+        $activity = SubjectLearningPackEngineService::createActivity($unit['uuid'], [
+            'code' => 'DEL-A1',
+            'title' => 'Activity to Delete',
+            'estimated_minutes' => 30,
+        ]);
+
+        SubjectLearningPackEngineService::deleteActivity($activity['uuid']);
+        $this->assertSame(0, $this->db->table('learning_activities')->where('uuid', $activity['uuid'])->countAllResults());
+
+        SubjectLearningPackEngineService::deleteResource($resource['uuid']);
+        $this->assertSame(0, $this->db->table('learning_resources')->where('uuid', $resource['uuid'])->countAllResults());
+
+        SubjectLearningPackEngineService::deleteConcept($concept['uuid']);
+        $this->assertSame(0, $this->db->table('learning_concepts')->where('uuid', $concept['uuid'])->countAllResults());
+
+        SubjectLearningPackEngineService::deleteUnit($unit['uuid']);
+        $this->assertSame(0, $this->db->table('learning_units')->where('uuid', $unit['uuid'])->countAllResults());
+    }
+
+    public function testCrossPackPrerequisiteValidation(): void
+    {
+        $pack1 = $this->createPack('INF-X-P1', 'Pack 1');
+        $pack2 = $this->createPack('INF-X-P2', 'Pack 2');
+
+        $unit1 = SubjectLearningPackEngineService::createUnit($pack1['uuid'], ['code' => 'U1', 'title' => 'Unit 1', 'sequence_order' => 1]);
+        $unit2 = SubjectLearningPackEngineService::createUnit($pack2['uuid'], ['code' => 'U2', 'title' => 'Unit 2', 'sequence_order' => 1]);
+
+        // Unit 2 in Pack 2 depends on Unit 1 in Pack 1
+        $prereq = SubjectLearningPackEngineService::addUnitPrerequisite($unit2['uuid'], [
+            'prerequisite_unit_uuid' => $unit1['uuid'],
+        ]);
+        $this->assertNotEmpty($prereq['uuid']);
+
+        // Reverse dependency should be rejected due to cycle
+        $this->expectException(InvalidArgumentException::class);
+        SubjectLearningPackEngineService::addUnitPrerequisite($unit1['uuid'], [
+            'prerequisite_unit_uuid' => $unit2['uuid'],
+        ]);
+    }
+
+    public function testComprehensiveImportBatchWithAllEntityTypes(): void
+    {
+        $objective = $this->createTestObjective();
+        $pack = $this->createPack('INF-X-FULL-IMP', 'Full Import Pack');
+        LearningPackService::attachObjective($pack['uuid'], $objective['uuid']);
+
+        $batch = LearningPackImportService::stage($this->unitId, $pack['uuid'], 'full-learning-pack.json', [
+            [
+                'entity_type' => 'LEARNING_UNIT',
+                'payload' => [
+                    'code' => 'FIMP-U1',
+                    'title' => 'Full Import Unit',
+                    'sequence_order' => 1,
+                ],
+            ],
+            [
+                'entity_type' => 'CONCEPT',
+                'payload' => [
+                    'code' => 'FIMP-C1',
+                    'title' => 'Full Import Concept',
+                ],
+            ],
+            [
+                'entity_type' => 'RESOURCE',
+                'payload' => [
+                    'resource_type' => 'DOCUMENT',
+                    'title' => 'Full Import Resource',
+                ],
+            ],
+            [
+                'entity_type' => 'GUIDANCE',
+                'payload' => [
+                    'title' => 'Teacher Planning Note',
+                    'guidance' => 'Ensure all students have access to offline materials.',
+                ],
+            ],
+            [
+                'entity_type' => 'REFLECTION_PROMPT',
+                'payload' => [
+                    'prompt' => 'What was the most engaging part of today lesson?',
+                    'audience' => 'STUDENT',
+                ],
+            ],
+        ]);
+
+        $this->assertSame('VALIDATED', $batch['status']);
+        $this->assertSame(5, (int) $batch['valid_rows']);
+
+        $applied = LearningPackImportService::apply($batch['uuid']);
+        $this->assertSame('APPLIED', $applied['status']);
+        $this->assertSame(5, (int) $applied['applied_rows']);
+        $this->assertSame(1, $this->db->table('learning_reflection_prompts')->countAllResults());
     }
 
     public function testPrerequisiteCycleIsRejected(): void
@@ -230,36 +391,6 @@ final class SubjectLearningPackEngineTest extends CIUnitTestCase
         $this->assertNull($activity['device_requirement']);
     }
 
-    public function testLearningPackImportStagesBeforeExplicitApply(): void
-    {
-        $pack = $this->createPack('INF-X-IMPORT', 'Import Pack');
-        $batch = LearningPackImportService::stage($this->unitId, $pack['uuid'], 'phase3-import.json', [[
-            'entity_type' => 'LEARNING_UNIT',
-            'payload' => [
-                'code' => 'IMP-01',
-                'title' => 'Imported Unit',
-                'unit_type' => 'UNIT',
-                'sequence_order' => 1,
-            ],
-        ], [
-            'entity_type' => 'RESOURCE',
-            'payload' => [
-                'resource_type' => 'DOCUMENT',
-                'title' => 'Imported Reference',
-            ],
-        ]]);
-
-        $this->assertSame('VALIDATED', $batch['status']);
-        $this->assertSame(0, $this->db->table('learning_units')->where('learning_pack_id', $pack['id'])->countAllResults());
-
-        $applied = LearningPackImportService::apply($batch['uuid']);
-
-        $this->assertSame('APPLIED', $applied['status']);
-        $this->assertSame(2, (int) $applied['applied_rows']);
-        $this->assertSame(1, $this->db->table('learning_units')->where('learning_pack_id', $pack['id'])->countAllResults());
-        $this->assertSame(1, $this->db->table('learning_resources')->where('learning_pack_id', $pack['id'])->countAllResults());
-    }
-
     public function testLearningPackPagesRenderAsSeparateDestinations(): void
     {
         $pack = $this->createPack('INF-X-PAGES', 'Pages Pack');
@@ -272,6 +403,26 @@ final class SubjectLearningPackEngineTest extends CIUnitTestCase
         foreach (['', '/overview', '/units', '/concepts', '/activities', '/resources', '/assessment', '/followup', '/coverage', '/lineage', '/history'] as $path) {
             $this->withSession(session()->get())->get('curriculum/learning-packs/'.$pack['uuid'].$path)->assertOK();
         }
+    }
+
+    public function testStructureEndpointReturnsJson(): void
+    {
+        $pack = $this->createPack('INF-X-STRUCT', 'Structure Pack');
+        SubjectLearningPackEngineService::createUnit($pack['uuid'], [
+            'code' => 'STRUCT-01',
+            'title' => 'Planning Structure Unit',
+            'sequence_order' => 1,
+        ]);
+
+        $structure = SubjectLearningPackEngineService::getPackStructureForPlanning($pack['uuid']);
+        $this->assertNotEmpty($structure['units']);
+        $this->assertSame('STRUCT-01', $structure['units'][0]['code']);
+
+        $res = $this->withSession(session()->get())->get('curriculum/learning-packs/'.$pack['uuid'].'/structure');
+        $raw = $res->response()->getBody();
+        $json = json_decode($raw, true);
+        $this->assertTrue(isset($json['ok']) && $json['ok'] === true, 'Raw body was [' . $raw . '], Status was: ' . $res->response()->getStatusCode());
+        $this->assertSame('STRUCT-01', $json['data']['units'][0]['code']);
     }
 
     public function testCrossUnitLearningPackUuidIsDenied(): void
