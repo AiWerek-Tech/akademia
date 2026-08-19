@@ -1,11 +1,13 @@
-# WMVAA Akademia — Perencanaan Akademik Terpadu SMP–SMA
+# WMVAA Academia — Sistem Akademik Terpadu SMP–SMA (IALOS Education)
 
 [![CodeIgniter](https://img.shields.io/badge/Framework-CodeIgniter%204.7.4-orange.svg)](https://codeigniter.com/)
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%207.4%20Compat-blue.svg)](https://www.php.net/)
 [![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20MariaDB-blue.svg)](https://www.mysql.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**WMVAA Akademia** adalah subsistem Web Admin Panel dalam ekosistem **WMVAA HUB**, yang dikembangkan khusus untuk sekolah **SMP & SMA Advent Sogokmo**. Aplikasi ini dibangun menggunakan framework **CodeIgniter 4** dengan arsitektur terpadu berbasis multi-unit (`unit_id`) untuk menyatukan administrasi data akademik SMP dan SMA tanpa adanya duplikasi tabel.
+**WMVAA Academia** adalah subsistem Web Admin Panel dalam ekosistem **WMVAA HUB**, yang dikembangkan khusus untuk sekolah **SMP & SMA Advent Sogokmo**. Aplikasi ini dibangun menggunakan framework **CodeIgniter 4** dengan arsitektur modular-monolith dan multi-unit (`unit_id`) untuk menyatukan administrasi akademik SMP dan SMA tanpa duplikasi tabel.
+
+Di dalamnya terintegrasi **IALOS Education** sebagai bounded context untuk perencanaan kurikulum dan eksekusi pembelajaran harian — mulai dari fondasi pendidikan (education foundation), model operasional KSP digital, engine paket pembelajaran, perencanaan RPP pembelajaran mendalam, hingga ruang mengajar harian guru.
 
 ---
 
@@ -20,33 +22,59 @@ Ekosistem WMVAA HUB berjalan dengan arsitektur terpadu:
 
 ---
 
-## 🚀 Fitur Utama (Milestone 1 & 2)
+## 🚀 Fitur Utama (Milestone 1–5 / IALOS Phase 1–5)
 
-### 1. Fondasi Sistem & Keamanan (Milestone 1)
+### Fondasi Sistem & Keamanan (Milestone 1)
 *   **Multi-Unit Tenant**: Mendukung unit **SMP** dan **SMA** secara berdampingan.
-*   **Tahun Pelajaran & Periode Akademik**: Manajemen siklus pendaftaran dan semester dengan state workflow control (`DRAFT` $\rightarrow$ `VALIDATED` $\rightarrow$ `REVIEWED` $\rightarrow$ `APPROVED` $\rightarrow$ `LOCKED`).
-*   **Manajemen Pengguna & RBAC**: Kontrol akses berbasis peran (Role-Based Access Control) yang ketat (Super Admin, Kepala Sekolah, Wakasek Kurikulum, Admin Unit, Guru, Tata Usaha).
-*   **Audit Trail Log**: Pencatatan otomatis untuk setiap aksi modifikasi data (`CREATE`, `UPDATE`, `DELETE`, `MERGE`, dsb.).
-*   **Optimistic Locking**: Perlindungan dari konflik penimpaan data menggunakan `revision_number` pada seluruh tabel master.
+*   **Tahun Pelajaran & Periode Akademik**: Manajemen siklus pendaftaran dan semester dengan state workflow control (`DRAFT` → `VALIDATED` → `REVIEWED` → `APPROVED` → `LOCKED`).
+*   **Manajemen Pengguna & RBAC**: Kontrol akses berbasis peran yang ketat (Super Admin, Kepala Sekolah, Wakasek Kurikulum, Admin Unit, Guru, Tata Usaha).
+*   **Audit Trail Log & Optimistic Locking**: Pencatatan setiap aksi modifikasi data plus perlindungan konflik penimpaan via `revision_number`.
 
-### 2. Master Data Akademik Terpadu (Milestone 2)
-*   **Master Guru Global**: Data kepegawaian guru terpusat dengan relasi multi-unit, riwayat kualifikasi akademik, serta status verifikasi kelengkapan profil (*Profile Completeness Evaluation*).
-*   **Pendeteksi Duplikasi Guru**: Analisis kemiripan nama dan data identitas menggunakan metrik perbandingan kemiripan string (*Levenshtein Distance* & *Soundex Algorithm*) secara real-time.
-*   **Penggabungan Guru (Merge Tool)**: Utilitas interaktif untuk menggabungkan data guru duplikat menjadi satu record tanpa merusak integritas relasi tabel.
-*   **Master Mata Pelajaran**: Manajemen mapel global dengan alias nama dan kontrol ketersediaan mapel per unit (SMP/SMA).
-*   **Tingkat Kelas & Fase**: Pengaturan tingkat kelas VII–IX (Fase D) dan X–XII (Fase E & F).
-*   **Rombongan Belajar (Rombel)**: Pengaturan kelas per periode akademik, wali kelas (homeroom teacher), kapasitas, dan ruang kelas.
-*   **Copy Rombel Antar Periode**: Memindahkan konfigurasi rombel dari semester ganjil ke genap secara instan dengan opsi penyalinan wali kelas.
-*   **Master Ruang Sekolah**: Pengelolaan ruang kelas, laboratorium, perpustakaan, kapel, lapangan, beserta kapasitas dan fasilitasnya.
-*   **Pipeline Impor Data Massal (Staging)**: Import data massal dari Excel/CSV dengan proses validasi pra-commit di halaman Review Batch sebelum dimasukkan ke database utama.
-*   **Ekspor Master Data**: Download instan data master ke dalam format Excel (.xlsx).
+### Master Data Akademik Terpadu (Milestone 2)
+*   **Master Guru Global** dengan relasi multi-unit, riwayat kualifikasi, dan evaluasi kelengkapan profil.
+*   **Pendeteksi Duplikasi Guru** (*Levenshtein Distance* & *Soundex Algorithm*) serta **Merge Tool** untuk menggabungkan data duplikat.
+*   **Master Mata Pelajaran** global dengan alias dan ketersediaan per unit.
+*   **Tingkat Kelas & Fase** (VII–IX Fase D, X–XII Fase E & F), **Rombongan Belajar**, **Copy Rombel Antar Periode**, dan **Master Ruang Sekolah**.
+*   **Pipeline Impor Data Massal** (validasi pra-commit) dan **Ekspor Master Data** (.xlsx).
+
+### IALOS Phase 1 — Education Foundation
+*   Registry regulasi resmi, sumber kurikulum & buku teks, dan 8 Dimensi Profil Lulusan.
+*   Capaian Pembelajaran (CP) & Elemen dengan Phase Explorer (Fase A–F).
+*   Tujuan Pembelajaran (TP) dengan lineage Nasional → Sekolah → Guru, adaptasi modal, dan kriteria ketercapaian.
+*   Alur Tujuan Pembelajaran (ATP) dengan workflow status timeline dan kloning revisi.
+*   Analisis **Coverage & Kesenjangan Kurikulum** serta Paket Pembelajaran awal dengan staging import JSON.
+
+### IALOS Phase 2 — Digital KSP Operating Model
+*   Interactive **9-Section Readiness Grid** dengan completion indicator otomatis.
+*   Karakteristik Satuan Pendidikan dengan visualisasi SWOT 4-kuadran.
+*   Visi, Misi & Tujuan dengan Strategic Hierarchy View.
+*   Pengorganisasian Pembelajaran dengan 3-Pillar Tabbed View (Intra, Koku P5, Ekstra) dan kalkulator jam belajar tahunan.
+*   Evaluasi & Tindak Lanjut Perbaikan, Evidence & Provenance Vault (SHA-256), serta **Document Generator (DOCX & PDF)** yang immutable.
+
+### IALOS Phase 3 — Subject Learning Pack Engine
+*   Skema 20+ tabel anak dengan mutasi aman (OCC `revision_number`).
+*   Validasi DAG prasyarat lintas paket dan import staging 21 tipe entitas.
+*   Evaluasi 3 Dimensi Pembelajaran Mendalam (*Understand, Apply, Reflect*) dan aggregate tree untuk Phase 4.
+
+### IALOS Phase 4 — Deep Learning Lesson Plan Engine
+*   Model RPP/Modul Ajar harian (*living lesson plan*) terhubung ke jadwal dan paket belajar Phase 3.
+*   Studio RPP terpadu: *Ringkasan*, *Desain*, *Tahapan (3D)*, *Aktivitas & Sumber Daya (Plugged/Unplugged)*, *Asesmen & Rubrik Bertingkat*.
+*   Workflow transisi `DRAFT → READY → IN_PROGRESS → COMPLETED → REFLECTED` dengan OCC.
+*   Ekspor RPP ke **PDF & DOCX**.
+
+### IALOS Phase 5 — Daily Teaching Workspace & Execution Engine
+*   **Today Dashboard**: agenda mengajar harian dengan status kelas real-time dan attention box (murid butuh intervensi & refleksi tertunda).
+*   **Interactive Teaching Mode**: timer live, checklist alur belajar 3 Dimensi, dan rekomendasi adaptif.
+*   **Presensi Cepat Terintegrasi** (H/T/I/S/A) langsung tersimpan ke operational journal.
+*   **Radar Miskonsepsi & Observasi Formatif** untuk intervensi/remedial siswa.
+*   **Session Completion & Reflection Lifecycle** dengan deviasi RPP dan refleksi 5-bintang.
 
 ---
 
 ## 🛠️ Persyaratan Server & Instalasi
 
 ### Persyaratan Sistem
-*   **PHP**: Versi `8.2` (Lingkungan lokal) dengan kompatibilitas kode fallback hingga `7.4`.
+*   **PHP**: Versi `8.2` (lingkungan lokal) dengan kompatibilitas kode fallback hingga `7.4`.
 *   **Ekstensi PHP**: `intl`, `mbstring`, `mysqli`, `curl`, `json`.
 *   **Database**: MySQL atau MariaDB.
 *   **Composer**: Dependency Manager.
@@ -54,8 +82,8 @@ Ekosistem WMVAA HUB berjalan dengan arsitektur terpadu:
 ### Instalasi Lokal
 1.  **Clone Repositori**:
     ```bash
-    git clone https://github.com/AiWerek-Tech/akademia.git
-    cd akademia
+    git clone https://github.com/AiWerek-Tech/wmvaa-academia.git
+    cd wmvaa-academia
     ```
 2.  **Install Dependencies**:
     ```bash
@@ -65,27 +93,24 @@ Ekosistem WMVAA HUB berjalan dengan arsitektur terpadu:
     Salin file `.env.example` menjadi `.env` lalu sesuaikan konfigurasi database Anda:
     ```ini
     CI_ENVIRONMENT = development
-    app.baseURL = 'http://localhost/akademia/public/'
-    
+    app.baseURL = 'http://localhost/wmvaa-academia/public/'
+
     database.default.hostname = localhost
-    database.default.database = wmvaa_akademia
+    database.default.database = wmvaa_academia
     database.default.username = root
-    database.default.password = 
+    database.default.password =
     database.default.DBDriver = MySQLi
     ```
 4.  **Jalankan Migrasi Database**:
-    Jalankan perintah berikut untuk membuat seluruh struktur tabel master:
     ```bash
     php spark migrate
     ```
 5.  **Jalankan Seeder Awal**:
-    Masukkan data default unit sekolah, role, permission, grade tingkat, dan room type bawaan:
     ```bash
     php spark db:seed CoreSeeder
     php spark db:seed Milestone2MasterSeeder
     ```
 6.  **Buat Akun Administrator**:
-    Jalankan perintah interaktif CLI untuk membuat user Super Admin pertama Anda:
     ```bash
     php spark akademia:create-admin
     ```
@@ -103,7 +128,7 @@ Ekosistem WMVAA HUB berjalan dengan arsitektur terpadu:
 
 ## 🧪 Pengujian & Penjaminan Mutu
 
-Kami menyediakan suite pengujian terintegrasi menggunakan **PHPUnit** untuk memastikan stabilitas kode.
+Suite pengujian terintegrasi menggunakan **PHPUnit** untuk memastikan stabilitas kode.
 
 Untuk menjalankan seluruh rangkaian test:
 ```bash
@@ -111,11 +136,11 @@ vendor/bin/phpunit
 ```
 
 Pengujian mencakup:
-- Keamanan & otentikasi role-based access.
+- Keamanan & otentikasi role-based access (termasuk routing security per modul).
 - Validasi rentang tanggal tahun pelajaran & periode akademik.
 - Deteksi duplikasi kemiripan string guru (*Levenshtein*).
-- Validasi data ruang dan rombel.
-- Fungsi penyalinan rombel (*copy classroom between periods*).
+- Validasi data ruang dan rombel serta fungsi penyalinan rombel.
+- Engine paket pembelajaran, RPP pembelajaran mendalam, dan ruang mengajar harian.
 
 ---
 
