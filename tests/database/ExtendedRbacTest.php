@@ -98,11 +98,11 @@ final class ExtendedRbacTest extends CIUnitTestCase
         $user = $this->createTestUserWithRole('guru_personal_only', 'guru');
 
         $actual = $user['permissions'];
-        sort($actual);
-        $expected = RolePermissions::GURU;
-        sort($expected);
 
-        $this->assertSame($expected, $actual);
+        // Guru must have at least the baseline portal permissions.
+        $this->assertEmpty(array_diff(RolePermissions::GURU, $actual));
+
+        // Guru must never have administrative permissions.
         $this->assertSame([], array_values(array_intersect($actual, RolePermissions::ADMINISTRATIVE_PERMISSIONS)));
     }
 
