@@ -22,6 +22,12 @@ final class RolePermissions
         'teacher_workload.view',
         'attendances.record',
         'academic_calendar.view',
+        // Phase 3: learning pack management permissions (from Phase 3 migration)
+        'learning_packs.clone',
+        'learning_units.manage',
+        'learning_activities.manage',
+        'learning_resources.manage',
+        'learning_guidance.manage',
     ];
 
     public const WALI_KELAS = [
@@ -61,8 +67,6 @@ final class RolePermissions
      * This list is also useful for regression tests and permission audits.
      */
     public const ADMINISTRATIVE_PERMISSIONS = [
-        'teachers.view',
-        'curriculum.view',
         'curriculum.import',
         'assignments.view',
         'duties.view',

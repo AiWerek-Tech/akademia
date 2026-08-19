@@ -7,7 +7,7 @@ use Config\RolePermissions;
 
 final class RolePermissionsTest extends CIUnitTestCase
 {
-    public function testGuruContainsOnlyPersonalPortalPermissions(): void
+    public function testGuruContainsOnlyPersonalPortalAndLearningPackPermissions(): void
     {
         $this->assertSame([
             'dashboard.view',
@@ -20,6 +20,11 @@ final class RolePermissionsTest extends CIUnitTestCase
             'teacher_workload.view',
             'attendances.record',
             'academic_calendar.view',
+            'learning_packs.clone',
+            'learning_units.manage',
+            'learning_activities.manage',
+            'learning_resources.manage',
+            'learning_guidance.manage',
         ], RolePermissions::GURU);
 
         $this->assertSame(
