@@ -55,24 +55,7 @@ final class IntegratedAttendanceWorkflowTest extends CIUnitTestCase
         $this->assertSame('SUBJECT',$subject['session']['session_type']);
         $this->assertSame(1,$subject['counts']['TERLAMBAT']);
         $this->assertSame('Memahami persamaan',$subject['session']['learning_objectives']);
-        helper('auth');
-        session()->set(['logged_in'=>true,'user_id'=>1,'teacher_id'=>$teacherId,'role_code'=>'guru','role_name'=>'Guru']);
-        $indexHtml=view('teacher_portal/attendance_index',[
-            'title'=>'Absensi','activePeriod'=>['name'=>'Ganjil','start_date'=>'2050-07-01','end_date'=>'2050-12-31'],
-            'unitScope'=>['selected'=>'all','label'=>'Semua Unit','units'=>[['id'=>$unitId,'code'=>'SMP','name'=>'SMP']]],'selectedDate'=>$date,
-            'workspace'=>['morning'=>[],'classroom'=>[],'lessons'=>[],'afternoon'=>[],'calendar_day'=>null],
-            'recentSessions'=>[],
-        ]);
-        $this->assertStringContainsString('ABSENSI TERPADU',$indexHtml);
-        $formHtml=view('teacher_portal/attendance_form',[
-            'title'=>'Presensi','activePeriod'=>['start_date'=>'2050-07-01','end_date'=>'2050-12-31'],
-            'session'=>$subject['session'],'sessionType'=>'SUBJECT','sessionTypeLabel'=>'Absensi Mata Pelajaran',
-            'sourceKey'=>$subject['session']['source_key'],'scheduleEntryId'=>0,'roster'=>$subject['roster'],'counts'=>$subject['counts'],
-            'classroom'=>['name'=>'Kelas VII Attendance','unit_name'=>'SMP'],'subject'=>['name'=>'Mapel Attendance'],
-            'classroomId'=>$classId,'subjectId'=>$subjectId,'date'=>$date,'meetingNum'=>1,
-            'teachingAssignments'=>[],'homerooms'=>[],'isLocked'=>false,
-        ]);
-        $this->assertStringContainsString('Jurnal pembelajaran',$formHtml);
+        // Old attendance views removed — attendance is now in Teaching Workspace.
         $this->expectException(\RuntimeException::class);
         $service->saveSession($base+['session_type'=>'SUBJECT','subject_id'=>$subjectId,'topic'=>'Duplikat','source_key'=>$subject['session']['source_key']], [
             ['student_id'=>$studentIds[0],'status'=>'HADIR'],['student_id'=>$studentIds[1],'status'=>'HADIR'],

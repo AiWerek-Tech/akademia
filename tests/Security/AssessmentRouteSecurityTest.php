@@ -1,0 +1,328 @@
+<?php
+
+namespace Tests\Security;
+
+use App\Database\Seeds\CoreSeeder;
+use App\Database\Seeds\Milestone2MasterSeeder;
+use App\Services\AssessmentService;
+use App\Services\UuidService;
+use CodeIgniter\Test\CIUnitTestCase;
+use CodeIgniter\Test\FeatureTestTrait;
+use Config\Database;
+use Tests\Support\IsolatedDatabaseTestTrait;
+
+/**
+ * Assessment & Mastery (Phase 6) Route Security Test Suite.
+ *
+ * Verifies authentication, permission gating, unit boundary isolation,
+ * and teacher ownership enforcement on /assessment/*, /mastery,
+ * /interventions, and /reporting-policies routes.
+ *
+ * @internal
+ */
+class AssessmentRouteSecurityTest extends CIUnitTestCase
+{
+    use IsolatedDatabaseTestTrait;
+    use FeatureTestTrait;
+
+    protected $migrate     = true;
+    protected $migrateOnce = true;
+    protected $refresh     = false;
+    protected $namespace   = 'App';
+    protected $seed        = CoreSeeder::class;
+
+    private int $smpUnitId;
+    private int $smaUnitId;
+    private int $periodId;
+    private int $ownTeacherId = 0;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        (new Milestone2MasterSeeder(new Database()))->run();
+        $this->setupTestUsers();
+    }
+
+    private function setupTestUsers(): void
+    {
+        $db = Database::connect($this->DBGroup);
+
+        $this->smpUnitId = (int) $db->table('school_units')->where('code', 'SMP')->get()->getRowArray()['id'];
+        $this->smaUnitId = (int) $db->table('school_units')->where('code', 'SMA')->get()->getRowArray()['id'];
+
+        $period = $db->table('academic_periods')->where('is_active', 1)->get()->getRowArray();
+        if (!$period) {
+            $year = $db->table('academic_years')->where('name', '2026/2027')->get()->getRowArray();
+            if (!$year) {
+                $db->table('academic_years')->insert([
+                    'uuid'       => '60000000-0000-4000-8000-000000000002',
+                    'name'       => '2026/2027',
+                    'start_date' => '2026-07-01',
+                    'end_date'   => '2027-06-30',
+                    'status'     => 'APPROVED',
+                    'is_active'  => 1,
+                    'created_at' => date('Y-m-d H:i:s'),
+                ]);
+                $year = ['id' => $db->insertID()];
+            }
+            $db->table('academic_periods')->insert([
+                'uuid'             => '60000000-0000-4000-8000-000000000003',
+                'academic_year_id' => $year['id'],
+                'semester_number'  => 1,
+                'name'             => 'Ganjil 2026/2027',
+                'start_date'       => '2026-07-01',
+                'end_date'         => '2026-12-31',
+                'workflow_status'  => 'OPEN',
+                'is_active'        => 1,
+                'created_at'       => date('Y-m-d H:i:s'),
+            ]);
+            $this->periodId = (int) $db->insertID();
+        } else {
+            $this->periodId = (int) $period['id'];
+        }
+
+        // 1. Super Admin (full access)
+        $this->ensureUser(1, 'admin', 'Super Admin');
+        // 2. Viewer (no roles / permissions)
+        $this->ensureUser(2, 'viewer', 'Viewer User');
+        // 3. SMP-only admin
+        $this->ensureUser(3, 'smp_admin', 'SMP Admin');
+        // 4. SMA-only admin
+        $this->ensureUser(4, 'sma_admin', 'SMA Admin');
+        // 5. Guru linked to a teacher record (SMA)
+        $this->ensureUser(5, 'guru_a', 'Guru A');
+
+        $this->assignRole(1, 'super_admin', null);
+        $this->assignRole(3, 'admin_smp', null);
+        $this->assignRole(4, 'admin_sma', null);
+        $this->assignRole(5, 'guru', null);
+
+        $this->grantUnit(1, $this->smpUnitId, true);
+        $this->grantUnit(1, $this->smaUnitId, false);
+        $this->grantUnit(2, $this->smpUnitId, true);
+        $this->grantUnit(3, $this->smpUnitId, true);
+        $this->grantUnit(4, $this->smaUnitId, true);
+        $this->grantUnit(5, $this->smaUnitId, true);
+
+        $teacher = $db->table('teachers')->where('primary_unit_id', $this->smaUnitId)->where('full_name', 'Guru A')->get()->getRowArray();
+        if (!$teacher) {
+            $db->table('teachers')->insert([
+                'uuid'             => '60000000-0000-4000-8000-000000000001',
+                'full_name'        => 'Guru A',
+                'normalized_name'  => 'GURU A',
+                'employment_status'=> 'ACTIVE',
+                'primary_unit_id'  => $this->smaUnitId,
+                'is_active'        => 1,
+                'created_at'       => date('Y-m-d H:i:s'),
+            ]);
+            $teacher = $db->table('teachers')->where('uuid', '60000000-0000-4000-8000-000000000001')->get()->getRowArray();
+        }
+        $db->table('users')->where('id', 5)->update(['teacher_id' => $teacher['id']]);
+        $this->ownTeacherId = (int) $teacher['id'];
+
+        if (!$db->table('subjects')->where('is_active', 1)->get()->getRowArray()) {
+            $db->table('subjects')->insert([
+                'uuid'            => '60000000-0000-4000-8000-000000000009',
+                'code'            => 'INF-SEC',
+                'name'            => 'Informatika (Security)',
+                'normalized_name' => 'informatika (security)',
+                'short_name'      => 'INF',
+                'category'        => 'WAJIB',
+                'is_active'       => 1,
+                'created_at'      => date('Y-m-d H:i:s'),
+            ]);
+        }
+    }
+
+    private function createAssessment(int $unitId, int $teacherId): array
+    {
+        $db = Database::connect($this->DBGroup);
+        $subject = $db->table('subjects')->where('is_active', 1)->get()->getRowArray();
+        $this->assertNotNull($subject, 'A seeded subject is required.');
+
+        $classroom = $db->table('classrooms')->where('unit_id', $unitId)->get()->getRowArray();
+        if (!$classroom) {
+            $grade = $db->table('grade_levels')->where('unit_id', $unitId)->get()->getRowArray();
+            $db->table('classrooms')->insert([
+                'uuid'              => UuidService::v4(),
+                'academic_period_id'=> $this->periodId,
+                'unit_id'           => $unitId,
+                'name'              => 'Sec-Test',
+                'grade_level_id'    => $grade ? (int) $grade['id'] : null,
+                'is_active'         => 1,
+                'created_at'        => date('Y-m-d H:i:s'),
+            ]);
+            $classroom = $db->table('classrooms')->where('unit_id', $unitId)->get()->getRowArray();
+        }
+
+        $uuid = UuidService::v4();
+        $db->table('assessments')->insert([
+            'uuid'               => $uuid,
+            'unit_id'            => $unitId,
+            'academic_period_id' => $this->periodId,
+            'classroom_id'       => (int) $classroom['id'],
+            'subject_id'         => (int) $subject['id'],
+            'teacher_id'         => $teacherId,
+            'title'              => 'Assessment Keamanan',
+            'assessment_type'    => 'FORMATIVE',
+            'assessment_form'    => 'ANGKA',
+            'assessment_date'    => date('Y-m-d'),
+            'status'             => 'PUBLISHED',
+            'revision_number'    => 1,
+            'created_at'         => date('Y-m-d H:i:s'),
+            'updated_at'         => date('Y-m-d H:i:s'),
+        ]);
+
+        return $db->table('assessments')->where('uuid', $uuid)->get()->getRowArray();
+    }
+
+    public function testGuestRedirectedToLogin(): void
+    {
+        $this->withSession([])->get('assessment')->assertRedirectTo(base_url('login'));
+    }
+
+    public function testUserWithoutPermissionGets403(): void
+    {
+        $this->withSession($this->sessionLogin(2, $this->smpUnitId, 'viewer'))
+            ->get('assessment')
+            ->assertStatus(403);
+    }
+
+    public function testSuperAdminReachesAssessmentIndex(): void
+    {
+        $this->withSession($this->sessionLogin(1, $this->smaUnitId, 'super_admin'))
+            ->get('assessment')
+            ->assertStatus(200);
+    }
+
+    public function testGuruWithAssessmentViewReachesIndex(): void
+    {
+        $this->withSession($this->sessionLogin(5, $this->smaUnitId, 'guru'))
+            ->get('assessment')
+            ->assertStatus(200);
+    }
+
+    public function testGuruCannotAccessMasteryBoard(): void
+    {
+        // Guru only has assessment.view + manage → mastery is management-scoped.
+        $this->withSession($this->sessionLogin(5, $this->smaUnitId, 'guru'))
+            ->get('mastery')
+            ->assertStatus(403);
+    }
+
+    public function testAdminSmaReachesMasteryAndInterventions(): void
+    {
+        $session = $this->sessionLogin(4, $this->smaUnitId, 'admin_sma');
+        $this->withSession($session)->get('mastery')->assertStatus(200);
+        $this->withSession($session)->get('interventions')->assertStatus(200);
+        $this->withSession($session)->get('reporting-policies')->assertStatus(200);
+    }
+
+    public function testAdminSmpCannotOpenSmaAssessment(): void
+    {
+        $assessment = $this->createAssessment($this->smaUnitId, 0);
+
+        $response = $this->withSession($this->sessionLogin(3, $this->smpUnitId, 'admin_smp'))
+            ->get('assessment/' . $assessment['id']);
+        $response->assertRedirectTo(base_url('assessment'));
+        $response->assertSessionHas('error');
+    }
+
+    public function testGuruCannotOpenAnotherTeachersAssessment(): void
+    {
+        $assessment = $this->createAssessment($this->smaUnitId, 999999);
+
+        $response = $this->withSession($this->sessionLogin(5, $this->smaUnitId, 'guru'))
+            ->get('assessment/' . $assessment['id']);
+        $response->assertRedirectTo(base_url('assessment'));
+        $response->assertSessionHas('error');
+    }
+
+    public function testGuruCanOpenOwnAssessment(): void
+    {
+        $assessment = $this->createAssessment($this->smaUnitId, $this->ownTeacherId);
+
+        $this->withSession($this->sessionLogin(5, $this->smaUnitId, 'guru'))
+            ->get('assessment/' . $assessment['id'])
+            ->assertStatus(200);
+    }
+
+    public function testViewerCannotGradeAnotherAssessment(): void
+    {
+        $assessment = $this->createAssessment($this->smaUnitId, 0);
+
+        $this->withSession($this->sessionLogin(2, $this->smpUnitId, 'viewer'))
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->post('assessment/' . $assessment['id'] . '/gradebook')
+            ->assertStatus(403);
+    }
+
+    private function sessionLogin(int $userId, int $unitId, string $roleCode): array
+    {
+        return [
+            'logged_in'       => true,
+            'user_id'         => $userId,
+            'auth_timestamp'  => time(),
+            'username'        => 'user' . $userId,
+            'role_code'       => $roleCode,
+            'all_role_codes'  => [$roleCode],
+            'active_role'     => $roleCode,
+            'active_unit_id'  => $unitId,
+            'active_period_id'=> $this->periodId,
+            'unit_access'     => [$unitId],
+        ];
+    }
+
+    private function ensureUser(int $id, string $username, string $fullName): void
+    {
+        $db = Database::connect($this->DBGroup);
+        if (!$db->table('users')->where('id', $id)->get()->getRowArray()) {
+            $db->table('users')->insert([
+                'id'                   => $id,
+                'uuid'                 => sprintf('6%011d-0000-4000-8000-000000000000', $id),
+                'username'             => $username,
+                'email'                => $username . '@test.com',
+                'full_name'            => $fullName,
+                'password_hash'        => password_hash('SomePass12345!', PASSWORD_BCRYPT),
+                'is_active'            => 1,
+                'must_change_password' => 0,
+                'created_at'           => date('Y-m-d H:i:s'),
+            ]);
+        }
+    }
+
+    private function assignRole(int $userId, string $roleCode, ?int $unitId): void
+    {
+        $db = Database::connect($this->DBGroup);
+        $role = $db->table('roles')->where('code', $roleCode)->get()->getRowArray();
+        if (!$role) {
+            $this->fail("Role {$roleCode} not seeded.");
+        }
+        $exists = $db->table('user_roles')
+            ->where('user_id', $userId)
+            ->where('role_id', $role['id'])
+            ->get()->getRowArray();
+        if (!$exists) {
+            $db->table('user_roles')->insert([
+                'user_id'   => $userId,
+                'role_id'   => $role['id'],
+                'unit_id'   => $unitId,
+                'created_at'=> date('Y-m-d H:i:s'),
+            ]);
+        }
+    }
+
+    private function grantUnit(int $userId, int $unitId, bool $isDefault): void
+    {
+        $db = Database::connect($this->DBGroup);
+        if (!$db->table('user_unit_access')->where('user_id', $userId)->where('unit_id', $unitId)->get()->getRowArray()) {
+            $db->table('user_unit_access')->insert([
+                'user_id'     => $userId,
+                'unit_id'     => $unitId,
+                'access_level'=> 'ADMIN',
+                'is_default'  => $isDefault ? 1 : 0,
+                'created_at'  => date('Y-m-d H:i:s'),
+            ]);
+        }
+    }
+}

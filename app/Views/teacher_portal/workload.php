@@ -15,14 +15,26 @@
                 </p>
             </div>
             <div class="d-flex align-items-center gap-2">
+                <?php if (!empty($isManagement) && !empty($teachersList)): ?>
+                    <form method="get" action="<?= base_url('portal/workload') ?>" class="d-inline-flex align-items-center gap-1 me-2">
+                        <label class="fs-8 fw-semibold text-muted text-nowrap d-none d-md-inline" for="supervisionWorkloadSelect">Guru:</label>
+                        <select id="supervisionWorkloadSelect" name="teacher_id" class="form-select form-select-sm rounded-3 shadow-sm" onchange="this.form.submit()">
+                            <?php foreach ($teachersList as $t): ?>
+                                <option value="<?= (int) $t['id'] ?>" <?= ((int) ($currentTeacherId ?? 0) === (int) $t['id']) ? 'selected' : '' ?>>
+                                    <?= esc($t['full_name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+                <?php endif; ?>
                 <?php if (has_permission('teacher_assignment_document.view') && $assignmentDocumentAvailable): ?>
-                    <a href="<?= base_url('portal/assignment-document') ?>" target="_blank" class="btn btn-primary btn-sm rounded-3 px-3"><i data-lucide="file-signature" style="width:16px"></i> <?= $allAssignmentVersionsOfficial ? 'Cetak SK Saya' : 'Pratinjau SK Saya' ?></a>
+                    <a href="<?= base_url('portal/assignment-document' . (!empty($currentTeacherId) ? '?teacher_id=' . $currentTeacherId : '')) ?>" target="_blank" class="btn btn-primary btn-sm rounded-3 px-3"><i data-lucide="file-signature" style="width:16px"></i> <?= $allAssignmentVersionsOfficial ? 'Cetak SK' : 'Pratinjau SK' ?></a>
                 <?php endif; ?>
                 <?php if (has_permission('teacher_duty_schedule.view')): ?>
-                    <a href="<?= base_url('portal/duty-schedule') ?>" class="btn btn-outline-primary btn-sm rounded-3 px-3"><i data-lucide="shield-check" style="width:16px"></i> Piket Saya</a>
+                    <a href="<?= base_url('portal/duty-schedule' . (!empty($currentTeacherId) ? '?teacher_id=' . $currentTeacherId : '')) ?>" class="btn btn-outline-primary btn-sm rounded-3 px-3"><i data-lucide="shield-check" style="width:16px"></i> Piket</a>
                 <?php endif; ?>
-                <a href="<?= base_url('portal/schedule') ?>" class="btn btn-outline-primary btn-sm rounded-3 px-3 d-inline-flex align-items-center gap-1">
-                    <i data-lucide="calendar-days" style="width: 16px; height: 16px;"></i> Jadwal Mengajar Saya
+                <a href="<?= base_url('portal/schedule' . (!empty($currentTeacherId) ? '?teacher_id=' . $currentTeacherId : '')) ?>" class="btn btn-outline-primary btn-sm rounded-3 px-3 d-inline-flex align-items-center gap-1">
+                    <i data-lucide="calendar-days" style="width: 16px; height: 16px;"></i> Jadwal Mengajar
                 </a>
             </div>
         </div>

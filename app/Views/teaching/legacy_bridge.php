@@ -1,5 +1,5 @@
 <?= $this->extend('layouts/admin') ?>
-<?= $this->section('content') ?>
+<?= $this->section('main_content') ?>
 <div class="container-fluid px-0 px-md-3">
     <!-- Deprecation Notice -->
     <div class="alert alert-info border-0 shadow-sm rounded-4 mb-4">

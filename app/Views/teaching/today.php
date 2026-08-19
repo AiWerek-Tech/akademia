@@ -1,6 +1,6 @@
 <?= $this->extend('layouts/admin') ?>
 
-<?= $this->section('content') ?>
+<?= $this->section('main_content') ?>
 <div class="container-fluid px-0 px-md-3">
     <!-- Header Page -->
     <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
@@ -13,7 +13,12 @@
                     <?= esc(get_active_unit()['name'] ?? 'Unit Sekolah') ?>
                 </span>
             </div>
-            <h1 class="h3 fw-bold text-gray-900 mt-2 mb-1">Ruang Mengajar Harian</h1>
+            <h1 class="h3 fw-bold text-gray-900 mt-2 mb-1">
+                Ruang Mengajar Harian
+                <?php if (!empty($teacher['full_name'])): ?>
+                    <span class="fs-6 fw-normal text-muted">— <?= esc($teacher['full_name']) ?></span>
+                <?php endif; ?>
+            </h1>
             <p class="text-muted mb-0">Kelola timeline kelas, jalankan *Teaching Mode*, presensi cerdas, dan pencatatan refleksi.</p>
         </div>
 
@@ -146,7 +151,19 @@
                                 <i data-lucide="calendar-x-2" class="w-8 h-8"></i>
                             </div>
                             <h6 class="fw-bold text-gray-800">Tidak Ada Jadwal Mengajar</h6>
-                            <p class="text-muted text-sm mb-0">Tidak ada jadwal kelas aktif untuk guru ini pada tanggal <?= esc($date) ?>.</p>
+                            <p class="text-muted text-sm mb-3">
+                                <?php if (!empty($teacher['full_name'])): ?>
+                                    Tidak ada jadwal kelas aktif untuk guru <strong><?= esc($teacher['full_name']) ?></strong> pada hari <?= date('l, d F Y', strtotime($date)) ?>.
+                                <?php else: ?>
+                                    Silakan pilih guru dari dropdown di atas untuk melihat timeline mengajar harian.
+                                <?php endif; ?>
+                            </p>
+                            <?php if (!empty($teachersList)): ?>
+                                <div class="d-inline-flex align-items-center gap-2 text-xs text-muted bg-light p-2 rounded-pill px-3">
+                                    <i data-lucide="info" class="w-4 h-4 text-purple"></i>
+                                    <span>Gunakan pemilih guru di kanan atas untuk memantau jadwal guru lainnya.</span>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     <?php else: ?>
                         <div class="timeline-list d-flex flex-column gap-3">
@@ -204,15 +221,32 @@
                                                     </h6>
 
                                                     <!-- Lesson Plan Link or Selector -->
-                                                    <?php if ($session && !empty($session['lesson_plan_uuid'])): ?>
-                                                        <div class="text-xs text-muted d-flex align-items-center gap-1.5 mt-1">
+                                                    <?php
+                                                    $subjectPlans = $availablePlans[(int) $lesson['subject_id']] ?? [];
+                                                    $linkedPlanUuid = $session['lesson_plan_uuid'] ?? null;
+                                                    ?>
+                                                    <?php if ($linkedPlanUuid): ?>
+                                                        <div class="d-flex align-items-center gap-1.5 mt-1">
                                                             <i data-lucide="book-open" class="w-3.5 h-3.5 text-purple"></i>
-                                                            <span>RPP: <strong><?= esc($session['topic'] ?: 'Pertemuan Terhubung') ?></strong></span>
+                                                            <span class="text-xs text-muted">RPP: <strong><?= esc($session['topic'] ?: 'Rencana Terhubung') ?></strong></span>
+                                                            <a href="<?= base_url('lesson-plans/' . $linkedPlanUuid) ?>" target="_blank" class="text-xs text-purple ms-1" title="Lihat RPP"><i data-lucide="external-link" class="w-3 h-3"></i></a>
                                                         </div>
+                                                    <?php elseif ($subjectPlans !== []): ?>
+                                                        <form method="POST" action="<?= base_url('teaching/session/' . $session['uuid'] . '/link-plan') ?>" class="d-flex align-items-center gap-1.5 mt-1" id="planLink-<?= (int) $lesson['schedule_entry_id'] ?>">
+                                                            <?= csrf_field() ?>
+                                                            <i data-lucide="book-open-check" class="w-3.5 h-3.5 text-purple"></i>
+                                                            <select name="lesson_plan_id" class="form-select form-select-xs border-purple text-purple rounded-pill" style="max-width: 200px; font-size: 0.7rem; padding: 0.15rem 0.5rem;">
+                                                                <option value="">— Pilih RPP —</option>
+                                                                <?php foreach ($subjectPlans as $sp): ?>
+                                                                    <option value="<?= (int) $sp['id'] ?>"><?= esc(($sp['session_number'] ? $sp['session_number'] . '. ' : '') . ($sp['title'] ?: $sp['topic'] ?: 'Pertemuan ' . ($sp['session_number'] ?? ''))) ?></option>
+                                                                <?php endforeach; ?>
+                                                            </select>
+                                                            <button type="submit" class="btn btn-xs btn-purple text-white rounded-pill px-2 py-0" title="Hubungkan RPP"><i data-lucide="link" class="w-3 h-3"></i></button>
+                                                        </form>
                                                     <?php else: ?>
                                                         <div class="text-xs text-muted d-flex align-items-center gap-1.5 mt-1">
                                                             <i data-lucide="info" class="w-3.5 h-3.5 text-secondary"></i>
-                                                            <span>Mode Bebas (Gunakan RPP Generik 3D Deep Learning)</span>
+                                                            <span>Mode Bebas (3D Deep Learning)</span>
                                                         </div>
                                                     <?php endif; ?>
                                                 </div>
@@ -253,7 +287,17 @@
                                                         <input type="hidden" name="start_time" value="<?= esc($lesson['start_time'] ?? '') ?>">
                                                         <input type="hidden" name="end_time" value="<?= esc($lesson['end_time'] ?? '') ?>">
                                                         <input type="hidden" name="jp_count" value="<?= esc($lesson['jp_count'] ?? 2) ?>">
-                                                        
+                                                        <?php if (!empty($subjectPlans)): ?>
+                                                        <div class="d-flex align-items-center gap-1.5 mb-2">
+                                                            <i data-lucide="book-open-check" class="w-3.5 h-3.5 text-purple"></i>
+                                                            <select name="lesson_plan_id" class="form-select form-select-xs border-purple text-purple rounded-pill" style="max-width: 180px; font-size: 0.7rem; padding: 0.15rem 0.5rem;">
+                                                                <option value="">Tanpa RPP</option>
+                                                                <?php foreach ($subjectPlans as $sp): ?>
+                                                                    <option value="<?= (int) $sp['id'] ?>"><?= esc(($sp['session_number'] ? $sp['session_number'] . '. ' : '') . ($sp['title'] ?: $sp['topic'] ?: 'Pertemuan ' . ($sp['session_number'] ?? ''))) ?></option>
+                                                                <?php endforeach; ?>
+                                                            </select>
+                                                        </div>
+                                                        <?php endif; ?>
                                                         <button type="submit" class="btn btn-sm btn-outline-primary px-3 shadow-xs rounded-pill fw-semibold">
                                                             <i data-lucide="sparkles" class="w-4 h-4 me-1 d-inline-block"></i> Siapkan Kelas
                                                         </button>

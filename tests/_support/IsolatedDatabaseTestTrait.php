@@ -20,7 +20,7 @@ trait IsolatedDatabaseTestTrait
     {
         $this->migrateOnce = true;
         $this->seedOnce    = true;
-        $this->refresh     = true;
+        $this->refresh     = false;
 
         $db = \Config\Database::connect();
         $db->query('SET FOREIGN_KEY_CHECKS = 0');

@@ -28,6 +28,12 @@ class TeachingWorkspaceController extends BaseController
 
         $activePeriod = get_active_period();
         $periodId = $activePeriod ? (int) $activePeriod['id'] : 0;
+        if ($periodId <= 0) {
+            $periodRow = $db->table('academic_periods')->where('is_active', 1)->get()->getRowArray();
+            if ($periodRow) {
+                $periodId = (int) $periodRow['id'];
+            }
+        }
 
         $date = $this->request->getGet('date') ?: date('Y-m-d');
 
@@ -37,22 +43,52 @@ class TeachingWorkspaceController extends BaseController
             ? $db->table('teachers')->where('id', $teacherId)->where('is_active', 1)->get()->getRowArray()
             : null;
 
-        // If admin/superadmin with no teacher record, allow picking a teacher or default to first active teacher
+        // If management role (superadmin, wakasek, admin_smp/sma), allow switching/selecting any teacher
         $teachersList = [];
-        if (!$teacher && $this->isManagementRole()) {
-            $teachersList = $db->table('teachers')
-                ->where('primary_unit_id', $activeUnitId)
-                ->where('is_active', 1)
-                ->orderBy('full_name', 'ASC')
-                ->get()->getResultArray();
+        if ($this->isManagementRole()) {
+            $tQuery = $db->table('teachers')->where('is_active', 1);
+            if ($activeUnitId > 0) {
+                $tQuery->groupStart()
+                    ->where('primary_unit_id', $activeUnitId)
+                    ->orWhere('primary_unit_id IS NULL')
+                    ->groupEnd();
+            }
+            $teachersList = $tQuery->orderBy('full_name', 'ASC')->get()->getResultArray();
 
-            $selectedTeacherId = (int) ($this->request->getGet('teacher_id') ?: ($teachersList[0]['id'] ?? 0));
+            if (empty($teachersList)) {
+                $teachersList = $db->table('teachers')->where('is_active', 1)->orderBy('full_name', 'ASC')->get()->getResultArray();
+            }
+
+            $selectedTeacherId = (int) $this->request->getGet('teacher_id');
             if ($selectedTeacherId > 0) {
                 $teacherId = $selectedTeacherId;
+            } elseif ($teacherId <= 0 && !empty($teachersList)) {
+                $teacherId = (int) $teachersList[0]['id'];
+            }
+
+            if ($teacherId > 0) {
+                $teacher = $db->table('teachers')->where('id', $teacherId)->get()->getRowArray();
             }
         }
 
         $workspace = $this->teachingService->getTodayWorkspace($teacherId, $periodId, $date, $activeUnitId);
+
+        // Pre-fetch available lesson plans per subject for plan linking on the dashboard.
+        $subjectIds = array_unique(array_map(static fn (array $l): int => (int) $l['subject_id'], $workspace['lessons']));
+        $availablePlans = [];
+        if ($subjectIds !== []) {
+            $planRows = $db->table('lesson_plans')
+                ->where('unit_id', $activeUnitId)
+                ->whereIn('subject_id', $subjectIds)
+                ->whereIn('status', ['READY', 'IN_PROGRESS'])
+                ->orderBy('subject_id', 'ASC')
+                ->orderBy('session_number', 'ASC')
+                ->get()->getResultArray();
+            foreach ($planRows as $plan) {
+                $key = (int) $plan['subject_id'];
+                $availablePlans[$key][] = $plan;
+            }
+        }
 
         return view('teaching/today', [
             'title'             => 'Ruang Mengajar (Today Workspace)',
@@ -62,6 +98,7 @@ class TeachingWorkspaceController extends BaseController
             'teacher'           => $teacher,
             'teachersList'      => $teachersList,
             'currentTeacherId'  => $teacherId,
+            'availablePlans'    => $availablePlans,
         ]);
     }
 

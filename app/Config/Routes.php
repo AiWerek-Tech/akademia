@@ -287,6 +287,27 @@ $routes->post('teaching/session/(:segment)/observations/(:segment)/delete', 'Tea
 $routes->post('teaching/session/(:segment)/attendance/quick', 'TeachingWorkspaceController::quickAttendance/$1', ['filter' => 'permission:teaching.teach']);
 $routes->post('teaching/session/(:segment)/link-plan', 'TeachingWorkspaceController::linkPlan/$1', ['filter' => 'permission:teaching.teach']);
 
+// Assessment & Mastery Module (Phase 6)
+$routes->get('assessment', 'AssessmentController::index', ['filter' => 'permission:assessment.view']);
+$routes->get('assessment/create', 'AssessmentController::create', ['filter' => 'permission:assessment.manage']);
+$routes->post('assessment', 'AssessmentController::store', ['filter' => 'permission:assessment.manage']);
+$routes->get('assessment/(:num)/edit', 'AssessmentController::edit/$1', ['filter' => 'permission:assessment.manage']);
+$routes->post('assessment/(:num)', 'AssessmentController::update/$1', ['filter' => 'permission:assessment.manage']);
+$routes->get('assessment/(:num)', 'AssessmentController::detail/$1', ['filter' => 'permission:assessment.view']);
+$routes->post('assessment/(:num)/transition', 'AssessmentController::transition/$1', ['filter' => 'permission:assessment.manage']);
+$routes->post('assessment/(:num)/delete', 'AssessmentController::destroy/$1', ['filter' => 'permission:assessment.manage']);
+$routes->get('assessment/(:num)/gradebook', 'AssessmentController::gradebook/$1', ['filter' => 'permission:assessment.manage']);
+$routes->post('assessment/(:num)/gradebook', 'AssessmentController::saveGradebook/$1', ['filter' => 'permission:assessment.manage']);
+$routes->post('assessment/(:num)/evidence', 'AssessmentController::addEvidence/$1', ['filter' => 'permission:assessment.manage']);
+$routes->post('assessment/(:num)/feedback', 'AssessmentController::addFeedback/$1', ['filter' => 'permission:assessment.manage']);
+$routes->get('mastery', 'AssessmentController::mastery', ['filter' => 'permission:assessment.mastery']);
+$routes->post('mastery/set', 'AssessmentController::setMastery', ['filter' => 'permission:assessment.mastery']);
+$routes->post('mastery/recommend', 'AssessmentController::recommendInterventions', ['filter' => 'permission:assessment.mastery']);
+$routes->get('interventions', 'AssessmentController::interventions', ['filter' => 'permission:assessment.mastery']);
+$routes->post('interventions/(:num)', 'AssessmentController::updateIntervention/$1', ['filter' => 'permission:assessment.mastery']);
+$routes->get('reporting-policies', 'AssessmentController::policies', ['filter' => 'permission:assessment.mastery']);
+$routes->post('reporting-policies', 'AssessmentController::savePolicies', ['filter' => 'permission:assessment.mastery']);
+
 $routes->get('curriculum', 'CurriculumController::index');
 $routes->get('curriculum/create', 'CurriculumController::create');
 $routes->post('curriculum', 'CurriculumController::store');

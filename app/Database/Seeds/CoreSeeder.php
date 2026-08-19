@@ -219,6 +219,9 @@ class CoreSeeder extends Seeder
                 // Phase 5: daily teaching workspace (granted here because the
                 // phase-5 migration runs before CoreSeeder creates these roles).
                 'teaching.workspace', 'teaching.teach', 'teaching.reflect',
+                // Phase 6: assessment & mastery (granted here because the
+                // phase-6 migration runs before CoreSeeder creates these roles).
+                'assessment.view', 'assessment.manage', 'assessment.mastery',
             ],
             'admin_sma' => [
                 'students.view', 'students.manage',
@@ -227,6 +230,9 @@ class CoreSeeder extends Seeder
                 // Phase 5: daily teaching workspace (granted here because the
                 // phase-5 migration runs before CoreSeeder creates these roles).
                 'teaching.workspace', 'teaching.teach', 'teaching.reflect',
+                // Phase 6: assessment & mastery (granted here because the
+                // phase-6 migration runs before CoreSeeder creates these roles).
+                'assessment.view', 'assessment.manage', 'assessment.mastery',
             ],
             'wakasek_kurikulum' => [
                 'students.view', 'attendances.view', 'attendances.record', 'attendances.admin',
@@ -234,10 +240,15 @@ class CoreSeeder extends Seeder
                 // Phase 5: daily teaching workspace (granted here because the
                 // phase-5 migration runs before CoreSeeder creates these roles).
                 'teaching.workspace', 'teaching.teach', 'teaching.reflect',
+                // Phase 6: assessment & mastery (granted here because the
+                // phase-6 migration runs before CoreSeeder creates these roles).
+                'assessment.view', 'assessment.manage', 'assessment.mastery',
             ],
             'kepala_sekolah' => [
                 'students.view', 'attendances.view', 'attendances.admin',
                 'academic_calendar.view', 'academic_calendar.manage',
+                // Phase 6: read-only access to assessment results for supervision.
+                'assessment.view',
             ],
             'tata_usaha' => [
                 'dashboard.view', 'units.view', 'academic_years.view', 'academic_periods.view',

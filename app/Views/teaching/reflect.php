@@ -1,6 +1,6 @@
 <?= $this->extend('layouts/admin') ?>
 
-<?= $this->section('content') ?>
+<?= $this->section('main_content') ?>
 <div class="container-fluid px-0 px-md-3">
     <!-- Header Page -->
     <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">

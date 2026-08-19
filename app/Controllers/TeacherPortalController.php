@@ -18,10 +18,12 @@ class TeacherPortalController extends BaseController
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak akses ke Portal Guru.');
         }
 
-        $teacherId = $this->resolveTeacherId();
+        $ctx = $this->resolveTeacherContext();
+        $teacherId = $ctx['teacherId'];
+        $teacherInfo = $ctx['teacherInfo'];
 
         $activePeriod = get_active_period();
-        $unitScope = PortalUnitScopeService::resolve((string) $this->request->getGet('unit_scope'), $teacherId);
+        $unitScope = PortalUnitScopeService::resolve((string) $this->request->getGet('unit_scope'), $teacherId ?: null);
         $scope = strtolower(trim((string) $this->request->getGet('scope'))) ?: 'teacher';
         $classroomId = ($requestedClassroomId = (int) $this->request->getGet('classroom_id')) > 0 ? $requestedClassroomId : null;
         $gradeLevelId = ($requestedGradeId = (int) $this->request->getGet('grade_level_id')) > 0 ? $requestedGradeId : null;
@@ -50,10 +52,14 @@ class TeacherPortalController extends BaseController
         );
 
         return view('teacher_portal/schedule', array_merge($projection, [
-            'title'             => 'Jadwal Mengajar Saya',
+            'title'             => $ctx['isManagement'] ? 'Jadwal Mengajar Guru' : 'Jadwal Mengajar Saya',
             'breadcrumb_active' => 'Portal Guru',
             'activePeriod'      => $activePeriod,
             'unitScope'         => $unitScope,
+            'teacherInfo'       => $teacherInfo,
+            'isManagement'      => $ctx['isManagement'],
+            'teachersList'      => $ctx['teachersList'],
+            'currentTeacherId'  => $teacherId,
             'availableScopes'   => has_permission('schedules.view')
                 ? ['teacher', 'classroom', 'grade', 'all']
                 : (has_permission('class_schedule.view') && is_wali_kelas() ? ['teacher', 'classroom'] : ['teacher']),
@@ -67,11 +73,12 @@ class TeacherPortalController extends BaseController
         }
 
         $db = Database::connect();
-        $teacherId = $this->resolveTeacherId();
+        $ctx = $this->resolveTeacherContext();
+        $teacherId = $ctx['teacherId'];
+        $teacherInfo = $ctx['teacherInfo'];
         $activePeriod = get_active_period();
-        $unitScope = PortalUnitScopeService::resolve((string) $this->request->getGet('unit_scope'), $teacherId);
+        $unitScope = PortalUnitScopeService::resolve((string) $this->request->getGet('unit_scope'), $teacherId ?: null);
 
-        $teacherInfo = null;
         $workloadSnapshot = null;
         $assignments = [];
         $duties = [];
@@ -79,8 +86,6 @@ class TeacherPortalController extends BaseController
         $assignmentVersions = [];
 
         if ($teacherId > 0 && $activePeriod) {
-            $teacherInfo = $db->table('teachers')->where('id', $teacherId)->get()->getRowArray();
-
             $workloadSnapshot = [
                 'teaching_assigned_hours' => 0.0,
                 'teaching_workload_hours' => 0.0,
@@ -153,7 +158,7 @@ class TeacherPortalController extends BaseController
         }
 
         return view('teacher_portal/workload', [
-            'title'             => 'Beban Kerja Saya',
+            'title'             => $ctx['isManagement'] ? 'Beban Kerja Guru' : 'Beban Kerja Saya',
             'breadcrumb_active' => 'Portal Guru',
             'teacherInfo'       => $teacherInfo,
             'workloadSnapshot'  => $workloadSnapshot,
@@ -162,7 +167,10 @@ class TeacherPortalController extends BaseController
             'activePeriod'      => $activePeriod,
             'assignmentVersion' => $assignmentVersion,
             'assignmentVersions' => $assignmentVersions,
-            'unitScope' => $unitScope,
+            'unitScope'         => $unitScope,
+            'isManagement'      => $ctx['isManagement'],
+            'teachersList'      => $ctx['teachersList'],
+            'currentTeacherId'  => $teacherId,
             'assignmentDocumentAvailable' => $assignmentVersions !== [],
         ]);
     }
@@ -173,13 +181,14 @@ class TeacherPortalController extends BaseController
             return redirect()->to('/dashboard')->with('error', 'Anda tidak memiliki hak akses ke SK pembagian tugas pribadi.');
         }
 
-        $teacherId = $this->resolveTeacherId();
+        $ctx = $this->resolveTeacherContext();
+        $teacherId = $ctx['teacherId'];
         $period = get_active_period();
         if (!$teacherId || !$period) {
             return redirect()->to('/portal/workload')->with('error', 'Profil guru atau periode aktif belum tersedia.');
         }
 
-        $unitScope = PortalUnitScopeService::resolve((string) $this->request->getGet('unit_scope'), $teacherId);
+        $unitScope = PortalUnitScopeService::resolve((string) $this->request->getGet('unit_scope'), $teacherId ?: null);
         $documents = [];
         foreach ($unitScope['selectedUnits'] as $unit) {
             $unitId = (int) $unit['id'];
@@ -206,6 +215,9 @@ class TeacherPortalController extends BaseController
             'documents' => $documents,
             'personalPortal' => true,
             'isOfficial' => count(array_filter($documents, static fn (array $doc): bool => !$doc['is_official'])) === 0,
+            'isManagement' => $ctx['isManagement'],
+            'teachersList' => $ctx['teachersList'],
+            'currentTeacherId' => $teacherId,
         ]);
     }
 
@@ -216,15 +228,15 @@ class TeacherPortalController extends BaseController
         }
 
         $db = Database::connect();
-        $teacherId = $this->resolveTeacherId();
+        $ctx = $this->resolveTeacherContext();
+        $teacherId = $ctx['teacherId'];
+        $teacherInfo = $ctx['teacherInfo'];
         $period = get_active_period();
-        $unitScope = PortalUnitScopeService::resolve((string) $this->request->getGet('unit_scope'), $teacherId);
-        $teacher = $teacherId
-            ? $db->table('teachers')->where('id', $teacherId)->where('deleted_at IS NULL')->get()->getRowArray()
-            : null;
+        $unitScope = PortalUnitScopeService::resolve((string) $this->request->getGet('unit_scope'), $teacherId ?: null);
+
         $duties = [];
         $academicYear = null;
-        if ($teacher && $period) {
+        if ($teacherInfo && $period) {
             $academicYear = $db->table('academic_years')->where('id', $period['academic_year_id'])->get()->getRowArray();
             $duties = $db->table('teacher_duty_schedules')
                 ->where('academic_year_id', $period['academic_year_id'])
@@ -234,14 +246,70 @@ class TeacherPortalController extends BaseController
         }
 
         return view('teacher_portal/duty_schedule', [
-            'title' => 'Jadwal Piket Saya',
+            'title'             => $ctx['isManagement'] ? 'Jadwal Piket Guru' : 'Jadwal Piket Saya',
             'breadcrumb_active' => 'Portal Guru',
-            'teacherInfo' => $teacher,
-            'duties' => $duties,
-            'academicYear' => $academicYear,
-            'activePeriod' => $period,
-            'unitScope' => $unitScope,
+            'teacherInfo'       => $teacherInfo,
+            'duties'            => $duties,
+            'academicYear'      => $academicYear,
+            'activePeriod'      => $period,
+            'unitScope'         => $unitScope,
+            'isManagement'      => $ctx['isManagement'],
+            'teachersList'      => $ctx['teachersList'],
+            'currentTeacherId'  => $teacherId,
         ]);
+    }
+
+    private function resolveTeacherContext(): array
+    {
+        $db = Database::connect();
+        $activeUnitId = (int) session()->get('active_unit_id');
+
+        $isManagement = has_role('super_admin', 'superadmin', 'wakasek_kurikulum', 'admin_smp', 'admin_sma')
+            || has_permission('teachers.view')
+            || has_permission('schedules.view')
+            || has_permission('assignments.view');
+
+        $teachersList = [];
+        $teacherId = 0;
+
+        if ($isManagement) {
+            $tQuery = $db->table('teachers')->where('is_active', 1)->where('deleted_at IS NULL');
+            if ($activeUnitId > 0) {
+                $tQuery->groupStart()
+                    ->where('primary_unit_id', $activeUnitId)
+                    ->orWhere('primary_unit_id IS NULL')
+                    ->groupEnd();
+            }
+            $teachersList = $tQuery->orderBy('full_name', 'ASC')->get()->getResultArray();
+            if (empty($teachersList)) {
+                $teachersList = $db->table('teachers')->where('is_active', 1)->where('deleted_at IS NULL')->orderBy('full_name', 'ASC')->get()->getResultArray();
+            }
+
+            $requestedTeacherId = (int) $this->request->getGet('teacher_id');
+            if ($requestedTeacherId > 0) {
+                $teacherId = $requestedTeacherId;
+            } else {
+                $ownTeacherId = $this->resolveTeacherId();
+                if ($ownTeacherId > 0) {
+                    $teacherId = $ownTeacherId;
+                } elseif (!empty($teachersList)) {
+                    $teacherId = (int) $teachersList[0]['id'];
+                }
+            }
+        } else {
+            $teacherId = $this->resolveTeacherId();
+        }
+
+        $teacherInfo = $teacherId > 0
+            ? $db->table('teachers')->where('id', $teacherId)->where('deleted_at IS NULL')->get()->getRowArray()
+            : null;
+
+        return [
+            'teacherId'    => $teacherId,
+            'teacherInfo'  => $teacherInfo,
+            'isManagement' => $isManagement,
+            'teachersList' => $teachersList,
+        ];
     }
 
     private function resolveTeacherId(): int
