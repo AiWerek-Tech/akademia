@@ -68,7 +68,7 @@ final class TeacherSubstitutionScheduleRepairTest extends CIUnitTestCase
         }
         $units = $db->table('school_units')->whereIn('code', ['SMP','SMA'])->get()->getResultArray();
         $unitByCode=[];foreach($units as $u)$unitByCode[$u['code']]=(int)$u['id'];
-        $teachers=[];foreach(['Absent','Substitute','Other'] as $i=>$name){$db->table('teachers')->insert(['uuid'=>sprintf('31000000-0000-4000-8000-%012d',$i+1),'full_name'=>$name,'normalized_name'=>strtoupper($name),'primary_unit_id'=>$unitByCode[$i===1?'SMA':'SMP'],'is_active'=>1,'created_at'=>$now]);$teachers[]=(int)$db->insertID();}
+        $teachers=[];foreach(['Absent','Substitute','Other'] as $i=>$name){$existing=$db->table('teachers')->where('uuid',sprintf('31000000-0000-4000-8000-%012d',$i+1))->get()->getRowArray();if($existing){$teachers[]=(int)$existing['id'];}else{$db->table('teachers')->insert(['uuid'=>sprintf('31000000-0000-4000-8000-%012d',$i+1),'full_name'=>$name,'normalized_name'=>strtoupper($name),'primary_unit_id'=>$unitByCode[$i===1?'SMA':'SMP'],'is_active'=>1,'created_at'=>$now]);$teachers[]=(int)$db->insertID();}}
         [$absent,$substitute,$other]=$teachers;
         $db->table('academic_years')->insert(['uuid'=>'31000000-0000-4000-8000-000000000010','name'=>'2042/2043','start_date'=>'2042-07-01','end_date'=>'2043-06-30','created_at'=>$now]);$year=(int)$db->insertID();
         $db->table('academic_periods')->insert(['uuid'=>'31000000-0000-4000-8000-000000000011','academic_year_id'=>$year,'semester_number'=>1,'name'=>'Ganjil','start_date'=>'2042-07-01','end_date'=>'2042-12-31','created_at'=>$now]);$period=(int)$db->insertID();

@@ -24,11 +24,16 @@ final class AssignmentVersionTest extends CIUnitTestCase
     protected $seed      = CoreSeeder::class;
 
     private int $periodId = 1;
-    private int $curriculumVersionId = 1;
-
-    protected function setUp(): void
+    private int $curriculumVersionId = 1;    protected function setUp(): void
     {
+
         parent::setUp();
+
+        // Reset transStatus which may have been set to false by a
+        // failing query in a previous test class (CI4's transStatus
+        // flag persists across transaction boundaries on the shared
+        // DB connection).
+        $this->db->resetTransStatus();
 
         (new Milestone2MasterSeeder(new Database()))->run();
         (new Milestone3CurriculumSeeder(new Database()))->run();
