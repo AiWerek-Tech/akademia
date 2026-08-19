@@ -24,4 +24,12 @@ $selectedTp = (int) ($criterion['learning_objective_id'] ?? 0);
             <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="this.closest('.criterion-row').remove()"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
         </div>
     </div>
+    <div class="mt-2">
+        <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none rubric-toggle" onclick="toggleRubric(this)"><i data-lucide="list-checks" class="w-3.5 h-3.5 me-1"></i> Atur level rubrik</button>
+        <div class="rubric-editor d-none mt-2 border rounded-3 p-2 bg-light-subtle">
+            <input type="hidden" name="criteria[<?= $index ?>][rubric_levels_json]" class="rubric-json" value="<?= esc($criterion['rubric_levels_json'] ?? '') ?>">
+            <div class="rubric-level-list d-grid gap-1"></div>
+            <button type="button" class="btn btn-sm btn-outline-primary mt-1" onclick="addRubricLevel(this)"><i data-lucide="plus" class="w-3 h-3 me-1"></i> Tambah level</button>
+        </div>
+    </div>
 </div>

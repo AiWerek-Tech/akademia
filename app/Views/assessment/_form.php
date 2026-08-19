@@ -211,9 +211,87 @@ function addCriterionRow() {
             <div class="col-md-3"><select name="criteria[${i}][learning_objective_id]" class="form-select form-select-sm tp-select">${filteredTpOptions(document.getElementById('subjectSelect').value)}</select></div>
             <div class="col-md-2"><input type="number" step="0.01" min="0" name="criteria[${i}][weight]" class="form-control form-control-sm" value="1" placeholder="Bobot"></div>
             <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="this.closest('.criterion-row').remove()"><i data-lucide="x" class="w-3.5 h-3.5"></i></button></div>
+        </div>
+        <div class="mt-2">
+            <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none rubric-toggle" onclick="toggleRubric(this)"><i data-lucide="list-checks" class="w-3.5 h-3.5 me-1"></i> Atur level rubrik</button>
+            <div class="rubric-editor d-none mt-2 border rounded-3 p-2 bg-light-subtle">
+                <input type="hidden" name="criteria[${i}][rubric_levels_json]" class="rubric-json" value="">
+                <div class="rubric-level-list d-grid gap-1"></div>
+                <button type="button" class="btn btn-sm btn-outline-primary mt-1" onclick="addRubricLevel(this)"><i data-lucide="plus" class="w-3 h-3 me-1"></i> Tambah level</button>
+            </div>
         </div>`;
     container.appendChild(div);
     window.lucide && lucide.createIcons();
+}
+
+function rubricLevelRowHtml(data) {
+    data = data || {};
+    const div = document.createElement('div');
+    div.className = 'rubric-level d-flex gap-1 align-items-center';
+    div.innerHTML = `
+        <input type="text" class="form-control form-control-sm rubric-label" style="max-width:150px" placeholder="Label level" value="${data.label || ''}">
+        <input type="number" step="0.01" class="form-control form-control-sm rubric-score" style="max-width:90px" placeholder="Skor" value="${data.score === null || data.score === undefined ? '' : data.score}">
+        <input type="text" class="form-control form-control-sm rubric-desc" placeholder="Deskripsi level" value="${data.description || ''}">
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.rubric-level').remove(); syncRubricJson(this.closest('.rubric-editor'))"><i data-lucide="x" class="w-3 h-3"></i></button>`;
+    return div;
+}
+
+function toggleRubric(btn) {
+    const editor = btn.nextElementSibling;
+    editor.classList.toggle('d-none');
+    if (!editor.dataset.initialized) {
+        editor.dataset.initialized = '1';
+        initRubricEditor(editor);
+    }
+    window.lucide && lucide.createIcons();
+}
+
+function initRubricEditor(editor) {
+    const hidden = editor.querySelector('.rubric-json');
+    const list = editor.querySelector('.rubric-level-list');
+    list.innerHTML = '';
+    let levels = [];
+    if (hidden.value) {
+        try { levels = JSON.parse(hidden.value); } catch (e) { levels = []; }
+    }
+    if (!levels.length) levels = [{ label: '', score: null, description: '' }];
+    levels.forEach((lvl) => list.appendChild(rubricLevelRowHtml(lvl)));
+    bindRubricEvents(editor);
+    syncRubricJson(editor);
+    window.lucide && lucide.createIcons();
+}
+
+function addRubricLevel(btn) {
+    const editor = btn.closest('.rubric-editor');
+    editor.querySelector('.rubric-level-list').appendChild(rubricLevelRowHtml({}));
+    bindRubricEvents(editor);
+    syncRubricJson(editor);
+    window.lucide && lucide.createIcons();
+}
+
+function bindRubricEvents(editor) {
+    editor.querySelectorAll('input.rubric-label, input.rubric-score, input.rubric-desc').forEach((el) => {
+        el.removeEventListener('input', rubricSyncHandler);
+        el.addEventListener('input', rubricSyncHandler);
+    });
+}
+
+function rubricSyncHandler() {
+    syncRubricJson(this.closest('.rubric-editor'));
+}
+
+function syncRubricJson(editor) {
+    const list = editor.querySelector('.rubric-level-list');
+    const hidden = editor.querySelector('.rubric-json');
+    const levels = [];
+    list.querySelectorAll('.rubric-level').forEach((row, idx) => {
+        const label = row.querySelector('.rubric-label').value.trim();
+        const score = row.querySelector('.rubric-score').value;
+        const desc = row.querySelector('.rubric-desc').value.trim();
+        if (!label && !score && !desc) return;
+        levels.push({ level_index: idx, label: label || 'Level ' + (idx + 1), score: score === '' ? null : Number(score), description: desc });
+    });
+    hidden.value = levels.length ? JSON.stringify(levels) : '';
 }
 
 function addItemRow() {
@@ -252,4 +330,12 @@ document.querySelectorAll('.tp-check').forEach((cb) => cb.addEventListener('chan
 window.addEventListener('DOMContentLoaded', function () {
     updateTpCount();
     document.getElementById('subjectSelect').dispatchEvent(new Event('change'));
+    document.querySelectorAll('.criterion-row').forEach((row) => {
+        const editor = row.querySelector('.rubric-editor');
+        const hidden = editor && editor.querySelector('.rubric-json');
+        if (editor && hidden && hidden.value) {
+            editor.dataset.initialized = '1';
+            initRubricEditor(editor);
+        }
+    });
 });

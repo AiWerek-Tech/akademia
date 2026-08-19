@@ -1,6 +1,6 @@
 <?= $this->extend('layouts/admin') ?>
 
-<?= $this->section('content') ?>
+<?= $this->section('main_content') ?>
 <div class="container-fluid px-0 px-md-3">
     <?php if (session()->getFlashdata('success')): ?>
         <div class="alert alert-success border-0 rounded-4 mb-4"><?= esc(session()->getFlashdata('success')) ?></div>
@@ -37,6 +37,21 @@
 
     <form method="POST" action="<?= base_url('assessment/' . $assessment['id'] . '/gradebook') ?>">
         <?= csrf_field() ?>
+        <?php
+        $rubricMap = [];
+        foreach ($assessment['criteria'] as $criterion) {
+            $levels = [];
+            if (! empty($criterion['rubric_levels_json'])) {
+                $decoded = json_decode($criterion['rubric_levels_json'], true);
+                if (is_array($decoded)) {
+                    foreach ($decoded as $lvl) {
+                        $levels[] = $lvl;
+                    }
+                }
+            }
+            $rubricMap[(int) $criterion['id']] = $levels;
+        }
+        ?>
         <div class="card border-0 shadow-sm rounded-4">
             <div class="table-responsive">
                 <table class="table table-bordered align-middle mb-0 gradebook-table">
@@ -49,6 +64,15 @@
                                     <div class="fw-normal text-uppercase" style="font-size:10px">
                                         <?= esc($criterion['tp_code'] ?? 'tanpa TP') ?> · bobot <?= esc($criterion['weight']) ?>
                                     </div>
+                                    <?php if (! empty($rubricMap[(int) $criterion['id']])): ?>
+                                        <div class="fw-normal text-muted" style="font-size:9px;line-height:1.3">
+                                            <?php foreach ($rubricMap[(int) $criterion['id']] as $lvl): ?>
+                                                <span class="badge bg-light-subtle text-dark-subtle me-1">
+                                                    <?= esc(($lvl['label'] ?? 'L' . ($lvl['level_index'] ?? '')) . (isset($lvl['score']) ? '=' . $lvl['score'] : '')) ?>
+                                                </span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </th>
                             <?php endforeach; ?>
                             <th class="px-3 py-3 text-center" style="min-width:110px">Skor</th>
@@ -95,8 +119,8 @@
                                     <details>
                                         <summary class="text-xs fw-semibold text-muted cursor-pointer">Bukti Belajar & Umpan Balik — <?= esc($row['student']['full_name']) ?></summary>
                                         <div class="row g-2 mt-2">
-                                            <div class="col-md-5">
-                                                <form method="POST" action="<?= base_url('assessment/' . $assessment['id'] . '/evidence') ?>" class="d-flex gap-2">
+                                            <div class="col-md-6">
+                                                <form method="POST" action="<?= base_url('assessment/' . $assessment['id'] . '/evidence') ?>" class="d-flex flex-column gap-1">
                                                     <?= csrf_field() ?>
                                                     <input type="hidden" name="student_id" value="<?= $studentId ?>">
                                                     <input type="hidden" name="attempt_id" value="<?= $attemptId ?>">
@@ -107,7 +131,21 @@
                                                             <option value="<?= $obj['learning_objective_id'] ?>"><?= esc($obj['tp_code']) ?></option>
                                                         <?php endforeach; ?>
                                                     </select>
-                                                    <button type="submit" class="btn btn-sm btn-outline-primary shadow-sm">Tambah Bukti</button>
+                                                    <div class="d-flex gap-1">
+                                                        <select name="criterion_id" class="form-select form-select-sm flex-grow-1">
+                                                            <option value="">Tanpa Kriteria</option>
+                                                            <?php foreach ($assessment['criteria'] as $c): ?>
+                                                                <option value="<?= $c['id'] ?>">K<?= $c['sequence_order'] ?? '' ?> <?= esc($c['tp_code'] ?? '') ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                        <select name="profile_dimension_id" class="form-select form-select-sm flex-grow-1">
+                                                            <option value="">Tanpa Dimensi</option>
+                                                            <?php foreach ($dimensions as $d): ?>
+                                                                <option value="<?= $d['id'] ?>"><?= esc($d['name']) ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary shadow-sm align-self-start">Tambah Bukti</button>
                                                 </form>
                                             </div>
                                             <div class="col-md-5">

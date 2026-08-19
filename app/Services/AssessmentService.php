@@ -454,6 +454,8 @@ class AssessmentService
                 'attempt_id'            => ! empty($data['attempt_id']) ? (int) $data['attempt_id'] : null,
                 'learning_objective_id' => ! empty($data['learning_objective_id']) ? (int) $data['learning_objective_id'] : null,
                 'criterion_id'          => ! empty($data['criterion_id']) ? (int) $data['criterion_id'] : null,
+                'profile_dimension_id'  => ! empty($data['profile_dimension_id']) ? (int) $data['profile_dimension_id'] : null,
+                'cocurricular_objective_id' => ! empty($data['cocurricular_objective_id']) ? (int) $data['cocurricular_objective_id'] : null,
                 'evidence_type'         => strtoupper($data['evidence_type'] ?? 'FILE'),
                 'title'                 => trim($data['title']),
                 'content'               => $data['content'] ?? null,

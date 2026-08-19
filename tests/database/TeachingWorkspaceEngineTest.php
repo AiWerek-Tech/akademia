@@ -650,6 +650,7 @@ final class TeachingWorkspaceEngineTest extends CIUnitTestCase
         // Verify the method exists and is callable
         $controller = new \App\Controllers\TeacherAttendanceController();
         $this->assertTrue(method_exists($controller, 'index'));
-        $this->assertTrue(method_exists($controller, 'indexLegacy'), 'Legacy method should be preserved for backward compat');
+        $this->assertTrue(method_exists($controller, 'printJournal'), 'Print method should be preserved for backward compat');
+        $this->assertTrue(method_exists($controller, 'printRecap'), 'Recap print method should be preserved');
     }
 }

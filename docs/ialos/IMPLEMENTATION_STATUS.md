@@ -48,6 +48,10 @@ Dokumen ini adalah sumber status implementasi. Blueprint pada `docs/WMVAA_Academ
   - Mastery Engine berbasis TP (`NEEDS_SUPPORT`/`DEVELOPING`/`ACHIEVED`/`ADVANCED`) dengan agregasi worst-case dominates dan `mastery_records` ber-versi.
   - Intervensi belajar otomatis (`REMEDIAL`/`REINFORCEMENT`/`ENRICHMENT`) dengan alur `RECOMMENDED` → `APPROVED` → `COMPLETED`/`CANCELLED`.
   - Mastery Board matriks murid × TP per kelas/mapel, ringkasan mastery, dan Reporting Policies ber-versioning.
+  - Rubrik assessment per kriteria (`rubric_levels_json`) dengan editor level di form authoring dan tampilan badge di gradebook/detail.
+  - Evidence ter-align Dimensi Profil Lulusan & tujuan kokurikuler (blueprint §7).
+  - Remediasi tertarget per kriteria: intervensi menunjuk `criterion_id` gagal dengan fokus aktivitas.
+  - Enforcement semantik tipe: `DIAGNOSTIC` mencatat hasil per kriteria tetapi tidak menulis mastery / nilai akhir.
   - RBAC ketat: guru hanya untuk assessment milik sendiri; mastery/intervensi/policy hanya untuk peran manajemen (`assessment.mastery`).
 
 ## Status roadmap blueprint
@@ -69,6 +73,6 @@ Dokumen ini adalah sumber status implementasi. Blueprint pada `docs/WMVAA_Academ
 ## Verifikasi build ini
 
 - **Full Combined Regression Suite (Phase 1, 2, 3, 4, 5):** 65 unit & database engine tests, 245 assertions — **100% PASSED (0 Errors, 0 Failures)**.
-- **Phase 6 Assessment & Mastery Suite:** 20 test (10 engine + 10 route security), 70 assertions — **100% PASSED (0 Errors, 0 Failures)**.
+- **Phase 6 Assessment & Mastery Suite:** 23 test (13 engine + 10 route security), 83 assertions — **100% PASSED (0 Errors, 0 Failures)**.
 - Composer strict validation, security audit, PHP syntax lint, dan unit isolation verification: 100% lulus.
 - Seluruh route IALOS membawa filter autentikasi, unit access, password-change guard, dan permission domain yang ketat.

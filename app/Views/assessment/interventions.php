@@ -1,6 +1,6 @@
 <?= $this->extend('layouts/admin') ?>
 
-<?= $this->section('content') ?>
+<?= $this->section('main_content') ?>
 <div class="container-fluid px-0 px-md-3">
     <?php if (session()->getFlashdata('success')): ?>
         <div class="alert alert-success border-0 rounded-4 mb-4"><?= esc(session()->getFlashdata('success')) ?></div>
@@ -100,6 +100,9 @@
                             </td>
                             <td class="px-3 py-3">
                                 <span class="badge bg-light text-dark rounded-pill"><?= esc($intervention['tp_code'] ?? '-') ?></span>
+                                <?php if (! empty($intervention['criterion_text'])): ?>
+                                    <div class="text-xs text-muted mt-1">Kriteria: <?= esc($intervention['criterion_text']) ?></div>
+                                <?php endif; ?>
                             </td>
                             <td class="px-3 py-3">
                                 <span class="badge <?= $typeBadge[$intervention['intervention_type']] ?? 'bg-light' ?> rounded-pill"><?= esc($intervention['intervention_type']) ?></span>

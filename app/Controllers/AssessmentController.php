@@ -229,6 +229,7 @@ class AssessmentController extends BaseController
             'assessment'        => $data['assessment'],
             'students'          => $data['students'],
             'rows'              => $data['rows'],
+            'dimensions'        => $this->profileDimensions(),
         ]);
     }
 
@@ -254,6 +255,9 @@ class AssessmentController extends BaseController
                 'student_id'            => $this->request->getPost('student_id'),
                 'attempt_id'            => $this->request->getPost('attempt_id'),
                 'learning_objective_id' => $this->request->getPost('learning_objective_id'),
+                'criterion_id'          => $this->request->getPost('criterion_id'),
+                'profile_dimension_id'  => $this->request->getPost('profile_dimension_id'),
+                'cocurricular_objective_id' => $this->request->getPost('cocurricular_objective_id'),
                 'evidence_type'         => $this->request->getPost('evidence_type'),
                 'title'                 => $this->request->getPost('title'),
                 'content'               => $this->request->getPost('content'),
@@ -557,6 +561,16 @@ class AssessmentController extends BaseController
             ->where('primary_unit_id', $unitId)
             ->where('is_active', 1)
             ->orderBy('full_name', 'ASC')
+            ->get()->getResultArray();
+    }
+
+    private function profileDimensions(): array
+    {
+        return Database::connect()->table('graduate_profile_dimensions')
+            ->select('id, code, name, description')
+            ->where('is_active', 1)
+            ->orderBy('sort_order', 'ASC')
+            ->orderBy('name', 'ASC')
             ->get()->getResultArray();
     }
 }

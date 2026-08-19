@@ -353,4 +353,139 @@ final class AssessmentMasteryEngineTest extends CIUnitTestCase
                 ->countAllResults()
         );
     }
+
+    public function testDiagnosticDoesNotWriteMasteryOrInterventions(): void
+    {
+        $tp = $this->createTestObjective($this->createTestOutcome('CP-ENGINE-E'), 'TP-ENGINE-E');
+
+        $assessmentId = $this->assessmentService->create([
+            'unit_id'            => $this->unitId,
+            'academic_period_id' => $this->periodId,
+            'classroom_id'       => $this->classroomId,
+            'subject_id'         => $this->subjectId,
+            'teacher_id'         => $this->teacherId,
+            'title'              => 'Diagnostik Refinement',
+            'assessment_type'    => 'DIAGNOSTIC',
+            'assessment_form'    => 'ANGKA',
+            'assessment_date'    => date('Y-m-d'),
+            'max_score'          => 100,
+            'objective_ids'      => [$tp['id']],
+            'criteria'           => [
+                ['criterion' => 'Kesiapan awal', 'learning_objective_id' => $tp['id'], 'weight' => 1],
+            ],
+            'items'              => [],
+        ], 1);
+
+        $this->assessmentService->transition($assessmentId, 'PUBLISHED', 1);
+
+        $criterion = $this->db->table('assessment_criteria')->where('assessment_id', $assessmentId)->get()->getRowArray();
+        $rows = [];
+        foreach ($this->studentIds as $studentId) {
+            $rows[] = [
+                'student_id'  => $studentId,
+                'score'       => 30,
+                'is_complete' => 1,
+                'criteria'    => [(int) $criterion['id'] => ['status' => 'NEEDS_SUPPORT']],
+            ];
+        }
+        $this->assessmentService->saveGradebook($assessmentId, $rows, 1);
+
+        $this->assertSame(0, (int) $this->db->table('mastery_records')->whereIn('student_id', $this->studentIds)->countAllResults());
+        $this->assertSame(0, (int) $this->db->table('interventions')->whereIn('student_id', $this->studentIds)->countAllResults());
+
+        $results = $this->db->table('criterion_results cr')
+            ->join('assessment_attempts aa', 'aa.id = cr.attempt_id', 'left')
+            ->whereIn('aa.student_id', $this->studentIds)
+            ->countAllResults();
+        $this->assertSame(count($this->studentIds), $results, 'Diagnostic still records per-criterion results.');
+    }
+
+    public function testInterventionTargetsFailingCriterion(): void
+    {
+        $tp = $this->createTestObjective($this->createTestOutcome('CP-ENGINE-F'), 'TP-ENGINE-F');
+
+        $assessmentId = $this->assessmentService->create([
+            'unit_id'            => $this->unitId,
+            'academic_period_id' => $this->periodId,
+            'classroom_id'       => $this->classroomId,
+            'subject_id'         => $this->subjectId,
+            'teacher_id'         => $this->teacherId,
+            'title'              => 'Sumatif Rubrik',
+            'assessment_type'    => 'SUMMATIVE',
+            'assessment_form'    => 'RUBRIK',
+            'assessment_date'    => date('Y-m-d'),
+            'max_score'          => 100,
+            'objective_ids'      => [$tp['id']],
+            'criteria'           => [
+                [
+                    'criterion'           => 'Mampu menguraikan masalah',
+                    'learning_objective_id' => $tp['id'],
+                    'weight'              => 1,
+                    'rubric_levels_json'  => json_encode([
+                        ['level_index' => 0, 'label' => 'Cukup', 'score' => 2, 'description' => 'Mulai memahami'],
+                        ['level_index' => 1, 'label' => 'Mahir', 'score' => 3, 'description' => 'Menguraikan dengan lengkap'],
+                    ]),
+                ],
+            ],
+            'items'              => [],
+        ], 1);
+
+        $this->assessmentService->transition($assessmentId, 'PUBLISHED', 1);
+
+        $criterion = $this->db->table('assessment_criteria')->where('assessment_id', $assessmentId)->get()->getRowArray();
+        $this->assertNotNull($criterion['rubric_levels_json'], 'Rubric levels should be persisted.');
+
+        $this->assessmentService->saveGradebook($assessmentId, [
+            [
+                'student_id'  => $this->studentIds[0],
+                'score'       => 40,
+                'is_complete' => 1,
+                'criteria'    => [(int) $criterion['id'] => ['status' => 'NEEDS_SUPPORT']],
+            ],
+        ], 1);
+
+        $intervention = $this->db->table('interventions')
+            ->where('student_id', $this->studentIds[0])
+            ->where('learning_objective_id', (int) $tp['id'])
+            ->get()->getRowArray();
+        $this->assertNotNull($intervention);
+        $this->assertSame((int) $criterion['id'], (int) $intervention['criterion_id'], 'Intervention should target the failing criterion.');
+        $this->assertStringContainsString('Mampu menguraikan masalah', $intervention['planned_activity']);
+
+        $listed = $this->masteryService->listInterventions(['unit_id' => $this->unitId]);
+        $this->assertNotEmpty($listed);
+        $this->assertSame('Mampu menguraikan masalah', $listed[0]['criterion_text']);
+    }
+
+    public function testEvidenceStoresProfileDimensionAlignment(): void
+    {
+        $data = $this->createAssessmentFixture([['ACHIEVED', 'ADVANCED'], []]);
+        $dimension = $this->db->table('graduate_profile_dimensions')->get()->getRowArray();
+        $this->assertNotNull($dimension, 'Graduate profile dimension should be seeded.');
+
+        $attempt = $this->db->table('assessment_attempts')
+            ->where('assessment_id', $data['id'])
+            ->where('student_id', $this->studentIds[0])
+            ->get()->getRowArray();
+        $this->assertNotNull($attempt);
+
+        $this->assessmentService->addEvidence([
+            'student_id'           => $this->studentIds[0],
+            'attempt_id'           => (int) $attempt['id'],
+            'learning_objective_id'=> '',
+            'criterion_id'         => (int) $data['criteria'][0]['id'],
+            'profile_dimension_id' => (int) $dimension['id'],
+            'cocurricular_objective_id' => '',
+            'evidence_type'        => 'FILE',
+            'title'                => 'Portofolio karya',
+            'content'              => 'Laporan proyek',
+        ], 1);
+
+        $evidence = $this->db->table('assessment_evidence')
+            ->where('student_id', $this->studentIds[0])
+            ->where('attempt_id', (int) $attempt['id'])
+            ->get()->getRowArray();
+        $this->assertNotNull($evidence);
+        $this->assertSame((int) $dimension['id'], (int) $evidence['profile_dimension_id']);
+    }
 }

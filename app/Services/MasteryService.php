@@ -35,6 +35,16 @@ class MasteryService
     public const INTERVENTION_COMPLETED   = 'COMPLETED';
     public const INTERVENTION_CANCELLED   = 'CANCELLED';
 
+    public const TYPE_DIAGNOSTIC = 'DIAGNOSTIC';
+    public const TYPE_FORMATIVE  = 'FORMATIVE';
+    public const TYPE_SUMMATIVE  = 'SUMMATIVE';
+
+    /**
+     * Assessment types that may write mastery attainment. Diagnostic measures
+     * starting readiness and must not become part of the final grade.
+     */
+    private const ATTAINMENT_TYPES = [self::TYPE_FORMATIVE, self::TYPE_SUMMATIVE];
+
     private const STATUS_PRIORITY = [
         self::RESULT_NEEDS_SUPPORT => 0,
         self::RESULT_DEVELOPING    => 1,
@@ -51,6 +61,15 @@ class MasteryService
         $this->db                = Database::connect();
         $this->masteryModel      = new MasteryRecordModel();
         $this->interventionModel = new InterventionModel();
+    }
+
+    /**
+     * Whether an assessment type contributes to mastery attainment. Diagnostic
+     * assessments are informational only (starting point / readiness).
+     */
+    public static function isAttainmentType(string $type): bool
+    {
+        return in_array(strtoupper($type), self::ATTAINMENT_TYPES, true);
     }
 
     /**
@@ -132,6 +151,13 @@ class MasteryService
         }
 
         $maxScore = $assessment['max_score'] !== null ? (float) $assessment['max_score'] : null;
+        $assessmentType = strtoupper((string) ($assessment['assessment_type'] ?? ''));
+
+        if (! self::isAttainmentType($assessmentType)) {
+            // DIAGNOSTIC measures starting readiness: it never becomes part of
+            // the final grade, so it must not write mastery attainment.
+            return ['updated' => 0, 'interventions' => 0];
+        }
 
         $objectiveRows = $this->db->table('assessment_objectives ao')
             ->select('ao.learning_objective_id, lot.code as tp_code, lot.statement as tp_name')
@@ -188,6 +214,7 @@ class MasteryService
                 }
 
                 $statuses = [];
+                $failing  = [];
                 foreach ($criteria as $criterion) {
                     $criterionId = (int) $criterion['id'];
                     $result      = $attemptResults[$criterionId] ?? null;
@@ -202,15 +229,19 @@ class MasteryService
                     if ($status) {
                         $statuses[] = $status;
                     }
+                    if (in_array($status, [self::RESULT_NEEDS_SUPPORT, self::RESULT_DEVELOPING], true)) {
+                        $failing[] = ['criterion_id' => $criterionId, 'criterion' => $criterion['criterion'], 'status' => $status];
+                    }
                 }
 
                 $this->upsertMastery($studentId, $objectiveId, $this->deriveStatusFromCriteria($statuses), $userId, [
                     'source_attempt_id' => $attemptId,
+                    'source'            => $assessmentType,
                     'version'           => null,
                 ]);
 
                 $summary['updated']++;
-                if ($this->recommendInterventionForPair($studentId, $objectiveId, $userId)) {
+                if ($this->recommendInterventionForPair($studentId, $objectiveId, $userId, $failing)) {
                     $summary['interventions']++;
                 }
             }
@@ -311,6 +342,7 @@ class MasteryService
         }
 
         $this->upsertMastery($studentId, $objectiveId, $result, $userId, [
+            'source'            => 'MANUAL',
             'evidence_id'       => $opts['evidence_id'] ?? null,
             'source_attempt_id' => $opts['source_attempt_id'] ?? null,
             'confidence'        => isset($opts['confidence']) ? (int) $opts['confidence'] : null,
@@ -322,10 +354,11 @@ class MasteryService
     public function listInterventions(array $filters = []): array
     {
         $builder = $this->db->table('interventions i')
-            ->select('i.*, es.full_name, es.student_number, es.classroom_id, c.name as classroom_name, lot.code as tp_code, lot.statement as tp_name')
+            ->select('i.*, es.full_name, es.student_number, es.classroom_id, c.name as classroom_name, lot.code as tp_code, lot.statement as tp_name, ac.criterion as criterion_text')
             ->join('elective_students es', 'es.id = i.student_id', 'left')
             ->join('classrooms c', 'c.id = es.classroom_id', 'left')
-            ->join('learning_objectives_tp lot', 'lot.id = i.learning_objective_id', 'left');
+            ->join('learning_objectives_tp lot', 'lot.id = i.learning_objective_id', 'left')
+            ->join('assessment_criteria ac', 'ac.id = i.criterion_id', 'left');
 
         if (! empty($filters['unit_id'])) {
             $builder->join('school_units su', 'su.id = c.unit_id', 'left')
@@ -391,7 +424,7 @@ class MasteryService
         $rows = $builder->get()->getResultArray();
         $created = 0;
         foreach ($rows as $row) {
-            if ($this->recommendInterventionForPair((int) $row['student_id'], (int) $row['learning_objective_id'], 0)) {
+            if ($this->recommendInterventionForPair((int) $row['student_id'], (int) $row['learning_objective_id'], 0, $this->failingCriteriaForPair((int) $row['student_id'], (int) $row['learning_objective_id']))) {
                 $created++;
             }
         }
@@ -488,7 +521,43 @@ class MasteryService
         AuditService::log('mastery', 'UPSERT_MASTERY', 'MasteryRecord', $id, $existing, ['result' => $result, 'version' => $version], 'Perbarui mastery TP');
     }
 
-    private function recommendInterventionForPair(int $studentId, int $objectiveId, int $userId): bool
+    /**
+     * Failing (unmastered) criteria for a student/TP pair across FORMATIVE and
+     * SUMMATIVE assessments, used to target remediation at the specific
+     * criterion instead of the TP as a whole.
+     *
+     * @return list<array{criterion_id:int, criterion:string, status:string}>
+     */
+    private function failingCriteriaForPair(int $studentId, int $objectiveId): array
+    {
+        $rows = $this->db->table('criterion_results cr')
+            ->select('cr.criterion_id, ac.criterion, cr.level_index, cr.score, cr.status, a.max_score, a.assessment_type')
+            ->join('assessment_criteria ac', 'ac.id = cr.criterion_id', 'left')
+            ->join('assessment_attempts aa', 'aa.id = cr.attempt_id', 'left')
+            ->join('assessments a', 'a.id = aa.assessment_id', 'left')
+            ->where('aa.student_id', $studentId)
+            ->where('ac.learning_objective_id', $objectiveId)
+            ->whereIn('a.assessment_type', self::ATTAINMENT_TYPES)
+            ->get()->getResultArray();
+
+        $failing = [];
+        foreach ($rows as $row) {
+            $status = $row['status'] ?: $this->deriveCriterionStatus(
+                $row['score'] !== null ? (float) $row['score'] : null,
+                $row['max_score'] !== null ? (float) $row['max_score'] : null,
+                $row['level_index'] !== null ? (int) $row['level_index'] : null
+            );
+            if (in_array($status, [self::RESULT_NEEDS_SUPPORT, self::RESULT_DEVELOPING], true)) {
+                $failing[] = ['criterion_id' => (int) $row['criterion_id'], 'criterion' => $row['criterion'], 'status' => $status];
+            }
+        }
+
+        usort($failing, static fn (array $a, array $b): int => self::STATUS_PRIORITY[$a['status']] <=> self::STATUS_PRIORITY[$b['status']]);
+
+        return $failing;
+    }
+
+    private function recommendInterventionForPair(int $studentId, int $objectiveId, int $userId, array $failingCriteria = []): bool
     {
         $mastery = $this->masteryModel
             ->where('student_id', $studentId)
@@ -507,6 +576,11 @@ class MasteryService
             return false;
         }
 
+        if ($failingCriteria === []) {
+            $failingCriteria = $this->failingCriteriaForPair($studentId, $objectiveId);
+        }
+        $targetCriterion = $failingCriteria[0] ?? null;
+
         $type = $mastery['result'] === self::RESULT_NEEDS_SUPPORT
             ? self::INTERVENTION_REMEDIAL
             : self::INTERVENTION_REINFORCEMENT;
@@ -515,10 +589,15 @@ class MasteryService
             ? 'Program remedial dan bimbingan ulang untuk mencapai TP.'
             : 'Penguatan materi dan latihan lanjutan untuk menguasai TP.';
 
+        if ($targetCriterion !== null && ! empty($targetCriterion['criterion'])) {
+            $template .= ' Fokus kriteria: ' . $targetCriterion['criterion'];
+        }
+
         $this->interventionModel->insert([
             'uuid'                  => UuidService::v4(),
             'student_id'            => $studentId,
             'learning_objective_id' => $objectiveId,
+            'criterion_id'          => $targetCriterion !== null ? $targetCriterion['criterion_id'] : null,
             'trigger_evidence_id'   => $mastery['evidence_id'],
             'intervention_type'     => $type,
             'planned_activity'      => $template,

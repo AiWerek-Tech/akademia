@@ -1,6 +1,6 @@
 <?= $this->extend('layouts/admin') ?>
 
-<?= $this->section('content') ?>
+<?= $this->section('main_content') ?>
 <div class="container-fluid px-0 px-md-3">
     <?php if (session()->getFlashdata('success')): ?>
         <div class="alert alert-success border-0 rounded-4 mb-4"><?= esc(session()->getFlashdata('success')) ?></div>
@@ -117,9 +117,30 @@
                         <tr><td colspan="4" class="text-center text-muted py-4">Belum ada kriteria penilaian.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($assessment['criteria'] as $i => $criterion): ?>
+                        <?php
+                        $rubricLevels = [];
+                        if (! empty($criterion['rubric_levels_json'])) {
+                            $decoded = json_decode($criterion['rubric_levels_json'], true);
+                            if (is_array($decoded)) {
+                                $rubricLevels = $decoded;
+                            }
+                        }
+                        ?>
                         <tr>
                             <td class="px-4 py-3 text-muted"><?= $i + 1 ?></td>
-                            <td class="px-4 py-3"><?= esc($criterion['criterion']) ?></td>
+                            <td class="px-4 py-3">
+                                <?= esc($criterion['criterion']) ?>
+                                <?php if ($rubricLevels !== []): ?>
+                                    <div class="d-flex flex-wrap gap-1 mt-1">
+                                        <?php foreach ($rubricLevels as $lvl): ?>
+                                            <span class="badge bg-light-subtle text-dark-subtle rounded-pill" style="font-size:10px">
+                                                <?= esc($lvl['label'] ?? 'L' . ($lvl['level_index'] ?? '')) ?>
+                                                <?= isset($lvl['score']) ? '=' . esc($lvl['score']) : '' ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </td>
                             <td class="px-4 py-3 text-muted"><?= esc($criterion['tp_code'] ?? '-') ?></td>
                             <td class="px-4 py-3 text-center"><span class="badge bg-light text-dark"><?= esc($criterion['weight']) ?></span></td>
                         </tr>
