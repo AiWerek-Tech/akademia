@@ -153,6 +153,7 @@ class LearningPackImportService
             'EXPECTED_RESPONSE' => SubjectLearningPackEngineService::addExpectedResponse((string) $payload['activity_uuid'], $payload),
             'ASSESSMENT_REFERENCE' => SubjectLearningPackEngineService::addAssessmentReference($payload),
             'FOLLOWUP_GUIDANCE' => SubjectLearningPackEngineService::addFollowupGuidance($payload),
+            'PREREQUISITE' => SubjectLearningPackEngineService::addUnitPrerequisite((string) $payload['learning_unit_uuid'], $payload),
             default => throw new InvalidArgumentException('Entity import belum didukung untuk apply.'),
         };
     }
