@@ -11,14 +11,18 @@ Di dalamnya terintegrasi **IALOS Education** sebagai bounded context untuk peren
 
 ---
 
-## 🗺️ Arsitektur Sistem
+## 🗺️ Arsitektur Aplikasi
 
-Ekosistem WMVAA HUB berjalan dengan arsitektur terpadu:
-- **Database Utama**: Google Spreadsheet (Sinkronisasi API) & Database Relasional Lokal (MySQL/MariaDB) untuk pemrosesan admin lokal yang cepat.
-- **Backend API**: Google Apps Script API.
-- **Penyimpanan Berkas**: Google Drive.
-- **Mobile Client**: Aplikasi Kodular (Offline-First) untuk Guru, Siswa, dan Orang Tua.
-- **Web Admin Panel**: Web App CodeIgniter 4 (aplikasi di repositori ini) yang mengelola kontrol penuh atas master data sekolah.
+Aplikasi ini adalah **modular monolith** berbasis CodeIgniter 4 (PHP 8.2) dengan pemisahan lapisan yang tegas:
+
+- **Bounded Context IALOS Education**: Education Foundation, Digital KSP, Subject Learning Pack, Deep Learning Lesson Plan, dan Daily Teaching Workspace hidup dalam satu aplikasi yang sama — bukan aplikasi terpisah — dan berbagi fondasi autentikasi, RBAC, audit, serta layout.
+- **Pola Lapisan (Layered)**: `Controllers` → `Services` → `Models` → Database. Seluruh logika bisnis berada pada lapisan `Services` (80+ engine service) sehingga controller tetap tipis dan mudah diuji.
+- **Multi-Unit Tenant**: skema data menyatu untuk unit SMP & SMA dengan pemisahan data berbasis `unit_id` tanpa duplikasi tabel.
+- **Keamanan Berlapis**: autentikasi session, filter RBAC `permission`, filter `unit_access`, CSRF, honeypot, secure headers, audit trail log, dan optimistic locking (`revision_number`) untuk setiap mutasi data.
+- **Database**: MySQL/MariaDB yang dikelola via **migration & seeder**, dilengkapi pipeline impor massal Excel/CSV (staging + validasi pra-commit) dan ekspor `.xlsx`.
+- **Progressive Web App (PWA)**: manifest, service worker, dan fallback offline sehingga aplikasi dapat di-install dan digunakan secara offline-first oleh guru.
+- **Generator Dokumen**: ekspor RPP & dokumen KSP ke **PDF** (Dompdf) dan **DOCX** (PhpWord).
+- **Scheduler Engine**: generator jadwal deterministik dengan deteksi konflik, substitusi guru, dan optimasi berbasis skor.
 
 ---
 
