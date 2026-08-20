@@ -45,6 +45,16 @@ class AssessmentService
         self::STATUS_CLOSED,
     ];
 
+    /**
+     * Evidence kinds (blueprint §7): text notes, uploaded artifacts, and
+     * recorded observations/presentations.
+     */
+    public const ALLOWED_EVIDENCE_TYPES = [
+        'TEXT', 'FILE', 'IMAGE', 'VIDEO', 'SPREADSHEET', 'CODE',
+        'OBSERVATION', 'CHECKLIST', 'QUIZ', 'PERFORMANCE', 'PRESENTATION',
+        'REFLECTION',
+    ];
+
     private $db;
     private AssessmentModel $assessmentModel;
     private AssessmentObjectiveModel $objectiveModel;
@@ -325,11 +335,52 @@ class AssessmentService
             ];
         }
 
+        $evidenceByStudent = [];
+        $feedbackByStudent = [];
+        if ($attemptIds !== []) {
+            $evidenceRows = $this->evidenceModel->whereIn('attempt_id', $attemptIds)->orderBy('captured_at', 'DESC')->findAll();
+            foreach ($evidenceRows as $row) {
+                $evidenceByStudent[(int) $row['student_id']][] = $row;
+            }
+            $feedbackRows = $this->feedbackModel->whereIn('attempt_id', $attemptIds)->orderBy('created_at', 'DESC')->findAll();
+            foreach ($feedbackRows as $row) {
+                $feedbackByStudent[(int) $row['student_id']][] = $row;
+            }
+        }
+
+        foreach ($rows as &$row) {
+            $studentId = (int) $row['student']['id'];
+            $row['evidence'] = $evidenceByStudent[$studentId] ?? [];
+            $row['feedback'] = $feedbackByStudent[$studentId] ?? [];
+        }
+        unset($row);
+
         return [
             'assessment' => $assessment,
             'students'   => $students,
             'rows'       => $rows,
         ];
+    }
+
+    /**
+     * Returns a single evidence record joined with its assessment id.
+     */
+    public function evidence(int $evidenceId): ?array
+    {
+        $row = $this->evidenceModel->find($evidenceId);
+        if (! $row) {
+            return null;
+        }
+        $row['assessment_id'] = null;
+        if (! empty($row['attempt_id'])) {
+            $attempt = $this->db->table('assessment_attempts')->select('assessment_id')->where('id', $row['attempt_id'])->get()->getRowArray();
+            $row['assessment_id'] = $attempt ? (int) $attempt['assessment_id'] : null;
+        }
+        if (isset($row['meta_json']) && is_string($row['meta_json'])) {
+            $meta = json_decode($row['meta_json'], true);
+            $row['mime'] = $meta['mime'] ?? null;
+        }
+        return $row;
     }
 
     /**
@@ -446,6 +497,11 @@ class AssessmentService
             throw new RuntimeException('Judul bukti wajib diisi.');
         }
 
+        $evidenceType = strtoupper((string) ($data['evidence_type'] ?? 'FILE'));
+        if (! in_array($evidenceType, self::ALLOWED_EVIDENCE_TYPES, true)) {
+            throw new RuntimeException('Jenis bukti tidak valid.');
+        }
+
         $this->db->transBegin();
         try {
             $id = (int) $this->evidenceModel->insert([
@@ -456,7 +512,7 @@ class AssessmentService
                 'criterion_id'          => ! empty($data['criterion_id']) ? (int) $data['criterion_id'] : null,
                 'profile_dimension_id'  => ! empty($data['profile_dimension_id']) ? (int) $data['profile_dimension_id'] : null,
                 'cocurricular_objective_id' => ! empty($data['cocurricular_objective_id']) ? (int) $data['cocurricular_objective_id'] : null,
-                'evidence_type'         => strtoupper($data['evidence_type'] ?? 'FILE'),
+                'evidence_type'         => $evidenceType,
                 'title'                 => trim($data['title']),
                 'content'               => $data['content'] ?? null,
                 'file_path'             => $data['file_path'] ?? null,

@@ -692,6 +692,95 @@ class TeachingWorkspaceController extends BaseController
         }
     }
 
+    /**
+     * GET /teaching/attendance/session/:id/edit
+     * Edit form for an existing attendance session.
+     */
+    public function editAttendance(int $sessionId)
+    {
+        $attendanceService = new \App\Services\AttendanceService();
+        $details = $attendanceService->getSessionDetails($sessionId);
+        if (!$details) {
+            return redirect()->to(base_url('teaching/attendance/history'))->with('error', 'Sesi presensi tidak ditemukan.');
+        }
+
+        $session = $details['session'];
+        $roster = $details['roster'] ?? [];
+
+        return view('teaching/offline_attendance_edit', [
+            'title'             => 'Edit Absensi',
+            'breadcrumb_active' => 'Edit Absensi',
+            'session'           => $session,
+            'roster'            => $roster,
+        ]);
+    }
+
+    /**
+     * POST /teaching/attendance/session/:id/update
+     * Updates an existing attendance session.
+     */
+    public function updateAttendance(int $sessionId)
+    {
+        $userId = (int) session()->get('user_id');
+        $attendanceService = new \App\Services\AttendanceService();
+
+        $db = Database::connect();
+        $existing = $db->table('attendance_sessions')
+            ->where('id', $sessionId)
+            ->where('deleted_at IS NULL')
+            ->get()->getRowArray();
+
+        if (!$existing) {
+            return redirect()->to(base_url('teaching/attendance/history'))->with('error', 'Sesi presensi tidak ditemukan.');
+        }
+
+        if (strtoupper((string) $existing['status']) === 'VERIFIED') {
+            return redirect()->back()->with('error', 'Sesi yang sudah diverifikasi tidak dapat diedit.');
+        }
+
+        $date = $this->request->getPost('attendance_date') ?: $existing['attendance_date'];
+        $meetingNumber = max(1, (int) $this->request->getPost('meeting_number'));
+        $topic = $this->request->getPost('topic') ?: $existing['topic'];
+
+        // Update session metadata
+        $db->table('attendance_sessions')->where('id', $sessionId)->update([
+            'attendance_date' => $date,
+            'meeting_number'  => $meetingNumber,
+            'topic'           => $topic,
+            'updated_by'      => $userId,
+            'updated_at'      => date('Y-m-d H:i:s'),
+        ]);
+
+        // Update roster
+        $rawRoster = $this->request->getPost('roster');
+        if (is_array($rawRoster)) {
+            foreach ($rawRoster as $studentId => $value) {
+                $studentId = (int) $studentId;
+                if ($studentId <= 0) continue;
+
+                $status = strtoupper((string) ($value['status'] ?? 'HADIR'));
+                $notes = trim((string) ($value['notes'] ?? ''));
+
+                $db->table('student_attendances')
+                    ->where('session_id', $sessionId)
+                    ->where('student_id', $studentId)
+                    ->update([
+                        'status'     => $status,
+                        'notes'      => $notes,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+            }
+        }
+
+        AuditService::log('attendance', 'UPDATE_SESSION', 'AttendanceSession', $sessionId, $existing, [
+            'attendance_date' => $date,
+            'meeting_number'  => $meetingNumber,
+            'topic'           => $topic,
+        ], 'Absensi diperbarui');
+
+        return redirect()->to(base_url('teaching/attendance/history'))->with('success', 'Absensi berhasil diperbarui.');
+    }
+
     // ---- Private helpers ----
 
     /**

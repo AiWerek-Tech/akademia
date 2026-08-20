@@ -60,7 +60,10 @@ final class TeachingWorkspaceEngineTest extends CIUnitTestCase
             $this->classroomId = (int) $classroom['id'];
         }
 
-        $student = $this->db->table('elective_students')->get()->getRowArray();
+        $student = $this->db->table('elective_students')
+            ->where('classroom_id', $this->classroomId)
+            ->where('is_active', 1)
+            ->get()->getRowArray();
         if (!$student) {
             $period = $this->db->table('academic_periods')->where('id', $this->periodId)->get()->getRowArray();
             $yearId = $period ? (int) $period['academic_year_id'] : 1;

@@ -292,6 +292,8 @@ $routes->get('teaching/attendance/history', 'TeachingWorkspaceController::attend
 $routes->get('teaching/attendance/recap', 'TeachingWorkspaceController::attendanceRecap', ['filter' => 'permission:teaching.workspace']);
 $routes->get('teaching/attendance/offline', 'TeachingWorkspaceController::offlineAttendance', ['filter' => 'permission:teaching.teach']);
 $routes->post('teaching/attendance/offline/save', 'TeachingWorkspaceController::saveOfflineAttendance', ['filter' => 'permission:teaching.teach']);
+$routes->get('teaching/attendance/session/(:num)/edit', 'TeachingWorkspaceController::editAttendance/$1', ['filter' => 'permission:teaching.teach']);
+$routes->post('teaching/attendance/session/(:num)/update', 'TeachingWorkspaceController::updateAttendance/$1', ['filter' => 'permission:teaching.teach']);
 
 // Assessment & Mastery Module (Phase 6)
 $routes->get('assessment', 'AssessmentController::index', ['filter' => 'permission:assessment.view']);
@@ -305,14 +307,35 @@ $routes->post('assessment/(:num)/delete', 'AssessmentController::destroy/$1', ['
 $routes->get('assessment/(:num)/gradebook', 'AssessmentController::gradebook/$1', ['filter' => 'permission:assessment.manage']);
 $routes->post('assessment/(:num)/gradebook', 'AssessmentController::saveGradebook/$1', ['filter' => 'permission:assessment.manage']);
 $routes->post('assessment/(:num)/evidence', 'AssessmentController::addEvidence/$1', ['filter' => 'permission:assessment.manage']);
+$routes->get('assessment/evidence-file/(:num)', 'AssessmentController::evidenceFile/$1', ['filter' => 'permission:assessment.manage']);
 $routes->post('assessment/(:num)/feedback', 'AssessmentController::addFeedback/$1', ['filter' => 'permission:assessment.manage']);
 $routes->get('mastery', 'AssessmentController::mastery', ['filter' => 'permission:assessment.mastery']);
 $routes->post('mastery/set', 'AssessmentController::setMastery', ['filter' => 'permission:assessment.mastery']);
 $routes->post('mastery/recommend', 'AssessmentController::recommendInterventions', ['filter' => 'permission:assessment.mastery']);
 $routes->get('interventions', 'AssessmentController::interventions', ['filter' => 'permission:assessment.mastery']);
+$routes->post('interventions/create', 'AssessmentController::createIntervention', ['filter' => 'permission:assessment.mastery']);
+$routes->post('interventions/bulk-status', 'AssessmentController::bulkUpdateInterventions', ['filter' => 'permission:assessment.mastery']);
 $routes->post('interventions/(:num)', 'AssessmentController::updateIntervention/$1', ['filter' => 'permission:assessment.mastery']);
 $routes->get('reporting-policies', 'AssessmentController::policies', ['filter' => 'permission:assessment.mastery']);
 $routes->post('reporting-policies', 'AssessmentController::savePolicies', ['filter' => 'permission:assessment.mastery']);
+$routes->get('summative', 'SummativeController::index', ['filter' => 'permission:assessment.mastery']);
+$routes->get('summative/(:num)', 'SummativeController::detail/$1', ['filter' => 'permission:assessment.mastery']);
+$routes->post('summative/process', 'SummativeController::process', ['filter' => 'permission:assessment.mastery']);
+$routes->post('summative/(:num)/validate', 'SummativeController::validateResult/$1', ['filter' => 'permission:assessment.mastery']);
+$routes->post('summative/(:num)/reopen', 'SummativeController::reopen/$1', ['filter' => 'permission:assessment.mastery']);
+
+// ====================================================================
+// SMART ANALYTICS — Enhanced Features (Phases 1, 5, 6)
+// ====================================================================
+$routes->get('smart/lineage-graph', 'SmartAnalyticsController::lineageGraph', ['filter' => 'permission:learning_outcomes.view']);
+$routes->get('smart/lineage-graph/data', 'SmartAnalyticsController::lineageGraphData', ['filter' => 'permission:learning_outcomes.view']);
+$routes->get('smart/mastery-heatmap', 'SmartAnalyticsController::masteryHeatmap', ['filter' => 'permission:assessment.view']);
+$routes->get('smart/reflection-trends', 'SmartAnalyticsController::reflectionTrends', ['filter' => 'permission:teaching.workspace']);
+$routes->get('smart/remedial-package', 'SmartAnalyticsController::remedialPackage', ['filter' => 'permission:assessment.view']);
+$routes->get('smart/narrative-drafter', 'SmartAnalyticsController::narrativeDrafter', ['filter' => 'permission:assessment.view']);
+$routes->post('smart/ajax/rubric-generator', 'SmartAnalyticsController::generateRubricAjax', ['filter' => 'permission:lesson_plans.view']);
+$routes->post('smart/ajax/differentiation-assistant', 'SmartAnalyticsController::generateDifferentiationAjax', ['filter' => 'permission:lesson_plans.view']);
+$routes->post('smart/ajax/adaptive-mode', 'SmartAnalyticsController::generateAdaptiveAjax', ['filter' => 'permission:lesson_plans.view']);
 
 $routes->get('curriculum', 'CurriculumController::index');
 $routes->get('curriculum/create', 'CurriculumController::create');

@@ -117,8 +117,9 @@ class MasteryService
      */
     public function deriveCriterionStatus(?float $score, ?float $maxScore, ?int $levelIndex): ?string
     {
-        if ($levelIndex !== null && $levelIndex >= 1 && $levelIndex <= 4) {
-            return self::ALLOWED_RESULTS[$levelIndex - 1];
+        if ($levelIndex !== null && $levelIndex >= 0 && $levelIndex <= 3) {
+            // Rubric level_index is 0-based: level 0 = lowest … level 3 = highest.
+            return self::ALLOWED_RESULTS[$levelIndex];
         }
 
         if ($score !== null && $maxScore !== null && $maxScore > 0) {
@@ -470,8 +471,10 @@ class MasteryService
         $rows = $this->db->table('learning_objectives_tp lot')
             ->select('lot.id')
             ->join('learning_outcomes_cp lo', 'lo.id = lot.learning_outcome_id', 'left')
-            ->where('lot.unit_id', $unitId)
-            ->orWhere('lot.unit_id', null)
+            ->groupStart()
+                ->where('lot.unit_id', $unitId)
+                ->orWhere('lot.unit_id', null)
+            ->groupEnd()
             ->where('lo.subject_id', $subjectId)
             ->get()->getResultArray();
 
@@ -555,6 +558,64 @@ class MasteryService
         usort($failing, static fn (array $a, array $b): int => self::STATUS_PRIORITY[$a['status']] <=> self::STATUS_PRIORITY[$b['status']]);
 
         return $failing;
+    }
+
+    /**
+     * Manually creates an intervention (REMEDIAL, REINFORCEMENT, or ENRICHMENT)
+     * for a student-TP pair. Returns the new intervention id.
+     */
+    public function createIntervention(int $studentId, int $objectiveId, string $type, string $plannedActivity, int $userId, array $opts = []): int
+    {
+        if (! in_array($type, [self::INTERVENTION_REMEDIAL, self::INTERVENTION_REINFORCEMENT, self::INTERVENTION_ENRICHMENT], true)) {
+            throw new \InvalidArgumentException('Jenis intervensi tidak valid.');
+        }
+        if (trim($plannedActivity) === '') {
+            throw new \InvalidArgumentException('Rencana kegiatan wajib diisi.');
+        }
+
+        $mastery = $this->masteryModel
+            ->where('student_id', $studentId)
+            ->where('learning_objective_id', $objectiveId)
+            ->first();
+        if (! $mastery) {
+            throw new \InvalidArgumentException('Mastery TP untuk siswa ini belum tersedia.');
+        }
+
+        $criterionId = $opts['criterion_id'] ?? null;
+        if (! empty($criterionId)) {
+            $exists = $this->db->table('learning_objective_criteria')
+                ->where('id', $criterionId)
+                ->where('learning_objective_id', $objectiveId)
+                ->countAllResults();
+            if ($exists === 0) {
+                throw new \InvalidArgumentException('Kriteria tidak cocok dengan TP yang dipilih.');
+            }
+        }
+
+        $id = $this->interventionModel->insert([
+            'uuid'                  => UuidService::v4(),
+            'student_id'            => $studentId,
+            'learning_objective_id' => $objectiveId,
+            'criterion_id'          => $criterionId ?: null,
+            'trigger_evidence_id'   => $mastery['evidence_id'],
+            'intervention_type'     => $type,
+            'planned_activity'      => trim($plannedActivity),
+            'status'                => self::INTERVENTION_APPROVED,
+            'created_by'            => $userId,
+            'updated_by'            => $userId,
+        ]);
+
+        $this->db->table('audit_logs')->insert([
+            'unit_id'     => $opts['unit_id'] ?? null,
+            'user_id'     => $userId,
+            'action'      => 'INTERVENTION_CREATE',
+            'entity_type' => 'intervention',
+            'entity_id'   => $id,
+            'details'     => json_encode(['student_id' => $studentId, 'learning_objective_id' => $objectiveId, 'type' => $type]),
+            'created_at'  => date('Y-m-d H:i:s'),
+        ]);
+
+        return (int) $id;
     }
 
     private function recommendInterventionForPair(int $studentId, int $objectiveId, int $userId, array $failingCriteria = []): bool

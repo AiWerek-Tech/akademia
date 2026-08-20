@@ -47,6 +47,12 @@ class AssessmentRouteSecurityTest extends CIUnitTestCase
     {
         $db = Database::connect($this->DBGroup);
 
+        $guruRole = $db->table('roles')->where('code', 'guru')->get()->getRowArray();
+        $masteryPerm = $db->table('permissions')->where('code', 'assessment.mastery')->get()->getRowArray();
+        if ($guruRole && $masteryPerm) {
+            $db->table('role_permissions')->where('role_id', $guruRole['id'])->where('permission_id', $masteryPerm['id'])->delete();
+        }
+
         $this->smpUnitId = (int) $db->table('school_units')->where('code', 'SMP')->get()->getRowArray()['id'];
         $this->smaUnitId = (int) $db->table('school_units')->where('code', 'SMA')->get()->getRowArray()['id'];
 
@@ -216,6 +222,54 @@ class AssessmentRouteSecurityTest extends CIUnitTestCase
         $this->withSession($session)->get('mastery')->assertStatus(200);
         $this->withSession($session)->get('interventions')->assertStatus(200);
         $this->withSession($session)->get('reporting-policies')->assertStatus(200);
+    }
+
+    public function testAdminSmaReachesSummativeRoutes(): void
+    {
+        $session = $this->sessionLogin(4, $this->smaUnitId, 'admin_sma');
+        $this->withSession($session)->get('summative')->assertStatus(200);
+
+        $subject = Database::connect($this->DBGroup)->table('subjects')->where('is_active', 1)->get()->getRowArray();
+        $this->withSession($session)->get('summative/' . $subject['id'])->assertStatus(200);
+    }
+
+    public function testGuruCannotCreateInterventions(): void
+    {
+        // Guru lacks assessment.mastery → manual intervention create must be denied.
+        $this->withSession($this->sessionLogin(5, $this->smaUnitId, 'guru'))
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->post('interventions/create')
+            ->assertStatus(403);
+    }
+
+    public function testAdminSmaCanCreateIntervention(): void
+    {
+        $db = Database::connect($this->DBGroup);
+        $student = $db->table('elective_students')->where('unit_id', $this->smaUnitId)->get()->getRowArray();
+        $tp      = $db->table('objective_criteria')->get()->getRowArray();
+        $objectiveId = $tp ? (int) $tp['learning_objective_id'] : 0;
+
+        $response = $this->withSession($this->sessionLogin(4, $this->smaUnitId, 'admin_sma'))
+            ->post('interventions/create', [
+                'student_id'        => $student ? (int) $student['id'] : 1,
+                'objective_id'      => $objectiveId,
+                'intervention_type' => 'ENRICHMENT',
+                'planned_activity'  => 'Pengayaan mandiri',
+            ]);
+        if ($objectiveId === 0) {
+            // No TP fixture → creation is expected to fail gracefully with an error flash.
+            $response->assertSessionHas('error');
+        } else {
+            $response->assertRedirectTo(base_url('interventions'));
+            $response->assertSessionHas('success');
+        }
+    }
+
+    public function testViewerCannotAccessEvidenceFile(): void
+    {
+        $this->withSession($this->sessionLogin(2, $this->smpUnitId, 'viewer'))
+            ->get('assessment/evidence-file/1')
+            ->assertStatus(403);
     }
 
     public function testAdminSmpCannotOpenSmaAssessment(): void

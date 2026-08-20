@@ -18,9 +18,14 @@ trait IsolatedDatabaseTestTrait
 
     protected function setUpDatabase(): void
     {
+        // The test DB is pre-synced from production via mysqldump.
+        // CI4's MigrationRunner sees all migrations as 'pending' due to group
+        // mismatches, triggering broken Phase 6 FK constraints. We skip
+        // framework migrations entirely and rely on the already-synced schema.
         $this->migrateOnce = true;
         $this->seedOnce    = true;
         $this->refresh     = false;
+        $this->migrate     = false;
 
         $this->frameworkSetUpDatabase();
 

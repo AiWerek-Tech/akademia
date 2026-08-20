@@ -169,6 +169,30 @@
         </div>
     <?php endif; ?>
 
+    <!-- Global Rubric JSON -->
+    <?php if (! empty($assessment['rubric_json'])): ?>
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white border-0 py-3 px-4">
+                <h6 class="fw-bold text-gray-900 mb-0"><i data-lucide="scroll-text" class="w-4 h-4 me-1 text-primary"></i> Rubrik Assessment</h6>
+            </div>
+            <div class="card-body px-4 py-3">
+                <?php $globalLevels = json_decode($assessment['rubric_json'], true); ?>
+                <?php if (is_array($globalLevels)): ?>
+                    <div class="d-flex flex-wrap gap-2">
+                        <?php foreach ($globalLevels as $lvl): ?>
+                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2">
+                                <?= esc($lvl['label'] ?? 'L' . ($lvl['level_index'] ?? '')) ?>
+                                <?= isset($lvl['score']) ? ' = ' . esc($lvl['score']) : '' ?>
+                            </span>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <pre class="mb-0 small bg-light-subtle rounded-3 p-3"><?= esc($assessment['rubric_json']) ?></pre>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <a href="<?= base_url('assessment') ?>" class="btn btn-outline-secondary shadow-sm"><i data-lucide="arrow-left" class="w-4 h-4 me-1"></i> Kembali</a>
 </div>
 <?= $this->endSection() ?>

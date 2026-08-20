@@ -99,6 +99,7 @@ class AssessmentController extends BaseController
                 'assessment_date'    => $this->request->getPost('assessment_date'),
                 'max_score'          => $this->request->getPost('max_score'),
                 'description'        => $this->request->getPost('description'),
+                'rubric_json'        => $this->request->getPost('rubric_json'),
                 'objective_ids'      => $this->request->getPost('objective_ids') ?: [],
                 'criteria'           => $this->request->getPost('criteria') ?: [],
                 'items'              => $this->request->getPost('items') ?: [],
@@ -148,6 +149,7 @@ class AssessmentController extends BaseController
                 'assessment_date' => $this->request->getPost('assessment_date'),
                 'max_score'       => $this->request->getPost('max_score'),
                 'description'     => $this->request->getPost('description'),
+                'rubric_json'     => $this->request->getPost('rubric_json'),
                 'objective_ids'   => $this->request->getPost('objective_ids') ?: [],
                 'criteria'        => $this->request->getPost('criteria') ?: [],
                 'items'           => $this->request->getPost('items') ?: [],
@@ -230,6 +232,7 @@ class AssessmentController extends BaseController
             'students'          => $data['students'],
             'rows'              => $data['rows'],
             'dimensions'        => $this->profileDimensions(),
+            'evidenceTypes'     => \App\Services\AssessmentService::ALLOWED_EVIDENCE_TYPES,
         ]);
     }
 
@@ -251,6 +254,32 @@ class AssessmentController extends BaseController
         $userId = (int) session()->get('user_id');
         try {
             $this->assertAssessmentAccess($id);
+
+            $filePath = null;
+            $meta     = [];
+            $file     = $this->request->getFile('file');
+            if ($file !== null && $file->isValid() && ! $file->hasMoved()) {
+                $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'md', 'mp4', 'webm', 'mp3', 'zip'];
+                $ext     = strtolower($file->getExtension());
+                if (! in_array($ext, $allowed, true)) {
+                    throw new Exception('Tipe file bukti tidak diizinkan: ' . $ext);
+                }
+                if ($file->getSize() > 10 * 1024 * 1024) {
+                    throw new Exception('Ukuran file bukti maksimal 10 MB.');
+                }
+                $stored = $file->store('evidence');
+                if ($stored === false) {
+                    throw new Exception('Gagal menyimpan file bukti.');
+                }
+                $filePath = $stored;
+                $meta = [
+                    'original_name' => $file->getClientName(),
+                    'size'          => $file->getSize(),
+                    'mime'          => $file->getMimeType(),
+                    'ext'           => $ext,
+                ];
+            }
+
             $this->assessmentService->addEvidence([
                 'student_id'            => $this->request->getPost('student_id'),
                 'attempt_id'            => $this->request->getPost('attempt_id'),
@@ -261,6 +290,8 @@ class AssessmentController extends BaseController
                 'evidence_type'         => $this->request->getPost('evidence_type'),
                 'title'                 => $this->request->getPost('title'),
                 'content'               => $this->request->getPost('content'),
+                'file_path'             => $filePath,
+                'meta_json'             => $meta === [] ? null : $meta,
             ], $userId);
 
             return redirect()->back()->with('success', 'Bukti belajar ditambahkan.');
@@ -284,6 +315,33 @@ class AssessmentController extends BaseController
             return redirect()->back()->with('success', 'Umpan balik ditambahkan.');
         } catch (Exception $e) {
             return redirect()->back()->with('error', 'Gagal menambahkan umpan balik: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Streams an uploaded evidence file. Access is gated on the assessment
+     * the evidence belongs to.
+     */
+    public function evidenceFile(int $evidenceId)
+    {
+        try {
+            $evidence = $this->assessmentService->evidence((int) $evidenceId);
+            if (! $evidence || empty($evidence['file_path'])) {
+                throw new Exception('Bukti tidak ditemukan.');
+            }
+            $this->assertAssessmentAccess((int) $evidence['assessment_id']);
+
+            $fullPath = WRITEPATH . 'uploads/' . ltrim($evidence['file_path'], '/');
+            if (! is_file($fullPath)) {
+                throw new Exception('File bukti tidak ditemukan.');
+            }
+
+            return $this->response
+                ->setHeader('Content-Type', $evidence['mime'] ?: mime_content_type($fullPath) ?: 'application/octet-stream')
+                ->setHeader('Content-Disposition', 'inline; filename="' . basename($fullPath) . '"')
+                ->setBody(file_get_contents($fullPath));
+        } catch (Exception $e) {
+            return redirect()->back()->with('error', 'Gagal mengunduh bukti: ' . $e->getMessage());
         }
     }
 
@@ -358,6 +416,8 @@ class AssessmentController extends BaseController
     public function interventions()
     {
         $unitId = (int) session()->get('active_unit_id');
+        $period = get_active_period();
+        $periodId = $period ? (int) $period['id'] : 0;
 
         $filters = [
             'unit_id'           => $unitId,
@@ -368,6 +428,15 @@ class AssessmentController extends BaseController
 
         $interventions = $this->masteryService->listInterventions($filters);
 
+        $students = Database::connect()->table('elective_students s')
+            ->select('s.id, s.full_name, c.name as classroom_name')
+            ->join('classrooms c', 'c.id = s.classroom_id', 'left')
+            ->where('s.unit_id', $unitId)
+            ->where('s.is_active', 1)
+            ->orderBy('s.full_name', 'ASC')
+            ->get()->getResultArray();
+        $tps = $this->tpsForUnit($unitId);
+
         return view('assessment/interventions', [
             'title'             => 'Intervensi Belajar',
             'breadcrumb_active' => 'Intervensi',
@@ -376,7 +445,27 @@ class AssessmentController extends BaseController
             'statuses'          => [MasteryService::INTERVENTION_RECOMMENDED, MasteryService::INTERVENTION_APPROVED, MasteryService::INTERVENTION_COMPLETED, MasteryService::INTERVENTION_CANCELLED],
             'types'             => [MasteryService::INTERVENTION_REMEDIAL, MasteryService::INTERVENTION_REINFORCEMENT, MasteryService::INTERVENTION_ENRICHMENT],
             'filters'           => $filters,
+            'students'          => $students,
+            'tps'               => $tps,
         ]);
+    }
+
+    public function createIntervention()
+    {
+        $userId = (int) session()->get('user_id');
+        try {
+            $this->masteryService->createIntervention(
+                (int) $this->request->getPost('student_id'),
+                (int) $this->request->getPost('objective_id'),
+                (string) $this->request->getPost('intervention_type'),
+                (string) $this->request->getPost('planned_activity'),
+                $userId,
+                ['criterion_id' => $this->request->getPost('criterion_id'), 'unit_id' => session()->get('active_unit_id')]
+            );
+            return redirect()->to(base_url('interventions'))->with('success', 'Intervensi dibuat.');
+        } catch (Exception $e) {
+            return redirect()->back()->with('error', 'Gagal membuat intervensi: ' . $e->getMessage());
+        }
     }
 
     public function updateIntervention(int $id)
@@ -393,6 +482,30 @@ class AssessmentController extends BaseController
         } catch (Exception $e) {
             return redirect()->back()->with('error', 'Gagal memperbarui intervensi: ' . $e->getMessage());
         }
+    }
+
+    public function bulkUpdateInterventions()
+    {
+        $userId = (int) session()->get('user_id');
+        $ids    = (array) $this->request->getPost('ids');
+        $status = (string) $this->request->getPost('status');
+
+        if (empty($ids)) {
+            return redirect()->back()->with('error', 'Tidak ada intervensi yang dipilih.');
+        }
+
+        $count = 0;
+        foreach ($ids as $id) {
+            try {
+                $this->masteryService->updateIntervention((int) $id, $status, $userId, []);
+                $count++;
+            } catch (Exception $e) {
+                // Continue processing remaining
+            }
+        }
+
+        $statusLabel = $status === 'APPROVED' ? 'disetujui' : ($status === 'CANCELLED' ? 'dibatalkan' : 'diperbarui');
+        return redirect()->to(base_url('interventions'))->with('success', "{$count} intervensi berhasil {$statusLabel}.");
     }
 
     public function policies()

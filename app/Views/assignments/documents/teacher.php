@@ -18,7 +18,7 @@
         </select>
     </form>
 <?php endif; ?>
-<a href="<?= base_url('portal/workload' . (!empty($currentTeacherId) ? '?teacher_id=' . $currentTeacherId : '')) ?>">Kembali ke Beban Kerja</a><button type="button" onclick="window.print()"><?= !empty($isOfficial) ? 'Cetak / Simpan PDF' : 'Cetak Pratinjau' ?></button></div>
+<a href="<?= base_url('dashboard') ?>">Beranda</a><a href="<?= base_url('portal/workload' . (!empty($currentTeacherId) ? '?teacher_id=' . $currentTeacherId : '')) ?>">Beban Kerja</a><button type="button" onclick="window.print()"><?= !empty($isOfficial) ? 'Cetak / Simpan PDF' : 'Cetak Pratinjau' ?></button></div>
 <?php foreach ($documents as $documentIndex => $document): $unit=$document['unit'];$version=$document['version'];$teacher=$document['teachers'][0];$documentOfficial=(bool)($document['is_official'] ?? $isOfficial ?? false); ?>
 <section class="document-page">
 <?php if (!$documentOfficial): ?><div class="preview">PRATINJAU &mdash; BELUM MERUPAKAN SK RESMI (STATUS: <?= esc($version['workflow_status']) ?>)</div><?php endif; ?>

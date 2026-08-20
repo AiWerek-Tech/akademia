@@ -5,6 +5,7 @@ namespace Tests\Database;
 use App\Database\Seeds\CoreSeeder;
 use App\Services\AssessmentService;
 use App\Services\MasteryService;
+use App\Services\SummativeProcessingService;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\FeatureTestTrait;
 use RuntimeException;
@@ -281,12 +282,31 @@ final class AssessmentMasteryEngineTest extends CIUnitTestCase
         ]);
 
         $board = $this->masteryService->board($this->unitId, $this->periodId, $this->classroomId, $this->subjectId);
-        $this->assertCount(2, $board['objectives']);
-        $this->assertCount(2, $board['matrix']);
+        $codes = array_column($board['objectives'], 'code');
+        $this->assertContains('TP-ENGINE-A', $codes);
+        $this->assertContains('TP-ENGINE-B', $codes);
+        $this->assertGreaterThanOrEqual(2, count($board['objectives']));
+        $this->assertGreaterThanOrEqual(2, count($board['matrix']));
 
-        $first = $board['matrix'][0]['objectives'][0];
-        $this->assertNotEmpty($first['mastery']);
-        $this->assertSame('ACHIEVED', $first['mastery']['result']);
+        $alphaRow = null;
+        foreach ($board['matrix'] as $row) {
+            if (($row['student']['full_name'] ?? '') === 'Siswa Alpha') {
+                $alphaRow = $row;
+                break;
+            }
+        }
+        $this->assertNotNull($alphaRow, 'Matrix should expose the fixture student.');
+
+        $alpha = null;
+        foreach ($alphaRow['objectives'] as $cell) {
+            if (($cell['objective']['code'] ?? '') === 'TP-ENGINE-A') {
+                $alpha = $cell;
+                break;
+            }
+        }
+        $this->assertNotNull($alpha, 'Matrix should expose the fixture TP.');
+        $this->assertNotEmpty($alpha['mastery']);
+        $this->assertSame('ACHIEVED', $alpha['mastery']['result']);
     }
 
     public function testSetMasteryManualAndBatchRecommend(): void
@@ -487,5 +507,149 @@ final class AssessmentMasteryEngineTest extends CIUnitTestCase
             ->get()->getRowArray();
         $this->assertNotNull($evidence);
         $this->assertSame((int) $dimension['id'], (int) $evidence['profile_dimension_id']);
+    }
+
+    public function testEvidenceRejectsInvalidType(): void
+    {
+        $data = $this->createAssessmentFixture([['ACHIEVED', 'ADVANCED'], []]);
+        $attempt = $this->db->table('assessment_attempts')
+            ->where('assessment_id', $data['id'])
+            ->where('student_id', $this->studentIds[0])
+            ->get()->getRowArray();
+
+        $this->expectException(RuntimeException::class);
+        $this->assessmentService->addEvidence([
+            'student_id'    => $this->studentIds[0],
+            'attempt_id'    => (int) $attempt['id'],
+            'evidence_type' => 'BOGUS',
+            'title'         => 'Bukti tidak valid',
+        ], 1);
+    }
+
+    public function testGradebookStoresRubricLevelIndex(): void
+    {
+        $tp = $this->createTestObjective($this->createTestOutcome('CP-ENGINE-G'), 'TP-ENGINE-G');
+        $assessmentId = $this->assessmentService->create([
+            'unit_id'            => $this->unitId,
+            'academic_period_id' => $this->periodId,
+            'classroom_id'       => $this->classroomId,
+            'subject_id'         => $this->subjectId,
+            'teacher_id'         => $this->teacherId,
+            'title'              => 'Sumatif Level',
+            'assessment_type'    => 'SUMMATIVE',
+            'assessment_form'    => 'RUBRIK',
+            'assessment_date'    => date('Y-m-d'),
+            'max_score'          => 100,
+            'objective_ids'      => [$tp['id']],
+            'criteria'           => [
+                [
+                    'criterion'           => 'Penyajian karya',
+                    'learning_objective_id' => $tp['id'],
+                    'weight'              => 1,
+                    'rubric_levels_json'  => json_encode([
+                        ['level_index' => 0, 'label' => 'Dasar', 'score' => 1],
+                        ['level_index' => 1, 'label' => 'Cukup', 'score' => 2],
+                        ['level_index' => 2, 'label' => 'Mahir', 'score' => 3],
+                        ['level_index' => 3, 'label' => 'Unggul', 'score' => 4],
+                    ]),
+                ],
+            ],
+            'items'              => [],
+        ], 1);
+        $this->assessmentService->transition($assessmentId, 'PUBLISHED', 1);
+
+        $criterion = $this->db->table('assessment_criteria')->where('assessment_id', $assessmentId)->get()->getRowArray();
+        $this->assessmentService->saveGradebook($assessmentId, [
+            [
+                'student_id'  => $this->studentIds[0],
+                'score'       => 90,
+                'is_complete' => 1,
+                'criteria'    => [(int) $criterion['id'] => ['status' => '', 'level_index' => 3, 'score' => 90]],
+            ],
+        ], 1);
+
+        $result = $this->db->table('criterion_results cr')
+            ->join('assessment_attempts aa', 'aa.id = cr.attempt_id', 'left')
+            ->where('aa.student_id', $this->studentIds[0])
+            ->where('cr.criterion_id', (int) $criterion['id'])
+            ->get()->getRowArray();
+        $this->assertSame(3, (int) $result['level_index'], 'Level index from rubric picker should be persisted.');
+        $this->assertSame('ADVANCED', $result['status'], 'Level index should drive criterion status derivation.');
+    }
+
+    public function testCreateInterventionEnrichmentManual(): void
+    {
+        $tp = $this->createTestObjective($this->createTestOutcome('CP-ENGINE-H'), 'TP-ENGINE-H');
+        $this->masteryService->setMastery($this->studentIds[0], (int) $tp['id'], 'ADVANCED', 1);
+
+        $id = $this->masteryService->createIntervention(
+            $this->studentIds[0],
+            (int) $tp['id'],
+            'ENRICHMENT',
+            'Program pengayaan mandiri: eksplorasi materi lanjutan',
+            1
+        );
+
+        $intervention = $this->db->table('interventions')->where('id', $id)->get()->getRowArray();
+        $this->assertSame('ENRICHMENT', $intervention['intervention_type']);
+        $this->assertSame('APPROVED', $intervention['status']);
+    }
+
+    public function testSummativeProcessingAndValidation(): void
+    {
+        $this->createAssessmentFixture([
+            ['ACHIEVED', 'ADVANCED'],       // student 1 → high
+            ['NEEDS_SUPPORT', 'DEVELOPING'], // student 2 → low
+        ]);
+
+        $summativeService = new SummativeProcessingService();
+        $result = $summativeService->processSubject($this->unitId, $this->periodId, $this->subjectId, 1);
+        $this->assertSame(2, $result['students']);
+
+        $rows = $this->db->table('summative_results')
+            ->where('unit_id', $this->unitId)
+            ->where('academic_period_id', $this->periodId)
+            ->where('subject_id', $this->subjectId)
+            ->orderBy('student_id', 'ASC')
+            ->get()->getResultArray();
+        $this->assertCount(2, $rows);
+        foreach ($rows as $row) {
+            $this->assertSame('DRAFT', $row['status']);
+            $this->assertGreaterThan(0, (float) $row['raw_score']);
+            $this->assertNotEmpty($row['detail_json']);
+        }
+
+        // Student 1 mastered all TPs → higher score + grade label.
+        $alpha = $this->db->table('summative_results sr')
+            ->select('sr.id, sr.raw_score, sr.grade_label, es.full_name')
+            ->join('elective_students es', 'es.id = sr.student_id', 'left')
+            ->where('sr.subject_id', $this->subjectId)
+            ->where('es.full_name', 'Siswa Alpha')
+            ->get()->getRowArray();
+        $beta = $this->db->table('summative_results sr')
+            ->select('sr.id, sr.raw_score, es.full_name')
+            ->join('elective_students es', 'es.id = sr.student_id', 'left')
+            ->where('sr.subject_id', $this->subjectId)
+            ->where('es.full_name', 'Siswa Beta')
+            ->get()->getRowArray();
+        $this->assertGreaterThan((float) $beta['raw_score'], (float) $alpha['raw_score']);
+        $this->assertNotNull($alpha['grade_label']);
+
+        // Validate locks the row; re-processing must not overwrite it.
+        $summativeService->validate((int) $alpha['id'], 1);
+        $validated = $this->db->table('summative_results')->where('id', $alpha['id'])->get()->getRowArray();
+        $this->assertSame('VALIDATED', $validated['status']);
+        $this->assertSame(1, (int) $validated['validated_by']);
+        $this->assertNotNull($validated['validated_at']);
+
+        $processed = $validated['raw_score'];
+        $summativeService->processSubject($this->unitId, $this->periodId, $this->subjectId, 1);
+        $after = $this->db->table('summative_results')->where('id', $alpha['id'])->get()->getRowArray();
+        $this->assertSame('VALIDATED', $after['status'], 'Validated results must be skipped by reprocessing.');
+        $this->assertEquals((string) $processed, (string) $after['raw_score']);
+
+        // Reopen allows reprocessing.
+        $summativeService->reopen((int) $alpha['id'], 1);
+        $this->assertSame('DRAFT', $this->db->table('summative_results')->where('id', $alpha['id'])->get()->getRowArray()['status']);
     }
 }

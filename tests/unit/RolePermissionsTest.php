@@ -25,6 +25,11 @@ final class RolePermissionsTest extends CIUnitTestCase
             'learning_activities.manage',
             'learning_resources.manage',
             'learning_guidance.manage',
+            'teaching.workspace',
+            'teaching.teach',
+            'teaching.reflect',
+            'assessment.view',
+            'assessment.manage',
         ], RolePermissions::GURU);
 
         $this->assertSame(

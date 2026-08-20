@@ -52,7 +52,11 @@ Dokumen ini adalah sumber status implementasi. Blueprint pada `docs/WMVAA_Academ
   - Evidence ter-align Dimensi Profil Lulusan & tujuan kokurikuler (blueprint §7).
   - Remediasi tertarget per kriteria: intervensi menunjuk `criterion_id` gagal dengan fokus aktivitas.
   - Enforcement semantik tipe: `DIAGNOSTIC` mencatat hasil per kriteria tetapi tidak menulis mastery / nilai akhir.
-  - RBAC ketat: guru hanya untuk assessment milik sendiri; mastery/intervensi/policy hanya untuk peran manajemen (`assessment.mastery`).
+  - Picker level rubrik di gradebook (`level_index` 0–3 menurunkan status kriteria) dan UI `assessments.rubric_json` (textarea authoring + badge di detail).
+  - Upload bukti belajar ber-*file* (12 jenis, maks 10 MB) dengan unduhan terproteksi `assessment/evidence-file/(:num)`, daftar evidence & feedback read-only per siswa.
+  - Intervensi manual (termasuk `ENRICHMENT`/pengayaan) via `createIntervention` + form di halaman intervensi.
+  - Summative Processing Engine: pengolahan mastery TP → nilai akhir per siswa/mapel/periode (AVERAGE/LATEST/WEIGHTED/PROFICIENCY), predikat A–E, `summative_results` ber-`status` DRAFT/VALIDATED, validasi & pembukaan kembali oleh guru (jembatan ke rapor Phase 9).
+  - RBAC ketat: guru hanya untuk assessment milik sendiri; mastery/intervensi/policy/summatif hanya untuk peran manajemen (`assessment.mastery`).
 
 ## Status roadmap blueprint
 
@@ -72,7 +76,7 @@ Dokumen ini adalah sumber status implementasi. Blueprint pada `docs/WMVAA_Academ
 
 ## Verifikasi build ini
 
-- **Full Combined Regression Suite (Phase 1, 2, 3, 4, 5):** 65 unit & database engine tests, 245 assertions — **100% PASSED (0 Errors, 0 Failures)**.
-- **Phase 6 Assessment & Mastery Suite:** 23 test (13 engine + 10 route security), 83 assertions — **100% PASSED (0 Errors, 0 Failures)**.
+- **Full Combined Regression Suite (Phase 1, 2, 3, 4, 5, 6):** 88 unit, database engine & route security tests, 329 assertions — **100% PASSED (0 Errors, 0 Failures)**.
+- **Phase 6 Assessment & Mastery Suite:** 31 test (17 engine + 14 route security), 115 assertions — **100% PASSED (0 Errors, 0 Failures)**.
 - Composer strict validation, security audit, PHP syntax lint, dan unit isolation verification: 100% lulus.
 - Seluruh route IALOS membawa filter autentikasi, unit access, password-change guard, dan permission domain yang ketat.

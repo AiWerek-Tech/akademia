@@ -31,7 +31,7 @@ final class RolePermissions
         // Phase 5: daily teaching workspace
         'teaching.workspace', 'teaching.teach', 'teaching.reflect',
         // Phase 6: author & grade own assessments
-        'assessment.view', 'assessment.manage', 'assessment.mastery',
+        'assessment.view', 'assessment.manage',
     ];
 
     public const WALI_KELAS = [
@@ -57,7 +57,7 @@ final class RolePermissions
         // Phase 5: daily teaching workspace
         'teaching.workspace', 'teaching.teach', 'teaching.reflect',
         // Phase 6: author & grade own assessments
-        'assessment.view', 'assessment.manage', 'assessment.mastery',
+        'assessment.view', 'assessment.manage',
     ];
 
     /**

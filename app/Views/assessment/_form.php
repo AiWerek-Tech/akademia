@@ -140,6 +140,19 @@ $existing = $assessment ?? [];
         </div>
     </div>
 
+    <!-- Global Rubric JSON -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white border-0 py-3 px-4">
+                <h6 class="fw-bold text-gray-900 mb-0"><i data-lucide="scroll-text" class="w-4 h-4 me-1 text-primary"></i> Rubrik Assessment (JSON)</h6>
+            </div>
+            <div class="card-body px-4 pb-4 pt-0">
+                <textarea name="rubric_json" class="form-control font-monospace" rows="4" placeholder='[{"level_index":0,"label":"Level 1","description":"...","score":25}]'><?= esc($existing['rubric_json'] ?? old('rubric_json', '')) ?></textarea>
+                <div class="form-text">Opsional. Struktur JSON level rubrik tingkat assessment (dipakai saat pencatatan nilai dan rapor).</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Items -->
     <div class="col-12">
         <div class="card border-0 shadow-sm rounded-4">
