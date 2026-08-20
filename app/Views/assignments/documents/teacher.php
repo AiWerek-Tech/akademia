@@ -5,7 +5,20 @@
 @media print{.toolbar{display:none}.document-page{max-width:none;margin:0;break-after:page}.document-page:last-child{break-after:auto}.document-page+.document-page{padding-top:0;border:0}.preview{border:2px solid #000;color:#000;background:#fff}body{margin:0}@page{size:A4 portrait;margin:18mm}}
 </style></head><body>
 <?php $documents = $documents ?? [$document]; ?>
-<div class="toolbar"><a href="<?= base_url('dashboard') ?>">Kembali</a><button type="button" onclick="window.print()"><?= !empty($isOfficial) ? 'Cetak / Simpan PDF' : 'Cetak Pratinjau' ?></button></div>
+<div class="toolbar">
+<?php if (!empty($isManagement) && !empty($teachersList)): ?>
+    <form method="get" action="<?= base_url('portal/assignment-document') ?>" style="display:inline-flex;align-items:center;gap:6px;margin-right:auto">
+        <label style="font:bold 12px Arial;color:#444">Pilih Guru:</label>
+        <select name="teacher_id" onchange="this.form.submit()" style="padding:7px 12px;border:1px solid #d9d5e9;border-radius:8px;font:13px Arial">
+            <?php foreach ($teachersList as $t): ?>
+                <option value="<?= (int) $t['id'] ?>" <?= ((int) ($currentTeacherId ?? 0) === (int) $t['id']) ? 'selected' : '' ?>>
+                    <?= esc($t['full_name']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </form>
+<?php endif; ?>
+<a href="<?= base_url('dashboard') ?>">Beranda</a><a href="<?= base_url('portal/workload' . (!empty($currentTeacherId) ? '?teacher_id=' . $currentTeacherId : '')) ?>">Beban Kerja</a><button type="button" onclick="window.print()"><?= !empty($isOfficial) ? 'Cetak / Simpan PDF' : 'Cetak Pratinjau' ?></button></div>
 <?php foreach ($documents as $documentIndex => $document): $unit=$document['unit'];$version=$document['version'];$teacher=$document['teachers'][0];$documentOfficial=(bool)($document['is_official'] ?? $isOfficial ?? false); ?>
 <section class="document-page">
 <?php if (!$documentOfficial): ?><div class="preview">PRATINJAU &mdash; BELUM MERUPAKAN SK RESMI (STATUS: <?= esc($version['workflow_status']) ?>)</div><?php endif; ?>

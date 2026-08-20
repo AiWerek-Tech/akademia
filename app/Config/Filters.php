@@ -157,6 +157,14 @@ class Filters extends BaseConfig
                 'portal/*',
                 'teaching',
                 'teaching/*',
+                'assessment',
+                'assessment/*',
+                'mastery',
+                'mastery/*',
+                'interventions',
+                'interventions/*',
+                'reporting-policies',
+                'reporting-policies/*',
             ]
         ],
         'unit_access' => [
@@ -223,6 +231,14 @@ class Filters extends BaseConfig
                 'portal/*',
                 'teaching',
                 'teaching/*',
+                'assessment',
+                'assessment/*',
+                'mastery',
+                'mastery/*',
+                'interventions',
+                'interventions/*',
+                'reporting-policies',
+                'reporting-policies/*',
             ]
         ],
         'password_change_required' => [
@@ -289,6 +305,14 @@ class Filters extends BaseConfig
                 'portal/*',
                 'teaching',
                 'teaching/*',
+                'assessment',
+                'assessment/*',
+                'mastery',
+                'mastery/*',
+                'interventions',
+                'interventions/*',
+                'reporting-policies',
+                'reporting-policies/*',
             ]
         ]
     ];

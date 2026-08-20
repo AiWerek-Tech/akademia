@@ -28,6 +28,10 @@ final class RolePermissions
         'learning_activities.manage',
         'learning_resources.manage',
         'learning_guidance.manage',
+        // Phase 5: daily teaching workspace
+        'teaching.workspace', 'teaching.teach', 'teaching.reflect',
+        // Phase 6: author & grade own assessments
+        'assessment.view', 'assessment.manage',
     ];
 
     public const WALI_KELAS = [
@@ -44,6 +48,16 @@ final class RolePermissions
         'class_students.view',
         'class_schedule.view',
         'class_electives.manage',
+        // Phase 3: learning pack management permissions
+        'learning_packs.clone',
+        'learning_units.manage',
+        'learning_activities.manage',
+        'learning_resources.manage',
+        'learning_guidance.manage',
+        // Phase 5: daily teaching workspace
+        'teaching.workspace', 'teaching.teach', 'teaching.reflect',
+        // Phase 6: author & grade own assessments
+        'assessment.view', 'assessment.manage',
     ];
 
     /**

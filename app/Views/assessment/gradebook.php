@@ -1,0 +1,379 @@
+<?= $this->extend('layouts/admin') ?>
+
+<?= $this->section('main_content') ?>
+<div class="container-fluid px-0 px-md-3">
+    <?php if (session()->getFlashdata('success')): ?>
+        <div class="alert alert-success border-0 rounded-4 mb-4"><?= esc(session()->getFlashdata('success')) ?></div>
+    <?php endif; ?>
+    <?php if (session()->getFlashdata('error')): ?>
+        <div class="alert alert-danger border-0 rounded-4 mb-4"><?= esc(session()->getFlashdata('error')) ?></div>
+    <?php endif; ?>
+
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+        <div>
+            <nav aria-label="breadcrumb" class="mb-1">
+                <ol class="breadcrumb mb-0 small">
+                    <li class="breadcrumb-item"><a href="<?= base_url('assessment') ?>" class="text-decoration-none">Assessment</a></li>
+                    <li class="breadcrumb-item"><a href="<?= base_url('assessment/' . $assessment['id']) ?>" class="text-decoration-none"><?= esc($assessment['title']) ?></a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Gradebook</li>
+                </ol>
+            </nav>
+            <h1 class="h3 fw-bold text-gray-900 mb-1">Gradebook — <?= esc($assessment['title']) ?></h1>
+            <p class="text-muted mb-0">
+                Tentukan status per kriteria. Status kosong dihitung otomatis dari skor (jika ada). Menyimpan nilai akan
+                memperbarui Mastery TP dan membuka rekomendasi intervensi.
+            </p>
+        </div>
+        <span class="badge <?= $assessment['status'] === 'CLOSED' ? 'bg-dark-subtle text-dark' : 'bg-success-subtle text-success' ?> rounded-pill px-3 py-2">
+            <?= esc($assessment['status']) ?>
+        </span>
+    </div>
+
+    <?php if ($assessment['criteria'] === []): ?>
+        <div class="alert alert-warning border-0 rounded-4">
+            Assessment ini belum memiliki kriteria. Tambahkan kriteria (terhubung ke TP) melalui halaman edit agar mastery dapat dihitung.
+        </div>
+    <?php endif; ?>
+
+    <form method="POST" action="<?= base_url('assessment/' . $assessment['id'] . '/gradebook') ?>">
+        <?= csrf_field() ?>
+        <?php
+        $rubricMap = [];
+        foreach ($assessment['criteria'] as $criterion) {
+            $levels = [];
+            if (! empty($criterion['rubric_levels_json'])) {
+                $decoded = json_decode($criterion['rubric_levels_json'], true);
+                if (is_array($decoded)) {
+                    foreach ($decoded as $lvl) {
+                        $levels[] = $lvl;
+                    }
+                }
+            }
+            $rubricMap[(int) $criterion['id']] = $levels;
+        }
+        ?>
+        <!-- View Mode Switcher -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted small">Total <?= count($rows) ?> siswa terdaftar</span>
+            <div class="btn-group btn-group-sm shadow-sm" role="group" aria-label="View Mode">
+                <button type="button" class="btn btn-outline-primary active" id="btnTableView" onclick="setViewMode('table')">
+                    <i data-lucide="table" class="w-3.5 h-3.5 me-1"></i> Mode Tabel
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="btnCardView" onclick="setViewMode('card')">
+                    <i data-lucide="layout-grid" class="w-3.5 h-3.5 me-1"></i> Mode Kartu
+                </button>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4">
+            <!-- 1. DESKTOP SPREADSHEET TABLE VIEW -->
+            <div id="tableViewWrapper" class="table-responsive">
+                <table class="table table-bordered align-middle mb-0 gradebook-table">
+                    <thead class="table-light text-xs text-muted text-uppercase tracking-wider">
+                        <tr>
+                            <th class="px-3 py-3 sticky-col-name" style="min-width:200px">Siswa</th>
+                            <?php foreach ($assessment['criteria'] as $i => $criterion): ?>
+                                <th class="px-3 py-3 text-center" style="min-width:170px">
+                                    Kriteria <?= $i + 1 ?>
+                                    <div class="fw-normal text-uppercase" style="font-size:10px">
+                                        <?= esc($criterion['tp_code'] ?? 'tanpa TP') ?> · bobot <?= esc($criterion['weight']) ?>
+                                    </div>
+                                    <?php if (! empty($rubricMap[(int) $criterion['id']])): ?>
+                                        <div class="fw-normal text-muted" style="font-size:9px;line-height:1.3">
+                                            <?php foreach ($rubricMap[(int) $criterion['id']] as $lvl): ?>
+                                                <span class="badge bg-light-subtle text-dark-subtle me-1">
+                                                    <?= esc(($lvl['label'] ?? 'L' . ($lvl['level_index'] ?? '')) . (isset($lvl['score']) ? '=' . $lvl['score'] : '')) ?>
+                                                </span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </th>
+                            <?php endforeach; ?>
+                            <th class="px-3 py-3 text-center" style="min-width:110px">Skor</th>
+                            <th class="px-3 py-3 text-center" style="min-width:110px">Lengkap</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if ($rows === []): ?>
+                            <tr><td colspan="<?= count($assessment['criteria']) + 3 ?>" class="text-center text-muted py-5">Belum ada siswa aktif di kelas ini.</td></tr>
+                        <?php endif; ?>
+                        <?php foreach ($rows as $row): ?>
+                            <?php $studentId = (int) $row['student']['id']; ?>
+                            <?php $attemptId = $row['attempt'] ? (int) $row['attempt']['id'] : 0; ?>
+                            <tr>
+                                <td class="px-3 py-2 sticky-col-name">
+                                    <div class="fw-semibold text-gray-900"><?= esc($row['student']['full_name']) ?></div>
+                                    <div class="text-xs text-muted"><?= esc($row['student']['student_number'] ?? '') ?></div>
+                                </td>
+                                <?php foreach ($row['criteria'] as $cell): ?>
+                                    <?php $criterionId = (int) $cell['criterion']['id']; ?>
+                                    <?php $cellRubric = $rubricMap[$criterionId] ?? []; ?>
+                                    <td class="px-2 py-2 text-center align-middle">
+                                        <?php if ($cellRubric !== []): ?>
+                                            <select name="students[<?= $studentId ?>][criteria][<?= $criterionId ?>][level_index]" class="form-select form-select-sm mb-1 rubric-level-select">
+                                                <option value="">— Level rubrik —</option>
+                                                <?php foreach ($cellRubric as $lvl): ?>
+                                                    <?php $li = $lvl['level_index'] ?? ''; ?>
+                                                    <option value="<?= esc($li) ?>" <?= ($cell['result']['level_index'] ?? null) !== null && (int) ($cell['result']['level_index']) === (int) $li ? 'selected' : '' ?>>
+                                                        <?= esc(($lvl['label'] ?? 'L' . $li) . (isset($lvl['score']) ? ' (' . $lvl['score'] . ')' : '')) ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        <?php endif; ?>
+                                        <select name="students[<?= $studentId ?>][criteria][<?= $criterionId ?>][status]" class="form-select form-select-sm criterion-status">
+                                            <option value="">— Otomatis —</option>
+                                            <?php foreach (['NEEDS_SUPPORT', 'DEVELOPING', 'ACHIEVED', 'ADVANCED'] as $st): ?>
+                                                <option value="<?= $st ?>" <?= ($cell['result']['status'] ?? '') === $st ? 'selected' : '' ?>><?= esc($st) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <input type="number" step="0.01" min="0" name="students[<?= $studentId ?>][criteria][<?= $criterionId ?>][score]" class="form-control form-control-sm mt-1 criterion-score" placeholder="Skor" value="<?= esc($cell['result']['score'] ?? '') ?>">
+                                        <input type="text" name="students[<?= $studentId ?>][criteria][<?= $criterionId ?>][notes]" class="form-control form-control-sm mt-1" placeholder="Catatan" value="<?= esc($cell['result']['notes'] ?? '') ?>">
+                                    </td>
+                                <?php endforeach; ?>
+                                <td class="px-2 py-2 text-center align-middle">
+                                    <input type="number" step="0.01" min="0" name="students[<?= $studentId ?>][score]" class="form-control form-control-sm text-center" placeholder="Skor" value="<?= esc($row['attempt']['score'] ?? '') ?>">
+                                </td>
+                                <td class="px-2 py-2 text-center align-middle">
+                                    <div class="form-check form-switch justify-content-center">
+                                        <input type="hidden" name="students[<?= $studentId ?>][is_complete]" value="0">
+                                        <input class="form-check-input" type="checkbox" name="students[<?= $studentId ?>][is_complete]" value="1" <?= ! empty($row['attempt']['is_complete']) ? 'checked' : '' ?>>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr class="gradebook-details-row">
+                                <td colspan="<?= count($assessment['criteria']) + 3 ?>" class="px-3 py-2 bg-light-subtle">
+                                    <details>
+                                        <summary class="text-xs fw-semibold text-muted cursor-pointer">Bukti Belajar & Umpan Balik — <?= esc($row['student']['full_name']) ?></summary>
+                                        <div class="row g-2 mt-2">
+                                            <div class="col-md-6">
+                                                <form method="POST" action="<?= base_url('assessment/' . $assessment['id'] . '/evidence') ?>" enctype="multipart/form-data" class="d-flex flex-column gap-1">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="student_id" value="<?= $studentId ?>">
+                                                    <input type="hidden" name="attempt_id" value="<?= $attemptId ?>">
+                                                    <input type="text" name="title" class="form-control form-control-sm" placeholder="Judul bukti (mis. foto karya)" required>
+                                                    <div class="d-flex gap-1">
+                                                        <select name="evidence_type" class="form-select form-select-sm flex-grow-1">
+                                                            <?php foreach ($evidenceTypes as $et): ?>
+                                                                <option value="<?= $et ?>"><?= esc($et) ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                        <input type="file" name="file" class="form-control form-control-sm flex-grow-1" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.mp4,.webm,.mp3,.zip">
+                                                    </div>
+                                                    <div class="d-flex gap-1">
+                                                        <select name="learning_objective_id" class="form-select form-select-sm flex-grow-1">
+                                                            <option value="">Tanpa TP</option>
+                                                            <?php foreach ($assessment['objectives'] as $obj): ?>
+                                                                <option value="<?= $obj['learning_objective_id'] ?>"><?= esc($obj['tp_code']) ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                        <select name="criterion_id" class="form-select form-select-sm flex-grow-1">
+                                                            <option value="">Tanpa Kriteria</option>
+                                                            <?php foreach ($assessment['criteria'] as $c): ?>
+                                                                <option value="<?= $c['id'] ?>">K<?= $c['sequence_order'] ?? '' ?> <?= esc($c['tp_code'] ?? '') ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </div>
+                                                    <div class="d-flex gap-1">
+                                                        <select name="profile_dimension_id" class="form-select form-select-sm flex-grow-1">
+                                                            <option value="">Tanpa Dimensi</option>
+                                                            <?php foreach ($dimensions as $d): ?>
+                                                                <option value="<?= $d['id'] ?>"><?= esc($d['name']) ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                        <textarea name="content" class="form-control form-control-sm flex-grow-1" rows="1" placeholder="Catatan teks (opsional)"></textarea>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary shadow-sm align-self-start">Tambah Bukti</button>
+                                                </form>
+                                            </div>
+                                            <div class="col-md-5">
+                                                <form method="POST" action="<?= base_url('assessment/' . $assessment['id'] . '/feedback') ?>" class="d-flex gap-2">
+                                                    <?= csrf_field() ?>
+                                                    <input type="hidden" name="attempt_id" value="<?= $attemptId ?>">
+                                                    <input type="hidden" name="student_id" value="<?= $studentId ?>">
+                                                    <input type="text" name="content" class="form-control form-control-sm" placeholder="Umpan balik untuk siswa...">
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary shadow-sm">Kirim</button>
+                                                </form>
+                                            </div>
+                                            <div class="col-12">
+                                                <?php if ($row['evidence'] !== [] || $row['feedback'] !== []): ?>
+                                                    <div class="row g-2">
+                                                        <div class="col-md-6">
+                                                            <div class="text-xs fw-semibold text-muted text-uppercase tracking-wider mb-1">Bukti Terpasang (<?= count($row['evidence']) ?>)</div>
+                                                            <ul class="list-unstyled mb-0 small text-muted">
+                                                                <?php foreach ($row['evidence'] as $ev): ?>
+                                                                    <li class="d-flex align-items-center gap-2 py-1 border-bottom">
+                                                                        <span class="badge bg-light text-dark rounded-pill"><?= esc($ev['evidence_type']) ?></span>
+                                                                        <span><?= esc($ev['title']) ?></span>
+                                                                        <?php if (! empty($ev['file_path'])): ?>
+                                                                            <a href="<?= base_url('assessment/evidence-file/' . $ev['id']) ?>" target="_blank" class="text-decoration-none ms-auto"><i data-lucide="external-link" class="w-3.5 h-3.5"></i></a>
+                                                                        <?php endif; ?>
+                                                                    </li>
+                                                                <?php endforeach; ?>
+                                                            </ul>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <div class="text-xs fw-semibold text-muted text-uppercase tracking-wider mb-1">Umpan Balik (<?= count($row['feedback']) ?>)</div>
+                                                            <ul class="list-unstyled mb-0 small text-muted">
+                                                                <?php foreach ($row['feedback'] as $fb): ?>
+                                                                    <li class="py-1 border-bottom"><?= esc($fb['content']) ?></li>
+                                                                <?php endforeach; ?>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </details>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 2. MOBILE CARD VIEW (Vertical Stack) -->
+            <div id="cardViewWrapper" class="d-none p-3">
+                <div class="row g-3">
+                    <?php if ($rows === []): ?>
+                        <div class="col-12 text-center text-muted py-5">Belum ada siswa aktif di kelas ini.</div>
+                    <?php endif; ?>
+                    <?php foreach ($rows as $idx => $row): ?>
+                        <?php $studentId = (int) $row['student']['id']; ?>
+                        <div class="col-12 col-md-6">
+                            <div class="card border border-light-subtle shadow-sm rounded-4 h-100 p-3 bg-white">
+                                <div class="d-flex justify-content-between align-items-start border-bottom pb-2 mb-3">
+                                    <div>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1 small mb-1">#<?= $idx + 1 ?></span>
+                                        <div class="fw-bold text-gray-900"><?= esc($row['student']['full_name']) ?></div>
+                                        <div class="text-xs text-muted">NISN: <?= esc($row['student']['student_number'] ?: '-') ?></div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="form-check form-switch d-inline-block">
+                                            <input class="form-check-input" type="checkbox" onchange="syncComplete(<?= $studentId ?>, this.checked)" <?= ! empty($row['attempt']['is_complete']) ? 'checked' : '' ?>>
+                                        </div>
+                                        <div class="text-xs text-muted">Lengkap</div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex flex-column gap-2 mb-3">
+                                    <?php foreach ($row['criteria'] as $cIdx => $cell): ?>
+                                        <?php $criterionId = (int) $cell['criterion']['id']; ?>
+                                        <?php $cellRubric = $rubricMap[$criterionId] ?? []; ?>
+                                        <div class="p-2 bg-light rounded-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="fw-semibold text-xs text-dark">Kriteria <?= $cIdx + 1 ?>: <?= esc($cell['criterion']['tp_code'] ?? 'TP') ?></span>
+                                                <span class="badge bg-white text-muted border text-xs">Bobot <?= esc($cell['criterion']['weight']) ?></span>
+                                            </div>
+                                            <div class="row g-1">
+                                                <?php if ($cellRubric !== []): ?>
+                                                    <div class="col-12">
+                                                        <select class="form-select form-select-sm" onchange="syncRubricLevel(<?= $studentId ?>, <?= $criterionId ?>, this.value)">
+                                                            <option value="">— Level rubrik —</option>
+                                                            <?php foreach ($cellRubric as $lvl): ?>
+                                                                <?php $li = $lvl['level_index'] ?? ''; ?>
+                                                                <option value="<?= esc($li) ?>" <?= ($cell['result']['level_index'] ?? null) !== null && (int) ($cell['result']['level_index']) === (int) $li ? 'selected' : '' ?>>
+                                                                    <?= esc(($lvl['label'] ?? 'L' . $li) . (isset($lvl['score']) ? ' (' . $lvl['score'] . ')' : '')) ?>
+                                                                </option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <div class="col-7">
+                                                    <select class="form-select form-select-sm" onchange="syncStatus(<?= $studentId ?>, <?= $criterionId ?>, this.value)">
+                                                        <option value="">— Status —</option>
+                                                        <?php foreach (['NEEDS_SUPPORT', 'DEVELOPING', 'ACHIEVED', 'ADVANCED'] as $st): ?>
+                                                            <option value="<?= $st ?>" <?= ($cell['result']['status'] ?? '') === $st ? 'selected' : '' ?>><?= esc($st) ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-5">
+                                                    <input type="number" step="0.01" min="0" class="form-control form-control-sm" placeholder="Skor" value="<?= esc($cell['result']['score'] ?? '') ?>" oninput="syncCriterionScore(<?= $studentId ?>, <?= $criterionId ?>, this.value)">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+
+                                <div class="pt-2 border-top d-flex justify-content-between align-items-center">
+                                    <span class="small fw-semibold text-muted">Total Skor Akhir</span>
+                                    <div style="width: 100px;">
+                                        <input type="number" step="0.01" min="0" class="form-control form-control-sm text-center fw-bold" placeholder="0.00" value="<?= esc($row['attempt']['score'] ?? '') ?>" oninput="syncTotalScore(<?= $studentId ?>, this.value)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <div class="card-footer bg-white border-0 py-3 px-4 d-flex gap-2 justify-content-end">
+                <a href="<?= base_url('assessment/' . $assessment['id']) ?>" class="btn btn-outline-secondary shadow-sm">Batal</a>
+                <?php if ($assessment['status'] !== 'CLOSED'): ?>
+                    <button type="submit" class="btn btn-primary shadow-sm"><i data-lucide="save" class="w-4 h-4 me-1"></i> Simpan Nilai</button>
+                <?php endif; ?>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function setViewMode(mode) {
+    const tableWrap = document.getElementById('tableViewWrapper');
+    const cardWrap = document.getElementById('cardViewWrapper');
+    const btnTable = document.getElementById('btnTableView');
+    const btnCard = document.getElementById('btnCardView');
+
+    if (mode === 'card') {
+        tableWrap.classList.add('d-none');
+        cardWrap.classList.remove('d-none');
+        btnTable.classList.remove('active');
+        btnCard.classList.add('active');
+    } else {
+        cardWrap.classList.add('d-none');
+        tableWrap.classList.remove('d-none');
+        btnCard.classList.remove('active');
+        btnTable.classList.add('active');
+    }
+}
+
+// Two-way synchronization helpers between card view and the primary form fields
+function syncRubricLevel(studentId, criterionId, val) {
+    const target = document.querySelector(`select[name="students[${studentId}][criteria][${criterionId}][level_index]"]`);
+    if (target) target.value = val;
+}
+
+function syncStatus(studentId, criterionId, val) {
+    const target = document.querySelector(`select[name="students[${studentId}][criteria][${criterionId}][status]"]`);
+    if (target) target.value = val;
+}
+
+function syncCriterionScore(studentId, criterionId, val) {
+    const target = document.querySelector(`input[name="students[${studentId}][criteria][${criterionId}][score]"]`);
+    if (target) target.value = val;
+}
+
+function syncTotalScore(studentId, val) {
+    const target = document.querySelector(`input[name="students[${studentId}][score]"]`);
+    if (target) target.value = val;
+}
+
+function syncComplete(studentId, checked) {
+    const target = document.querySelector(`input[type="checkbox"][name="students[${studentId}][is_complete]"]`);
+    if (target) target.checked = checked;
+}
+
+// Automatically choose card view on small screens on initial load
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.innerWidth < 768) {
+        setViewMode('card');
+    }
+});
+</script>
+
+<style>
+    .gradebook-table { min-width: <?= 200 + (count($assessment['criteria']) * 170) + 220 ?>px; }
+    .gradebook-details-row td { border-bottom: 0; }
+    .sticky-col-name { position: sticky; left: 0; background: #fff; z-index: 2; }
+    .gradebook-table thead th.sticky-col-name { background: #f8f9fa; }
+</style>
+<?= $this->endSection() ?>

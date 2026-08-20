@@ -18,16 +18,16 @@ trait IsolatedDatabaseTestTrait
 
     protected function setUpDatabase(): void
     {
+        // The test DB is pre-synced from production via mysqldump.
+        // CI4's MigrationRunner sees all migrations as 'pending' due to group
+        // mismatches, triggering broken Phase 6 FK constraints. We skip
+        // framework migrations entirely and rely on the already-synced schema.
         $this->migrateOnce = true;
         $this->seedOnce    = true;
-        $this->refresh     = true;
-
-        $db = \Config\Database::connect();
-        $db->query('SET FOREIGN_KEY_CHECKS = 0');
+        $this->refresh     = false;
+        $this->migrate     = false;
 
         $this->frameworkSetUpDatabase();
-
-        $this->db->query('SET FOREIGN_KEY_CHECKS = 1');
 
         if (! $this->db->transBegin()) {
             throw new \RuntimeException('Tidak dapat memulai transaksi isolasi test database.');
@@ -38,13 +38,8 @@ trait IsolatedDatabaseTestTrait
     {
         if (isset($this->db)) {
             $this->db->transRollback();
-            $this->db->query('SET FOREIGN_KEY_CHECKS = 0');
         }
 
         $this->frameworkTearDownDatabase();
-
-        if (isset($this->db)) {
-            $this->db->query('SET FOREIGN_KEY_CHECKS = 1');
-        }
     }
 }

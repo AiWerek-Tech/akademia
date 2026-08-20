@@ -61,6 +61,41 @@ $stBadge = match($st) {
                         </button>
                     </form>
                 <?php endif ?>
+                <div class="dropdown d-inline-block">
+                    <button class="btn btn-warning rounded-pill px-3 dropdown-toggle shadow-sm d-flex align-items-center gap-1 text-dark fw-semibold" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i data-lucide="sparkles" style="width: 15px; height: 15px;"></i>
+                        <span>Asisten Cerdas</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg rounded-4 border-0 p-2" style="min-width: 260px; z-index: 1050;">
+                        <li>
+                            <a class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2" href="#" data-bs-toggle="modal" data-bs-target="#aiRubricModal">
+                                <i data-lucide="clipboard-list" class="text-success" style="width: 16px; height: 16px;"></i>
+                                <div>
+                                    <div class="fw-semibold small">Auto-Rubrik Bloom</div>
+                                    <div class="text-muted text-xs">Generate 4 level deskriptor TP</div>
+                                </div>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2" href="#" data-bs-toggle="modal" data-bs-target="#aiDifferentiationModal">
+                                <i data-lucide="sliders" class="text-primary" style="width: 16px; height: 16px;"></i>
+                                <div>
+                                    <div class="fw-semibold small">Asisten Diferensiasi</div>
+                                    <div class="text-muted text-xs">Strategi Konten, Proses & Produk</div>
+                                </div>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded-3 py-2 d-flex align-items-center gap-2" href="#" data-bs-toggle="modal" data-bs-target="#aiAdaptiveModal">
+                                <i data-lucide="cpu" class="text-warning" style="width: 16px; height: 16px;"></i>
+                                <div>
+                                    <div class="fw-semibold small">Mode Adaptif Unplugged</div>
+                                    <div class="text-muted text-xs">Simulasi fisik tanpa komputer</div>
+                                </div>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
                 <a href="<?= base_url('lesson-plans/' . $plan['uuid'] . '/print') ?>" target="_blank" class="btn btn-outline-light rounded-pill px-3">
                     <i data-lucide="printer" class="me-1" style="width: 14px; height: 14px;"></i> Cetak RPP
                 </a>
@@ -771,6 +806,174 @@ $stBadge = match($st) {
     <?php endif ?>
 <?php endif ?>
 
+<!-- ==================================================================== -->
+<!-- AI ASSISTANT MODALS -->
+<!-- ==================================================================== -->
+
+<!-- 1. Modal Auto-Rubrik Bloom -->
+<div class="modal fade" id="aiRubricModal" tabindex="-1" aria-labelledby="aiRubricModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 bg-success bg-opacity-10 rounded-top-4 p-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-3 p-2 bg-success text-white">
+                        <i data-lucide="clipboard-list" style="width: 20px; height: 20px;"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="aiRubricModalLabel">Asisten Auto-Rubrik Bloom (C1–C6)</h5>
+                        <p class="text-muted text-xs mb-0">Generate otomatis kriteria dan 4 level deskriptor penilaian dari teks TP.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Pilih Tujuan Pembelajaran (TP)</label>
+                    <select id="aiRubricTpSelect" class="form-select rounded-3">
+                        <?php foreach ($objectives as $obj): ?>
+                            <option value="<?= esc($obj['statement'] ?? '') ?>">[<?= esc($obj['code'] ?? 'TP') ?>] <?= esc($obj['statement'] ?? '') ?></option>
+                        <?php endforeach; ?>
+                        <?php if (empty($objectives)): ?>
+                            <option value="">(Belum ada TP terpasang, masukkan manual di bawah)</option>
+                        <?php endif; ?>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Atau Tuliskan Teks TP / Indikator Khusus</label>
+                    <textarea id="aiRubricTpInput" class="form-control rounded-3" rows="2" placeholder="Contoh: Peserta didik mampu menganalisis permasalahan logika percabangan..."></textarea>
+                </div>
+                <button type="button" id="btnRunRubricAi" class="btn btn-success rounded-pill px-4 shadow-sm d-flex align-items-center gap-2 mb-4">
+                    <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
+                    <span>Generate Rubrik Sekarang</span>
+                </button>
+
+                <!-- Result Container -->
+                <div id="aiRubricResult" class="d-none">
+                    <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                        <div>
+                            <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1 fw-bold text-xs" id="aiBloomLevelBadge">Level Bloom: C4</span>
+                            <span class="text-muted text-xs ms-2" id="aiBloomVerb">Kata Kerja: menganalisis</span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="copyAiRubricText()">
+                            <i data-lucide="copy" class="w-3.5 h-3.5 me-1"></i> Salin Deskriptor
+                        </button>
+                    </div>
+                    <div class="row g-2" id="aiRubricLevelsList">
+                        <!-- Dynamic level cards -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. Modal Asisten Diferensiasi Pembelajaran -->
+<div class="modal fade" id="aiDifferentiationModal" tabindex="-1" aria-labelledby="aiDifferentiationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 bg-primary bg-opacity-10 rounded-top-4 p-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-3 p-2 bg-primary text-white">
+                        <i data-lucide="sliders" style="width: 20px; height: 20px;"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="aiDifferentiationModalLabel">Asisten Diferensiasi Pembelajaran (3D)</h5>
+                        <p class="text-muted text-xs mb-0">Rekomendasi strategi Konten, Proses, dan Produk untuk 3 kesiapan belajar siswa.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label small fw-semibold">Topik Pembelajaran</label>
+                        <input id="aiDiffTopicInput" class="form-control rounded-3" value="<?= esc($plan['subject_name'] ?? 'Mata Pelajaran') ?>" placeholder="Contoh: Algoritma Pencarian & Pengurutan">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Fase Kurikulum</label>
+                        <select id="aiDiffPhaseSelect" class="form-select rounded-3">
+                            <option value="D">Fase D (SMP / Kelas 7-9)</option>
+                            <option value="E" selected>Fase E (SMA / Kelas 10)</option>
+                            <option value="F">Fase F (SMA / Kelas 11-12)</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="button" id="btnRunDiffAi" class="btn btn-primary rounded-pill px-4 shadow-sm d-flex align-items-center gap-2 mb-4">
+                    <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
+                    <span>Rekomendasikan Diferensiasi</span>
+                </button>
+
+                <!-- Result Container -->
+                <div id="aiDiffResult" class="d-none">
+                    <ul class="nav nav-pills mb-3 gap-2" id="diffTabs" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active rounded-pill px-3 py-1.5 small fw-semibold" data-bs-toggle="pill" data-bs-target="#tabDiffLow">💡 Kesiapan Rendah (Butuh Bimbingan)</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link rounded-pill px-3 py-1.5 small fw-semibold" data-bs-toggle="pill" data-bs-target="#tabDiffMed">🎯 Kesiapan Sedang (Mandiri Berkembang)</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link rounded-pill px-3 py-1.5 small fw-semibold" data-bs-toggle="pill" data-bs-target="#tabDiffHigh">🚀 Kesiapan Tinggi (Pengayaan Lanjut)</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content border rounded-4 p-3 bg-light" id="diffTabContent">
+                        <div class="tab-pane fade show active" id="tabDiffLow"></div>
+                        <div class="tab-pane fade" id="tabDiffMed"></div>
+                        <div class="tab-pane fade" id="tabDiffHigh"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Modal Mode Adaptif Unplugged -->
+<div class="modal fade" id="aiAdaptiveModal" tabindex="-1" aria-labelledby="aiAdaptiveModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 bg-warning bg-opacity-10 rounded-top-4 p-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-3 p-2 bg-warning text-dark">
+                        <i data-lucide="cpu" style="width: 20px; height: 20px;"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="aiAdaptiveModalLabel">Saklar Mode Adaptif Unplugged (Papua Context)</h5>
+                        <p class="text-muted text-xs mb-0">Solusi pembelajaran berbasis manipulasi fisik/kertas tanpa ketergantungan listrik/internet.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Konsep / Topik yang Ingin Diadaptasi</label>
+                    <input id="aiAdaptiveConceptInput" class="form-control rounded-3" value="algoritma" placeholder="Contoh: algoritma, jaringan, database, keamanan...">
+                </div>
+                <button type="button" id="btnRunAdaptiveAi" class="btn btn-warning rounded-pill px-4 shadow-sm d-flex align-items-center gap-2 mb-4 text-dark fw-semibold">
+                    <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
+                    <span>Dapatkan Alternatif Unplugged</span>
+                </button>
+
+                <!-- Result Container -->
+                <div id="aiAdaptiveResult" class="d-none border rounded-4 p-4 bg-light">
+                    <h6 class="fw-bold text-dark mb-2" id="adaptiveTitle">-</h6>
+                    <div class="mb-2">
+                        <span class="badge bg-warning bg-opacity-10 text-dark fw-semibold text-xs mb-1">📦 Alat & Bahan Fisik:</span>
+                        <div class="small text-muted" id="adaptiveMaterials">-</div>
+                    </div>
+                    <div class="mb-2">
+                        <span class="badge bg-primary bg-opacity-10 text-primary fw-semibold text-xs mb-1">📋 Prosedur Aktivitas:</span>
+                        <div class="small text-dark" id="adaptiveProcedure">-</div>
+                    </div>
+                    <div class="mb-0">
+                        <span class="badge bg-success bg-opacity-10 text-success fw-semibold text-xs mb-1">🎯 Capaian Pembelajaran:</span>
+                        <div class="small text-muted" id="adaptiveOutcome">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.querySelectorAll('.btn-link-resource').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -788,6 +991,193 @@ document.querySelectorAll('.btn-add-rubric').forEach(btn => {
         document.getElementById('addRubricMethodLabel').textContent = 'Asesmen: ' + method;
         document.getElementById('addRubricForm').action = '<?= base_url('lesson-plans/' . $plan['uuid'] . '/assessments/') ?>/' + encodeURIComponent(asmUuid) + '/rubrics';
     });
+});
+
+// AI 1: Rubric Generator
+document.getElementById('aiRubricTpSelect')?.addEventListener('change', function() {
+    if (this.value) {
+        document.getElementById('aiRubricTpInput').value = this.value;
+    }
+});
+
+let currentRubricData = null;
+document.getElementById('btnRunRubricAi')?.addEventListener('click', async function() {
+    const tpText = document.getElementById('aiRubricTpInput').value || document.getElementById('aiRubricTpSelect').value;
+    if (!tpText.trim()) {
+        alert('Silakan pilih atau tuliskan teks TP terlebih dahulu.');
+        return;
+    }
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Menganalisis Kata Kerja Bloom...';
+
+    try {
+        const body = new FormData();
+        body.append('tp_text', tpText);
+        body.append('<?= csrf_token() ?>', '<?= csrf_hash() ?>');
+
+        const res = await fetch('<?= base_url('smart/ajax/rubric-generator') ?>', {
+            method: 'POST',
+            body: body,
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        const json = await res.json();
+
+        if (json.status === 'success' && json.data) {
+            currentRubricData = json.data;
+            document.getElementById('aiBloomLevelBadge').textContent = `Level Bloom: ${json.data.bloom_level} (${json.data.bloom_category})`;
+            document.getElementById('aiBloomVerb').textContent = `Kata Kerja: ${json.data.detected_verb}`;
+
+            let levelsHtml = '';
+            (json.data.rubric_levels || []).forEach(lvl => {
+                const colorMap = {1: 'danger', 2: 'warning', 3: 'primary', 4: 'success'};
+                const color = colorMap[lvl.level] || 'secondary';
+                levelsHtml += `
+                    <div class="col-md-6">
+                        <div class="card border border-light-subtle rounded-3 p-3 h-100 bg-white shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge bg-${color} bg-opacity-10 text-${color} rounded-pill fw-bold text-xs">Level ${lvl.level}: ${lvl.label}</span>
+                                <span class="text-muted text-xs font-monospace">Skor: ${lvl.score_range}</span>
+                            </div>
+                            <div class="small text-dark mt-1">${lvl.descriptor}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('aiRubricLevelsList').innerHTML = levelsHtml;
+            document.getElementById('aiRubricResult').classList.remove('d-none');
+        } else {
+            alert(json.message || 'Gagal menghasilkan rubrik.');
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan jaringan.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="sparkles" style="width: 16px; height: 16px;"></i><span>Generate Rubrik Sekarang</span>';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+});
+
+function copyAiRubricText() {
+    if (!currentRubricData) return;
+    let text = `RUBRIK PENILAIAN (${currentRubricData.bloom_level} - ${currentRubricData.bloom_category})\n\n`;
+    (currentRubricData.rubric_levels || []).forEach(l => {
+        text += `[Level ${l.level}: ${l.label} (${l.score_range})]\n${l.descriptor}\n\n`;
+    });
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Deskriptor rubrik berhasil disalin ke clipboard!');
+    });
+}
+
+// AI 2: Differentiation Assistant
+document.getElementById('btnRunDiffAi')?.addEventListener('click', async function() {
+    const topic = document.getElementById('aiDiffTopicInput').value;
+    const phase = document.getElementById('aiDiffPhaseSelect').value;
+
+    if (!topic.trim()) {
+        alert('Silakan masukkan topik pembelajaran.');
+        return;
+    }
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Menyusun Strategi 3D...';
+
+    try {
+        const body = new FormData();
+        body.append('topic', topic);
+        body.append('phase', phase);
+        body.append('<?= csrf_token() ?>', '<?= csrf_hash() ?>');
+
+        const res = await fetch('<?= base_url('smart/ajax/differentiation-assistant') ?>', {
+            method: 'POST',
+            body: body,
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        const json = await res.json();
+
+        if (json.status === 'success' && json.data) {
+            const renderTier = (tierData) => `
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <div class="card border-0 p-3 rounded-3 bg-white shadow-sm h-100">
+                            <span class="fw-bold text-primary small mb-1">📚 Diferensiasi KONTEN</span>
+                            <div class="text-xs text-muted">${tierData.content || '-'}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0 p-3 rounded-3 bg-white shadow-sm h-100">
+                            <span class="fw-bold text-success small mb-1">⚙️ Diferensiasi PROSES</span>
+                            <div class="text-xs text-muted">${tierData.process || '-'}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0 p-3 rounded-3 bg-white shadow-sm h-100">
+                            <span class="fw-bold text-warning small mb-1">🎨 Diferensiasi PRODUK</span>
+                            <div class="text-xs text-muted">${tierData.product || '-'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('tabDiffLow').innerHTML = renderTier(json.data.readiness_levels?.low || {});
+            document.getElementById('tabDiffMed').innerHTML = renderTier(json.data.readiness_levels?.medium || {});
+            document.getElementById('tabDiffHigh').innerHTML = renderTier(json.data.readiness_levels?.high || {});
+
+            document.getElementById('aiDiffResult').classList.remove('d-none');
+        } else {
+            alert(json.message || 'Gagal menghasilkan diferensiasi.');
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan jaringan.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="sparkles" style="width: 16px; height: 16px;"></i><span>Rekomendasikan Diferensiasi</span>';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+});
+
+// AI 3: Adaptive Mode
+document.getElementById('btnRunAdaptiveAi')?.addEventListener('click', async function() {
+    const concept = document.getElementById('aiAdaptiveConceptInput').value;
+    if (!concept.trim()) {
+        alert('Silakan masukkan konsep.');
+        return;
+    }
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Mencari Alternatif Unplugged...';
+
+    try {
+        const body = new FormData();
+        body.append('concept', concept);
+        body.append('<?= csrf_token() ?>', '<?= csrf_hash() ?>');
+
+        const res = await fetch('<?= base_url('smart/ajax/adaptive-mode') ?>', {
+            method: 'POST',
+            body: body,
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        const json = await res.json();
+
+        if (json.status === 'success' && json.data) {
+            document.getElementById('adaptiveTitle').textContent = json.data.unplugged_title || 'Aktivitas Unplugged';
+            document.getElementById('adaptiveMaterials').textContent = json.data.materials_needed || '-';
+            document.getElementById('adaptiveProcedure').textContent = json.data.activity_procedure || '-';
+            document.getElementById('adaptiveOutcome').textContent = json.data.learning_outcome || '-';
+            document.getElementById('aiAdaptiveResult').classList.remove('d-none');
+        } else {
+            alert(json.message || 'Gagal menghasilkan alternatif.');
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan jaringan.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="sparkles" style="width: 16px; height: 16px;"></i><span>Dapatkan Alternatif Unplugged</span>';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
 });
 </script>
 

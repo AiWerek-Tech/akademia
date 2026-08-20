@@ -28,6 +28,12 @@ class TeachingWorkspaceController extends BaseController
 
         $activePeriod = get_active_period();
         $periodId = $activePeriod ? (int) $activePeriod['id'] : 0;
+        if ($periodId <= 0) {
+            $periodRow = $db->table('academic_periods')->where('is_active', 1)->get()->getRowArray();
+            if ($periodRow) {
+                $periodId = (int) $periodRow['id'];
+            }
+        }
 
         $date = $this->request->getGet('date') ?: date('Y-m-d');
 
@@ -37,22 +43,52 @@ class TeachingWorkspaceController extends BaseController
             ? $db->table('teachers')->where('id', $teacherId)->where('is_active', 1)->get()->getRowArray()
             : null;
 
-        // If admin/superadmin with no teacher record, allow picking a teacher or default to first active teacher
+        // If management role (superadmin, wakasek, admin_smp/sma), allow switching/selecting any teacher
         $teachersList = [];
-        if (!$teacher && $this->isManagementRole()) {
-            $teachersList = $db->table('teachers')
-                ->where('primary_unit_id', $activeUnitId)
-                ->where('is_active', 1)
-                ->orderBy('full_name', 'ASC')
-                ->get()->getResultArray();
+        if ($this->isManagementRole()) {
+            $tQuery = $db->table('teachers')->where('is_active', 1);
+            if ($activeUnitId > 0) {
+                $tQuery->groupStart()
+                    ->where('primary_unit_id', $activeUnitId)
+                    ->orWhere('primary_unit_id IS NULL')
+                    ->groupEnd();
+            }
+            $teachersList = $tQuery->orderBy('full_name', 'ASC')->get()->getResultArray();
 
-            $selectedTeacherId = (int) ($this->request->getGet('teacher_id') ?: ($teachersList[0]['id'] ?? 0));
+            if (empty($teachersList)) {
+                $teachersList = $db->table('teachers')->where('is_active', 1)->orderBy('full_name', 'ASC')->get()->getResultArray();
+            }
+
+            $selectedTeacherId = (int) $this->request->getGet('teacher_id');
             if ($selectedTeacherId > 0) {
                 $teacherId = $selectedTeacherId;
+            } elseif ($teacherId <= 0 && !empty($teachersList)) {
+                $teacherId = (int) $teachersList[0]['id'];
+            }
+
+            if ($teacherId > 0) {
+                $teacher = $db->table('teachers')->where('id', $teacherId)->get()->getRowArray();
             }
         }
 
         $workspace = $this->teachingService->getTodayWorkspace($teacherId, $periodId, $date, $activeUnitId);
+
+        // Pre-fetch available lesson plans per subject for plan linking on the dashboard.
+        $subjectIds = array_unique(array_map(static fn (array $l): int => (int) $l['subject_id'], $workspace['lessons']));
+        $availablePlans = [];
+        if ($subjectIds !== []) {
+            $planRows = $db->table('lesson_plans')
+                ->where('unit_id', $activeUnitId)
+                ->whereIn('subject_id', $subjectIds)
+                ->whereIn('status', ['READY', 'IN_PROGRESS'])
+                ->orderBy('subject_id', 'ASC')
+                ->orderBy('session_number', 'ASC')
+                ->get()->getResultArray();
+            foreach ($planRows as $plan) {
+                $key = (int) $plan['subject_id'];
+                $availablePlans[$key][] = $plan;
+            }
+        }
 
         return view('teaching/today', [
             'title'             => 'Ruang Mengajar (Today Workspace)',
@@ -62,6 +98,7 @@ class TeachingWorkspaceController extends BaseController
             'teacher'           => $teacher,
             'teachersList'      => $teachersList,
             'currentTeacherId'  => $teacherId,
+            'availablePlans'    => $availablePlans,
         ]);
     }
 
@@ -371,6 +408,377 @@ class TeachingWorkspaceController extends BaseController
         } catch (Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
+    }
+
+    // ================================================================
+    // ATTENDANCE HISTORY & REPORTS
+    // ================================================================
+
+    /**
+     * GET /teaching/attendance/history
+     * Lists past attendance sessions with optional filters.
+     */
+    public function attendanceHistory()
+    {
+        $userId = (int) session()->get('user_id');
+        $activeUnitId = (int) session()->get('active_unit_id');
+        $activePeriod = get_active_period();
+        $periodId = $activePeriod ? (int) $activePeriod['id'] : 0;
+
+        $teacherId = $this->resolveOwnTeacherId();
+        $dateFrom = $this->request->getGet('from') ?: '';
+        $dateTo = $this->request->getGet('to') ?: '';
+        $classroomId = (int) $this->request->getGet('classroom_id');
+
+        $db = Database::connect();
+
+        // Get teacher's classrooms for the filter dropdown
+        $myClassrooms = [];
+        if ($teacherId > 0) {
+            $myClassrooms = $db->table('classrooms c')
+                ->select('c.id, c.name, su.name as unit_name')
+                ->join('school_units su', 'su.id = c.unit_id')
+                ->where('c.academic_period_id', $periodId)
+                ->groupStart()
+                    ->where('c.homeroom_teacher_id', $teacherId)
+                ->orWhereIn('c.id', function ($builder) use ($teacherId, $periodId) {
+                    $builder->select('se.classroom_id')
+                        ->from('schedule_entries se')
+                        ->join('schedule_versions sv', 'sv.id = se.schedule_version_id')
+                        ->where('se.teacher_id', $teacherId)
+                        ->where('sv.academic_period_id', $periodId)
+                        ->where('sv.workflow_status IN', ['APPROVED', 'LOCKED'])
+                        ->groupBy('se.classroom_id');
+                })
+                ->groupEnd()
+                ->where('c.deleted_at IS NULL')
+                ->orderBy('c.name')
+                ->get()->getResultArray();
+        }
+
+        // Build query
+        $builder = $db->table('attendance_sessions as')
+            ->select('as.id, as.attendance_date, as.session_type, as.meeting_number, as.topic, as.status,
+                     c.name as classroom_name, COALESCE(s.name, as.topic, as.routine_code) as subject_name,
+                     t.full_name as teacher_name, as.teacher_id')
+            ->join('classrooms c', 'c.id = as.classroom_id')
+            ->join('subjects s', 's.id = as.subject_id', 'left')
+            ->join('teachers t', 't.id = as.teacher_id', 'left')
+            ->where('as.academic_period_id', $periodId)
+            ->where('as.deleted_at IS NULL')
+            ->orderBy('as.attendance_date', 'DESC')
+            ->orderBy('as.id', 'DESC');
+
+        if (!$this->isManagementRole() && $teacherId > 0) {
+            $builder->groupStart()
+                ->where('as.teacher_id', $teacherId)
+                ->orWhereIn('as.classroom_id', array_column($myClassrooms, 'id'))
+                ->groupEnd();
+        }
+        if ($dateFrom !== '') {
+            $builder->where('as.attendance_date >=', $dateFrom);
+        }
+        if ($dateTo !== '') {
+            $builder->where('as.attendance_date <=', $dateTo);
+        }
+        if ($classroomId > 0) {
+            $builder->where('as.classroom_id', $classroomId);
+        }
+
+        $sessions = $builder->limit(100)->get()->getResultArray();
+
+        return view('teaching/attendance_history', [
+            'title'             => 'Riwayat Absensi',
+            'breadcrumb_active' => 'Riwayat Absensi',
+            'sessions'          => $sessions,
+            'myClassrooms'      => $myClassrooms,
+            'filters'           => [
+                'from'        => $dateFrom,
+                'to'          => $dateTo,
+                'classroom_id' => $classroomId,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /teaching/attendance/recap
+     * Attendance recap matrix per classroom.
+     */
+    public function attendanceRecap()
+    {
+        $activePeriod = get_active_period();
+        $periodId = $activePeriod ? (int) $activePeriod['id'] : 0;
+        $teacherId = $this->resolveOwnTeacherId();
+        $classroomId = (int) $this->request->getGet('classroom_id');
+        $subjectId = (int) $this->request->getGet('subject_id');
+
+        $db = Database::connect();
+
+        // Get teacher's classrooms
+        $myClassrooms = [];
+        $mySubjects = [];
+        if ($teacherId > 0) {
+            $myClassrooms = $db->table('classrooms c')
+                ->select('c.id, c.name')
+                ->where('c.academic_period_id', $periodId)
+                ->groupStart()
+                    ->where('c.homeroom_teacher_id', $teacherId)
+                ->orWhereIn('c.id', function ($builder) use ($teacherId, $periodId) {
+                    $builder->select('se.classroom_id')
+                        ->from('schedule_entries se')
+                        ->join('schedule_versions sv', 'sv.id = se.schedule_version_id')
+                        ->where('se.teacher_id', $teacherId)
+                        ->where('sv.academic_period_id', $periodId)
+                        ->where('sv.workflow_status IN', ['APPROVED', 'LOCKED'])
+                        ->groupBy('se.classroom_id');
+                })
+                ->groupEnd()
+                ->where('c.deleted_at IS NULL')
+                ->orderBy('c.name')
+                ->get()->getResultArray();
+
+            $mySubjects = $db->table('schedule_entries se')
+                ->select('DISTINCT s.id, s.name')
+                ->join('subjects s', 's.id = se.subject_id')
+                ->join('schedule_versions sv', 'sv.id = se.schedule_version_id')
+                ->where('se.teacher_id', $teacherId)
+                ->where('sv.academic_period_id', $periodId)
+                ->where('sv.workflow_status IN', ['APPROVED', 'LOCKED'])
+                ->orderBy('s.name')
+                ->get()->getResultArray();
+        }
+
+        $recapData = null;
+        if ($classroomId > 0 && $subjectId > 0 && $periodId > 0) {
+            try {
+                $attendanceService = new \App\Services\AttendanceService();
+                $recapData = $attendanceService->calculateClassroomRecap($classroomId, $subjectId, $periodId);
+            } catch (\Throwable $e) {
+                // Silently handle — show empty state
+            }
+        }
+
+        return view('teaching/attendance_recap', [
+            'title'             => 'Rekapan Absensi',
+            'breadcrumb_active' => 'Rekapan Absensi',
+            'myClassrooms'      => $myClassrooms,
+            'mySubjects'        => $mySubjects,
+            'recapData'         => $recapData,
+            'filters'           => [
+                'classroom_id' => $classroomId,
+                'subject_id'   => $subjectId,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /teaching/attendance/offline
+     * Form for teachers who teach offline and want to record attendance after the fact.
+     */
+    public function offlineAttendance()
+    {
+        $activePeriod = get_active_period();
+        $periodId = $activePeriod ? (int) $activePeriod['id'] : 0;
+        $teacherId = $this->resolveOwnTeacherId();
+        $activeUnitId = (int) session()->get('active_unit_id');
+
+        $db = Database::connect();
+        $attendanceService = new \App\Services\AttendanceService();
+
+        // Get teacher's assignments
+        $assignments = $teacherId > 0 ? $attendanceService->getTeacherAssignments($teacherId, $periodId) : [];
+        $teachingAssignments = $assignments['teaching_assignments'] ?? [];
+
+        // Get homerooms
+        $homerooms = [];
+        if ($teacherId > 0) {
+            $homerooms = $db->table('classrooms c')
+                ->select('c.id, c.name, su.name as unit_name')
+                ->join('school_units su', 'su.id = c.unit_id')
+                ->where('c.academic_period_id', $periodId)
+                ->where('c.homeroom_teacher_id', $teacherId)
+                ->where('c.deleted_at IS NULL')
+                ->get()->getResultArray();
+        }
+
+        // Get selected classroom students if classroom_id provided
+        $classroomId = (int) $this->request->getGet('classroom_id');
+        $roster = [];
+        if ($classroomId > 0) {
+            $roster = $attendanceService->getSuggestedRoster($classroomId, date('Y-m-d'), 'SUBJECT');
+        }
+
+        return view('teaching/offline_attendance', [
+            'title'               => 'Input Absensi Offline',
+            'breadcrumb_active'   => 'Input Absensi Offline',
+            'teachingAssignments' => $teachingAssignments,
+            'homerooms'           => $homerooms,
+            'roster'              => $roster,
+            'classroomId'         => $classroomId,
+        ]);
+    }
+
+    /**
+     * POST /teaching/attendance/offline/save
+     * Saves offline attendance data.
+     */
+    public function saveOfflineAttendance()
+    {
+        $userId = (int) session()->get('user_id');
+        $teacherId = $this->resolveOwnTeacherId();
+        $period = get_active_period();
+        if (!$period) {
+            return redirect()->back()->with('error', 'Tidak ada periode akademik aktif.');
+        }
+
+        $classroomId = (int) $this->request->getPost('classroom_id');
+        $subjectId = (int) $this->request->getPost('subject_id');
+        $date = $this->request->getPost('attendance_date') ?: date('Y-m-d');
+        $meetingNumber = max(1, (int) $this->request->getPost('meeting_number'));
+        $topic = $this->request->getPost('topic') ?: '';
+
+        if ($classroomId <= 0 || $subjectId <= 0) {
+            return redirect()->back()->withInput()->with('error', 'Kelas dan mata pelajaran wajib dipilih.');
+        }
+
+        $db = Database::connect();
+        $classroom = $db->table('classrooms')->where('id', $classroomId)->where('deleted_at IS NULL')->get()->getRowArray();
+        if (!$classroom) {
+            return redirect()->back()->withInput()->with('error', 'Kelas tidak ditemukan.');
+        }
+
+        $attendanceService = new \App\Services\AttendanceService();
+
+        $sessionData = [
+            'unit_id'            => (int) $classroom['unit_id'],
+            'academic_period_id' => (int) $period['id'],
+            'classroom_id'       => $classroomId,
+            'subject_id'         => $subjectId,
+            'teacher_id'         => $teacherId ?: null,
+            'session_type'       => 'SUBJECT',
+            'source_type'        => 'MANUAL_ASSIGNMENT',
+            'source_key'         => $attendanceService->buildSourceKey('SUBJECT', (int) $period['id'], $classroomId, $date, $subjectId, null, $meetingNumber),
+            'attendance_date'    => $date,
+            'meeting_number'     => $meetingNumber,
+            'topic'              => $topic,
+            'status'             => 'SUBMITTED',
+        ];
+
+        $rawRoster = $this->request->getPost('roster');
+        if (!is_array($rawRoster)) {
+            return redirect()->back()->withInput()->with('error', 'Data presensi siswa tidak valid.');
+        }
+
+        $records = [];
+        foreach ($rawRoster as $studentId => $value) {
+            $records[] = [
+                'student_id' => (int) $studentId,
+                'status'     => strtoupper((string) ($value['status'] ?? 'HADIR')),
+                'notes'      => trim((string) ($value['notes'] ?? '')),
+            ];
+        }
+
+        try {
+            $saved = $attendanceService->saveSession($sessionData, $records, $userId);
+            AuditService::log('attendance', 'CREATE_SESSION', 'AttendanceSession', (int) $saved['session']['id'], null, [
+                'session_type' => 'SUBJECT', 'status' => 'SUBMITTED',
+                'attendance_date' => $date, 'classroom_id' => $classroomId,
+                'subject_id' => $subjectId, 'roster_count' => count($records),
+            ], 'Absensi offline disimpan');
+            return redirect()->to(base_url('teaching/attendance/history'))->with('success', 'Absensi berhasil disimpan. ' . count($records) . ' siswa tercatat.');
+        } catch (\Throwable $e) {
+            log_message('error', 'Offline attendance save failed: {message}', ['message' => $e->getMessage()]);
+            return redirect()->back()->withInput()->with('error', 'Gagal menyimpan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * GET /teaching/attendance/session/:id/edit
+     * Edit form for an existing attendance session.
+     */
+    public function editAttendance(int $sessionId)
+    {
+        $attendanceService = new \App\Services\AttendanceService();
+        $details = $attendanceService->getSessionDetails($sessionId);
+        if (!$details) {
+            return redirect()->to(base_url('teaching/attendance/history'))->with('error', 'Sesi presensi tidak ditemukan.');
+        }
+
+        $session = $details['session'];
+        $roster = $details['roster'] ?? [];
+
+        return view('teaching/offline_attendance_edit', [
+            'title'             => 'Edit Absensi',
+            'breadcrumb_active' => 'Edit Absensi',
+            'session'           => $session,
+            'roster'            => $roster,
+        ]);
+    }
+
+    /**
+     * POST /teaching/attendance/session/:id/update
+     * Updates an existing attendance session.
+     */
+    public function updateAttendance(int $sessionId)
+    {
+        $userId = (int) session()->get('user_id');
+        $attendanceService = new \App\Services\AttendanceService();
+
+        $db = Database::connect();
+        $existing = $db->table('attendance_sessions')
+            ->where('id', $sessionId)
+            ->where('deleted_at IS NULL')
+            ->get()->getRowArray();
+
+        if (!$existing) {
+            return redirect()->to(base_url('teaching/attendance/history'))->with('error', 'Sesi presensi tidak ditemukan.');
+        }
+
+        if (strtoupper((string) $existing['status']) === 'VERIFIED') {
+            return redirect()->back()->with('error', 'Sesi yang sudah diverifikasi tidak dapat diedit.');
+        }
+
+        $date = $this->request->getPost('attendance_date') ?: $existing['attendance_date'];
+        $meetingNumber = max(1, (int) $this->request->getPost('meeting_number'));
+        $topic = $this->request->getPost('topic') ?: $existing['topic'];
+
+        // Update session metadata
+        $db->table('attendance_sessions')->where('id', $sessionId)->update([
+            'attendance_date' => $date,
+            'meeting_number'  => $meetingNumber,
+            'topic'           => $topic,
+            'updated_by'      => $userId,
+            'updated_at'      => date('Y-m-d H:i:s'),
+        ]);
+
+        // Update roster
+        $rawRoster = $this->request->getPost('roster');
+        if (is_array($rawRoster)) {
+            foreach ($rawRoster as $studentId => $value) {
+                $studentId = (int) $studentId;
+                if ($studentId <= 0) continue;
+
+                $status = strtoupper((string) ($value['status'] ?? 'HADIR'));
+                $notes = trim((string) ($value['notes'] ?? ''));
+
+                $db->table('student_attendances')
+                    ->where('session_id', $sessionId)
+                    ->where('student_id', $studentId)
+                    ->update([
+                        'status'     => $status,
+                        'notes'      => $notes,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+            }
+        }
+
+        AuditService::log('attendance', 'UPDATE_SESSION', 'AttendanceSession', $sessionId, $existing, [
+            'attendance_date' => $date,
+            'meeting_number'  => $meetingNumber,
+            'topic'           => $topic,
+        ], 'Absensi diperbarui');
+
+        return redirect()->to(base_url('teaching/attendance/history'))->with('success', 'Absensi berhasil diperbarui.');
     }
 
     // ---- Private helpers ----

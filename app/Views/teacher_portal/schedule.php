@@ -25,8 +25,21 @@ $previewVersions = array_values(array_filter($scheduleVersions, static fn (array
                 </p>
             </div>
             <div class="d-flex align-items-center gap-2 no-print">
-                <a href="<?= base_url('portal/workload') ?>" class="btn btn-outline-primary btn-sm rounded-3 px-3 d-inline-flex align-items-center gap-1">
-                    <i data-lucide="bar-chart-2" style="width: 16px; height: 16px;"></i> Beban Mengajar Saya
+                <?php if (!empty($isManagement) && !empty($teachersList)): ?>
+                    <form method="get" action="<?= base_url('portal/schedule') ?>" class="d-inline-flex align-items-center gap-1 me-2">
+                        <input type="hidden" name="scope" value="<?= esc($scope) ?>">
+                        <label class="fs-8 fw-semibold text-muted text-nowrap d-none d-md-inline" for="supervisionTeacherSelect">Guru:</label>
+                        <select id="supervisionTeacherSelect" name="teacher_id" class="form-select form-select-sm rounded-3 shadow-sm" onchange="this.form.submit()">
+                            <?php foreach ($teachersList as $t): ?>
+                                <option value="<?= (int) $t['id'] ?>" <?= ((int) ($currentTeacherId ?? 0) === (int) $t['id']) ? 'selected' : '' ?>>
+                                    <?= esc($t['full_name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+                <?php endif; ?>
+                <a href="<?= base_url('portal/workload' . (!empty($currentTeacherId) ? '?teacher_id=' . $currentTeacherId : '')) ?>" class="btn btn-outline-primary btn-sm rounded-3 px-3 d-inline-flex align-items-center gap-1">
+                    <i data-lucide="bar-chart-2" style="width: 16px; height: 16px;"></i> Beban Mengajar
                 </a>
                 <button type="button" onclick="window.print()" class="btn btn-primary btn-sm rounded-3 px-3"><i data-lucide="printer" style="width:16px"></i> Cetak</button>
             </div>

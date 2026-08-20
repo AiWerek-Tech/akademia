@@ -1,6 +1,6 @@
 <?= $this->extend('layouts/admin') ?>
 
-<?= $this->section('content') ?>
+<?= $this->section('main_content') ?>
 <div class="container-fluid px-0 px-md-3">
     <!-- Top Action Bar / Session Header -->
     <div class="card border-0 shadow-sm rounded-4 bg-white mb-4 overflow-hidden border-top border-purple border-4">

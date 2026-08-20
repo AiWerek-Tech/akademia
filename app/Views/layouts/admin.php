@@ -55,6 +55,12 @@ $routeTitles = [
     'schedules'          => 'Jadwal Pelajaran',
     'lesson-plans'       => 'Rencana Pembelajaran',
     'teaching'           => 'Ruang Mengajar Harian',
+    'teaching/attendance' => 'Riwayat Absensi',
+    'smart/lineage-graph'    => 'Peta Lineage Kurikulum',
+    'smart/mastery-heatmap'  => 'Mastery Heatmap TP',
+    'smart/reflection-trends' => 'Tren Refleksi Mengajar',
+    'smart/remedial-package' => 'Paket Remedial Terarah',
+    'smart/narrative-drafter' => 'Draf Narasi Rapor',
 ];
 $inferredTitle = null;
 foreach ($routeTitles as $routePrefix => $routeTitle) {
@@ -87,10 +93,12 @@ if (has_role('super_admin', 'superadmin', 'admin_smp', 'admin_sma')) {
     $appendMobileNav($mobileNavItems, 'teachers.view', 'teachers', 'users', 'Guru', ['teachers']);
     $appendMobileNav($mobileNavItems, 'assignments.view', 'assignments', 'briefcase', 'Tugas', ['assignments']);
     $appendMobileNav($mobileNavItems, 'schedules.view', 'schedules', 'calendar-days', 'Jadwal', ['schedules']);
+    $appendMobileNav($mobileNavItems, 'assessment.view', 'assessment', 'clipboard-check', 'Nilai', ['assessment']);
 } elseif (has_role('wakasek_kurikulum')) {
     $appendMobileNav($mobileNavItems, 'curriculum.view', 'curriculum', 'table-2', 'Kurikulum', ['curriculum']);
     $appendMobileNav($mobileNavItems, 'assignments.view', 'assignments', 'briefcase', 'Tugas', ['assignments']);
     $appendMobileNav($mobileNavItems, 'schedules.view', 'schedules', 'calendar-days', 'Jadwal', ['schedules']);
+    $appendMobileNav($mobileNavItems, 'assessment.view', 'assessment', 'clipboard-check', 'Nilai', ['assessment']);
 } elseif (has_role('kepala_sekolah', 'viewer_yayasan')) {
     $appendMobileNav($mobileNavItems, 'assignments.view', 'assignments', 'file-check-2', 'SK Tugas', ['assignments']);
     $appendMobileNav($mobileNavItems, 'workloads.view', 'workloads', 'bar-chart-3', 'Beban', ['workloads']);
@@ -295,12 +303,22 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                             'label' => 'Tugas Mengajar Saya',
                             'icon' => 'briefcase',
                             'items' => [
-                                ['permissionAny' => ['teaching.workspace', 'teacher_schedule.view'], 'href' => 'teaching/today', 'icon' => 'sparkles', 'label' => 'Ruang Mengajar Harian', 'patterns' => ['teaching']],
+                                ['permissionAny' => ['teaching.workspace', 'teacher_schedule.view'], 'href' => 'teaching/today', 'icon' => 'sparkles', 'label' => 'Ruang Mengajar Harian', 'patterns' => ['teaching/today']],
                                 ['permission' => 'teacher_schedule.view', 'href' => 'portal/schedule', 'icon' => 'calendar-days', 'label' => 'Jadwal Mengajar', 'patterns' => ['portal/schedule'], 'excludeQueryScopes' => ['classroom']],
                                 ['permission' => 'teacher_electives.view', 'href' => 'portal/electives', 'icon' => 'users-round', 'label' => 'Mapel Pilihan Saya', 'patterns' => ['portal/electives']],
                                 ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart-2', 'label' => 'Beban Mengajar', 'patterns' => ['portal/workload']],
                                 ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Pembagian Tugas', 'patterns' => ['portal/assignment-document']],
                                 ['permission' => 'teacher_duty_schedule.view', 'href' => 'portal/duty-schedule', 'icon' => 'shield-check', 'label' => 'Jadwal Piket', 'patterns' => ['portal/duty-schedule']],
+                            ],
+                        ],
+                        [
+                            'key' => 'attendance-portal',
+                            'label' => 'Absensi',
+                            'icon' => 'clipboard-check',
+                            'items' => [
+                                ['permissionAny' => ['teaching.teach'], 'href' => 'teaching/attendance/offline', 'icon' => 'edit-3', 'label' => 'Input Absensi Baru', 'patterns' => ['teaching/attendance/offline']],
+                                ['permissionAny' => ['teaching.workspace'], 'href' => 'teaching/attendance/history', 'icon' => 'history', 'label' => 'Riwayat Absensi', 'patterns' => ['teaching/attendance/history']],
+                                ['permissionAny' => ['teaching.workspace'], 'href' => 'teaching/attendance/recap', 'icon' => 'bar-chart-3', 'label' => 'Rekapan Kehadiran', 'patterns' => ['teaching/attendance/recap']],
                             ],
                         ],
                     ];
@@ -316,7 +334,18 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                             ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart-2', 'label' => 'Beban Mengajar', 'patterns' => ['portal/workload']],
                             ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Pembagian Tugas', 'patterns' => ['portal/assignment-document']],
                         ],
-                    ]];
+                    ],
+                    [
+                        'key' => 'attendance-portal',
+                        'label' => 'Absensi',
+                        'icon' => 'clipboard-check',
+                        'items' => [
+                            ['permissionAny' => ['teaching.teach'], 'href' => 'teaching/attendance/offline', 'icon' => 'edit-3', 'label' => 'Input Absensi Baru', 'patterns' => ['teaching/attendance/offline']],
+                            ['permissionAny' => ['teaching.workspace'], 'href' => 'teaching/attendance/history', 'icon' => 'history', 'label' => 'Riwayat Absensi', 'patterns' => ['teaching/attendance/history']],
+                            ['permissionAny' => ['teaching.workspace'], 'href' => 'teaching/attendance/recap', 'icon' => 'bar-chart-3', 'label' => 'Rekapan Kehadiran', 'patterns' => ['teaching/attendance/recap']],
+                        ],
+                    ],
+                ];
                 } elseif (!$hasAdministrativePersona && has_role('siswa')) {
                     $menuGroups = [[
                         'key' => 'student-academic',
@@ -388,16 +417,13 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                     ],
                     [
                         'key' => 'portal',
-                        'label' => 'Portal',
-                        'icon' => 'panel-left',
+                        'label' => 'Portal Guru (Supervisi)',
+                        'icon' => 'user-check',
                         'items' => [
-                            ['permissionAny' => ['teaching.workspace', 'teacher_schedule.view'], 'href' => 'teaching/today', 'icon' => 'sparkles', 'label' => 'Ruang Mengajar Harian', 'patterns' => ['teaching']],
-                            ['permission' => 'teacher_schedule.view', 'href' => 'portal/schedule', 'icon' => 'calendar', 'label' => 'Jadwal Mengajar Saya', 'patterns' => ['portal/schedule']],
-                            ['permission' => 'teacher_electives.view', 'href' => 'portal/electives', 'icon' => 'users-round', 'label' => 'Mapel Pilihan Saya', 'patterns' => ['portal/electives']],
-                            ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart', 'label' => 'Penugasan & Beban Saya', 'patterns' => ['portal/workload']],
-                            ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Tugas Saya', 'patterns' => ['portal/assignment-document']],
-                            ['permission' => 'teacher_duty_schedule.view', 'href' => 'portal/duty-schedule', 'icon' => 'shield-check', 'label' => 'Piket Saya', 'patterns' => ['portal/duty-schedule']],
-                            ['permission' => 'class_students.view', 'href' => 'portal/classroom', 'icon' => 'school', 'label' => 'Kelas Binaan Saya', 'patterns' => ['portal/classroom']],
+                            ['permission' => 'teacher_schedule.view', 'href' => 'portal/schedule', 'icon' => 'calendar', 'label' => 'Jadwal Mengajar Guru', 'patterns' => ['portal/schedule']],
+                            ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart', 'label' => 'Penugasan & Beban Guru', 'patterns' => ['portal/workload']],
+                            ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Tugas Guru', 'patterns' => ['portal/assignment-document']],
+                            ['permission' => 'teacher_duty_schedule.view', 'href' => 'portal/duty-schedule', 'icon' => 'shield-check', 'label' => 'Piket Guru', 'patterns' => ['portal/duty-schedule']],
                         ],
                     ],
                     [
@@ -424,10 +450,25 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                     'curriculum/sequences', 'curriculum/coverage', 'curriculum/learning-packs',
                     'curriculum/education-imports', 'lesson-plans', 'teaching',
                 ];
+                // Attendance-related teaching paths stay in teacher groups (not IALOS Education).
+                $ialosKeepInTeacher = ['teaching/attendance'];
                 foreach ($menuGroups as &$existingGroup) {
                     $existingGroup['items'] = array_values(array_filter(
                         $existingGroup['items'],
-                        static fn (array $item): bool => !in_array(strtok($item['href'], '?'), $ialosPaths, true)
+                        static function (array $item) use ($ialosPaths, $ialosKeepInTeacher): bool {
+                            $href = strtok($item['href'], '?');
+                            foreach ($ialosKeepInTeacher as $keep) {
+                                if (str_starts_with($href, $keep)) {
+                                    return true;
+                                }
+                            }
+                            foreach ($ialosPaths as $path) {
+                                if ($href === $path || str_starts_with($href, $path . '/')) {
+                                    return false;
+                                }
+                            }
+                            return true;
+                        }
                     ));
                 }
                 unset($existingGroup);
@@ -447,8 +488,26 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                         ['permission' => 'learning_sequences.view', 'href' => 'curriculum/coverage', 'icon' => 'scan-search', 'label' => 'Coverage Kurikulum', 'patterns' => ['curriculum/coverage']],
                         ['permission' => 'learning_packs.view', 'href' => 'curriculum/learning-packs', 'icon' => 'package-open', 'label' => 'Paket Pembelajaran', 'patterns' => ['curriculum/learning-packs']],
                         ['permission' => 'lesson_plans.view', 'href' => 'lesson-plans', 'icon' => 'book-open', 'label' => 'Rencana Belajar (RPP)', 'patterns' => ['lesson-plans']],
-                        ['permissionAny' => ['teaching.workspace', 'teacher_schedule.view'], 'href' => 'teaching/today', 'icon' => 'sparkles', 'label' => 'Ruang Mengajar (Today)', 'patterns' => ['teaching']],
+                        // 'Ruang Mengajar (Today)' is already in Tugas Mengajar Saya group — removed to prevent active-state overlap.
+                        ['permissionAny' => ['teaching.workspace'], 'href' => 'smart/reflection-trends', 'icon' => 'trending-up', 'label' => 'Tren Refleksi Mengajar', 'patterns' => ['smart/reflection-trends']],
+                        ['permission' => 'learning_outcomes.view', 'href' => 'smart/lineage-graph', 'icon' => 'git-branch', 'label' => 'Peta Lineage Kurikulum', 'patterns' => ['smart/lineage-graph']],
                         ['permission' => 'learning_outcomes.manage', 'href' => 'curriculum/education-imports', 'icon' => 'file-up', 'label' => 'Import Data Pendidikan', 'patterns' => ['curriculum/education-imports']],
+                    ],
+                ];
+
+                // Phase 6: Assessment & Mastery module (gradebook, mastery TP, interventions).
+                $menuGroups[] = [
+                    'key' => 'assessment-mastery',
+                    'label' => 'Penilaian & Mastery',
+                    'icon' => 'clipboard-list',
+                    'items' => [
+                        ['permission' => 'assessment.view', 'href' => 'assessment', 'icon' => 'clipboard-check', 'label' => 'Assessment & Nilai', 'patterns' => ['assessment']],
+                        ['permission' => 'assessment.mastery', 'href' => 'mastery', 'icon' => 'bar-chart-3', 'label' => 'Mastery TP', 'patterns' => ['mastery']],
+                        ['permission' => 'assessment.view', 'href' => 'smart/mastery-heatmap', 'icon' => 'grid-3x3', 'label' => 'Mastery Heatmap', 'patterns' => ['smart/mastery-heatmap']],
+                        ['permission' => 'assessment.mastery', 'href' => 'interventions', 'icon' => 'heart-handshake', 'label' => 'Intervensi Belajar', 'patterns' => ['interventions']],
+                        ['permission' => 'assessment.mastery', 'href' => 'reporting-policies', 'icon' => 'settings-2', 'label' => 'Kebijakan Pelaporan', 'patterns' => ['reporting-policies']],
+                        ['permission' => 'assessment.mastery', 'href' => 'summative', 'icon' => 'sigma', 'label' => 'Pengolahan Sumatif', 'patterns' => ['summative']],
+                        ['permission' => 'assessment.view', 'href' => 'smart/narrative-drafter', 'icon' => 'file-text', 'label' => 'Draf Narasi Rapor', 'patterns' => ['smart/narrative-drafter']],
                     ],
                 ];
                 ?>
@@ -676,7 +735,7 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
 
             <!-- Content Body -->
             <main class="content-body" id="main-content">
-                <?= $this->renderSection('main_content') ?>
+                <?= $this->renderSection('main_content') ?: $this->renderSection('content') ?>
             </main>
 
             <!-- Footer -->

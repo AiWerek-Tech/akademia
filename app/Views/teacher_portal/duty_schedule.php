@@ -8,8 +8,20 @@
             <h3 id="duty-title" class="fw-bold mb-1">Jadwal Piket Saya</h3>
             <p class="text-muted mb-0"><?= esc($academicYear['name'] ?? 'Tahun pelajaran belum tersedia') ?> &middot; <?= esc($unitScope['label'] ?? 'Unit aktif') ?> &middot; hanya menampilkan tugas milik akun ini.</p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="<?= base_url('dashboard') ?>" class="btn btn-light border rounded-3">Dashboard</a>
+        <div class="d-flex align-items-center gap-2">
+            <?php if (!empty($isManagement) && !empty($teachersList)): ?>
+                <form method="get" action="<?= base_url('portal/duty-schedule') ?>" class="d-inline-flex align-items-center gap-1 me-2">
+                    <label class="fs-8 fw-semibold text-muted text-nowrap d-none d-md-inline" for="supervisionDutySelect">Guru:</label>
+                    <select id="supervisionDutySelect" name="teacher_id" class="form-select form-select-sm rounded-3 shadow-sm" onchange="this.form.submit()">
+                        <?php foreach ($teachersList as $t): ?>
+                            <option value="<?= (int) $t['id'] ?>" <?= ((int) ($currentTeacherId ?? 0) === (int) $t['id']) ? 'selected' : '' ?>>
+                                <?= esc($t['full_name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+            <?php endif; ?>
+            <a href="<?= base_url('portal/workload' . (!empty($currentTeacherId) ? '?teacher_id=' . $currentTeacherId : '')) ?>" class="btn btn-light border rounded-3">Beban Kerja</a>
             <button type="button" class="btn btn-primary rounded-3" onclick="window.print()"><i data-lucide="printer" class="me-1" style="width:16px"></i>Cetak</button>
         </div>
     </div>

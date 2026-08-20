@@ -60,7 +60,10 @@ final class TeachingWorkspaceEngineTest extends CIUnitTestCase
             $this->classroomId = (int) $classroom['id'];
         }
 
-        $student = $this->db->table('elective_students')->get()->getRowArray();
+        $student = $this->db->table('elective_students')
+            ->where('classroom_id', $this->classroomId)
+            ->where('is_active', 1)
+            ->get()->getRowArray();
         if (!$student) {
             $period = $this->db->table('academic_periods')->where('id', $this->periodId)->get()->getRowArray();
             $yearId = $period ? (int) $period['academic_year_id'] : 1;
@@ -650,6 +653,7 @@ final class TeachingWorkspaceEngineTest extends CIUnitTestCase
         // Verify the method exists and is callable
         $controller = new \App\Controllers\TeacherAttendanceController();
         $this->assertTrue(method_exists($controller, 'index'));
-        $this->assertTrue(method_exists($controller, 'indexLegacy'), 'Legacy method should be preserved for backward compat');
+        $this->assertTrue(method_exists($controller, 'printJournal'), 'Print method should be preserved for backward compat');
+        $this->assertTrue(method_exists($controller, 'printRecap'), 'Recap print method should be preserved');
     }
 }
