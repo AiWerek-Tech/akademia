@@ -26,12 +26,14 @@ class ReflectionTrendsService
     /**
      * Build reflection trends for a teacher over a given time period.
      *
-     * @param int      $teacherId  The teacher's ID
-     * @param int      $periodId   Academic period
-     * @param int|null $subjectId  Optional filter by subject
+     * @param int         $teacherId  The teacher's ID
+     * @param int         $periodId   Academic period
+     * @param int|null    $subjectId  Optional filter by subject
+     * @param string|null $fromDate   Optional start date (YYYY-MM-DD)
+     * @param string|null $toDate     Optional end date (YYYY-MM-DD)
      * @return array Trend data including session stats, reflections, and insights
      */
-    public function buildTrends(int $teacherId, int $periodId, ?int $subjectId = null): array
+    public function buildTrends(int $teacherId, int $periodId, ?int $subjectId = null, ?string $fromDate = null, ?string $toDate = null): array
     {
         // Guard: if learning_sessions table doesn't exist, return empty data
         if (!$this->db->tableExists('learning_sessions')) {
@@ -68,6 +70,12 @@ class ReflectionTrendsService
 
         if ($subjectId) {
             $sessionQuery->where('ls.subject_id', $subjectId);
+        }
+        if ($fromDate) {
+            $sessionQuery->where('DATE(ls.created_at) >=', $fromDate);
+        }
+        if ($toDate) {
+            $sessionQuery->where('DATE(ls.created_at) <=', $toDate);
         }
 
         $result = $sessionQuery->orderBy('ls.created_at', 'ASC')->get();

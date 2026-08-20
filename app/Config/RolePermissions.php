@@ -32,6 +32,8 @@ final class RolePermissions
         'teaching.workspace', 'teaching.teach', 'teaching.reflect',
         // Phase 6: author & grade own assessments
         'assessment.view', 'assessment.manage',
+        // Phase 7: cocurricular program authoring & monitoring
+        'cocurricular.view', 'cocurricular.manage',
     ];
 
     public const WALI_KELAS = [
@@ -58,6 +60,8 @@ final class RolePermissions
         'teaching.workspace', 'teaching.teach', 'teaching.reflect',
         // Phase 6: author & grade own assessments
         'assessment.view', 'assessment.manage',
+        // Phase 7: cocurricular program authoring & monitoring
+        'cocurricular.view', 'cocurricular.manage',
     ];
 
     /**

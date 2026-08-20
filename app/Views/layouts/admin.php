@@ -510,6 +510,40 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                         ['permission' => 'assessment.view', 'href' => 'smart/narrative-drafter', 'icon' => 'file-text', 'label' => 'Draf Narasi Rapor', 'patterns' => ['smart/narrative-drafter']],
                     ],
                 ];
+
+                // Phase 7 & 8: Kokurikuler, Ekstrakurikuler & Karakter (Digabung jadi 1 grup terpadu).
+                $phase7CocurricularEnabled = \App\Services\FeatureFlagService::isEnabled('ialos_phase7_cocurricular');
+                $phase7KaihEnabled         = $phase7CocurricularEnabled && \App\Services\FeatureFlagService::isEnabled('ialos_7kahi');
+                $coExtraItems = [];
+                if ($phase7CocurricularEnabled) {
+                    $coExtraItems[] = ['permission' => 'cocurricular.view', 'href' => 'cocurricular', 'icon' => 'sparkles', 'label' => 'Program Kokurikuler', 'patterns' => ['cocurricular'], 'excludePatterns' => ['cocurricular/habits', 'cocurricular/checkins']];
+                }
+                $coExtraItems[] = ['permission' => 'extracurricular.view', 'href' => 'extracurricular', 'icon' => 'trophy', 'label' => 'Program Ekstrakurikuler', 'patterns' => ['extracurricular']];
+                if ($phase7KaihEnabled) {
+                    $coExtraItems[] = ['permissionAny' => ['cocurricular.view', 'cocurricular.manage'], 'href' => 'cocurricular/habits', 'icon' => 'smile', 'label' => 'Kebiasaan (7KAIH)', 'patterns' => ['cocurricular/habits']];
+                    $coExtraItems[] = ['permissionAny' => ['cocurricular.view', 'cocurricular.manage'], 'href' => 'cocurricular/checkins', 'icon' => 'calendar-check-2', 'label' => 'Check-in Kebiasaan', 'patterns' => ['cocurricular/checkins']];
+                }
+                if ($coExtraItems !== []) {
+                    $menuGroups[] = [
+                        'key'   => 'cocurricular-extracurricular',
+                        'label' => 'Kokurikuler & Ekstra',
+                        'icon'  => 'sparkles',
+                        'items' => $coExtraItems,
+                    ];
+                }
+
+                // Phase 9: Reporting & Portfolio
+                if (has_permission('reporting.view')) {
+                    $menuGroups[] = [
+                        'key'   => 'reporting-portfolio',
+                        'label' => 'Rapor & Portofolio',
+                        'icon'  => 'file-bar-chart',
+                        'items' => [
+                            ['permission' => 'reporting.view', 'href' => 'reporting', 'icon' => 'file-text', 'label' => 'Laporan Semester', 'patterns' => ['reporting']],
+                            ['permission' => 'reporting.view', 'href' => 'reporting/class-dashboard', 'icon' => 'bar-chart-3', 'label' => 'Dashboard Kelas', 'patterns' => ['reporting/class-dashboard']],
+                        ],
+                    ];
+                }
                 ?>
 
                 <?php foreach ($menuGroups as $group): ?>

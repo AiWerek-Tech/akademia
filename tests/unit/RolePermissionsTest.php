@@ -30,6 +30,8 @@ final class RolePermissionsTest extends CIUnitTestCase
             'teaching.reflect',
             'assessment.view',
             'assessment.manage',
+            'cocurricular.view',
+            'cocurricular.manage',
         ], RolePermissions::GURU);
 
         $this->assertSame(

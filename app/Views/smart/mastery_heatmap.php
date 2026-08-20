@@ -69,6 +69,13 @@
             <h1 class="h3 fw-bold text-gray-900 mt-2 mb-1">Mastery Heatmap TP</h1>
             <p class="text-muted mb-0">Matriks visual penguasaan Tujuan Pembelajaran seluruh siswa. Klik sel untuk detail.</p>
         </div>
+        <?php if ($heatmapData): ?>
+        <div>
+            <button type="button" class="btn btn-sm btn-outline-success shadow-sm rounded-pill px-3" onclick="exportHeatmapToCsv()">
+                <i data-lucide="download" class="w-3.5 h-3.5 me-1"></i> Ekspor CSV
+            </button>
+        </div>
+        <?php endif; ?>
     </div>
 
     <!-- Filters -->
@@ -171,9 +178,19 @@
 
         <!-- Heatmap Matrix -->
         <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-transparent border-0 pt-3 pb-0 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="btn-group btn-group-sm rounded-pill p-1 bg-light border shadow-none" role="group">
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-semibold filter-btn" data-filter="ALL" onclick="filterHeatmap('ALL', this)">Semua Siswa (<?= count($students) ?>)</button>
+                    <button type="button" class="btn btn-sm btn-light rounded-pill px-3 py-1 text-danger fw-semibold filter-btn" data-filter="LOW" onclick="filterHeatmap('LOW', this)">&lt; 50% Tercapai</button>
+                    <button type="button" class="btn btn-sm btn-light rounded-pill px-3 py-1 text-success fw-semibold filter-btn" data-filter="HIGH" onclick="filterHeatmap('HIGH', this)">&ge; 75% Tercapai</button>
+                </div>
+                <div class="text-xs text-muted">
+                    <i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5 me-1 d-inline-block"></i> Klik sel untuk membuka menu aksi cepat siswa & TP
+                </div>
+            </div>
             <div class="card-body p-3">
                 <div class="heatmap-container">
-                    <table class="heatmap-table">
+                    <table class="heatmap-table" id="heatmapMainTable">
                         <thead>
                             <tr>
                                 <th class="text-start" style="min-width:180px; position: sticky; left: 0; background: #fff; z-index: 5;">Siswa</th>
@@ -185,8 +202,11 @@
                         </thead>
                         <tbody>
                             <?php foreach ($students as $student): ?>
-                                <?php $stSummary = $studentSummaries[$student['id']] ?? []; ?>
-                                <tr>
+                                <?php 
+                                $stSummary = $studentSummaries[$student['id']] ?? []; 
+                                $completionPct = (int)($stSummary['completion_pct'] ?? 0);
+                                ?>
+                                <tr class="student-row" data-completion="<?= $completionPct ?>">
                                     <td style="position: sticky; left: 0; background: #fff; z-index: 4;">
                                         <div class="heatmap-student-name"><?= esc($student['full_name']) ?></div>
                                         <div class="heatmap-student-num"><?= esc($student['student_number'] ?? '') ?></div>
@@ -207,7 +227,11 @@
                                         <td>
                                             <div class="heatmap-cell" data-result="<?= esc($result) ?>"
                                                  data-student="<?= (int) $student['id'] ?>"
+                                                 data-student-name="<?= esc($student['full_name']) ?>"
                                                  data-objective="<?= (int) $obj['id'] ?>"
+                                                 data-objective-code="<?= esc($obj['code'] ?? 'TP-' . $obj['id']) ?>"
+                                                 data-objective-name="<?= esc($obj['name'] ?? '') ?>"
+                                                 data-result-label="<?= esc($tooltipLabel) ?>"
                                                  title="<?= esc($student['full_name']) ?> — <?= esc($obj['code'] ?? '') ?>: <?= $tooltipLabel ?>">
                                                 <?= $scoreInitial ?>
                                                 <div class="heatmap-tooltip">
@@ -220,8 +244,8 @@
                                         </td>
                                     <?php endforeach; ?>
                                     <td class="text-center">
-                                        <div class="fw-bold text-sm <?= ($stSummary['completion_pct'] ?? 0) >= 75 ? 'text-success' : (($stSummary['completion_pct'] ?? 0) >= 50 ? 'text-warning' : 'text-danger') ?>">
-                                            <?= $stSummary['completion_pct'] ?? 0 ?>%
+                                        <div class="fw-bold text-sm <?= $completionPct >= 75 ? 'text-success' : ($completionPct >= 50 ? 'text-warning' : 'text-danger') ?>">
+                                            <?= $completionPct ?>%
                                         </div>
                                         <div class="text-xs text-muted"><?= $stSummary['achieved_count'] ?? 0 ?>/<?= $stSummary['total_objectives'] ?? 0 ?></div>
                                     </td>
@@ -245,15 +269,52 @@
         </div>
         <?php endif; ?>
 
+        <!-- Cell Drilldown Modal -->
+        <div class="modal fade" id="heatmapCellModal" tabindex="-1" aria-labelledby="heatmapCellModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg rounded-4">
+                    <div class="modal-header border-0 bg-light rounded-top-4 p-4 pb-2">
+                        <div>
+                            <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1 fw-bold text-xs" id="drillModalObjCode">TP-01</span>
+                            <h5 class="modal-title fw-bold text-dark mt-1 mb-0" id="drillModalStudentName">Nama Siswa</h5>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4 pt-3">
+                        <div class="p-3 rounded-3 bg-light border mb-3">
+                            <div class="text-xs text-muted fw-semibold mb-1">Tujuan Pembelajaran:</div>
+                            <div class="small text-dark fw-medium" id="drillModalObjName">-</div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <span class="text-xs text-muted fw-semibold">Status Ketercapaian:</span>
+                            <span class="badge px-3 py-1.5 rounded-pill fw-bold" id="drillModalStatusBadge">Status</span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <a href="#" id="drillModalRemedialBtn" class="btn btn-warning rounded-pill py-2 d-flex align-items-center justify-content-center gap-2 text-dark fw-semibold shadow-sm">
+                                <i data-lucide="heart-handshake" style="width: 16px; height: 16px;"></i>
+                                <span>Buat Paket Remedial Siswa Ini</span>
+                            </a>
+                            <a href="#" id="drillModalNarrativeBtn" class="btn btn-outline-primary rounded-pill py-2 d-flex align-items-center justify-content-center gap-2">
+                                <i data-lucide="file-text" style="width: 16px; height: 16px;"></i>
+                                <span>Susun Draf Narasi Rapor</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     <?php endif; ?>
 </div>
 <?= $this->endSection() ?>
 
 <?= $this->section('additional_js') ?>
-<?php if (!empty($chartData)): ?>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    <?php if (!empty($chartData)): ?>
     const chartData = <?= json_encode($chartData) ?>;
     if (chartData && document.getElementById('distributionChart')) {
         new ApexCharts(document.getElementById('distributionChart'), {
@@ -268,7 +329,102 @@ document.addEventListener('DOMContentLoaded', function() {
             colors: chartData.series.map(s => s.color),
         }).render();
     }
+    <?php endif; ?>
+
+    // Cell Click Drill-Down Modal
+    const cellModalEl = document.getElementById('heatmapCellModal');
+    let cellModal = null;
+    if (cellModalEl) {
+        cellModal = new bootstrap.Modal(cellModalEl);
+    }
+
+    document.querySelectorAll('.heatmap-cell').forEach(cell => {
+        cell.addEventListener('click', function() {
+            const studentId = this.dataset.student;
+            const studentName = this.dataset.studentName;
+            const objId = this.dataset.objective;
+            const objCode = this.dataset.objectiveCode;
+            const objName = this.dataset.objectiveName;
+            const result = this.dataset.result;
+            const resultLabel = this.dataset.resultLabel;
+
+            if (!studentId || !objId || !cellModal) return;
+
+            document.getElementById('drillModalObjCode').textContent = objCode || 'TP';
+            document.getElementById('drillModalStudentName').textContent = studentName || 'Siswa';
+            document.getElementById('drillModalObjName').textContent = objName || 'Tujuan Pembelajaran';
+
+            const badge = document.getElementById('drillModalStatusBadge');
+            badge.textContent = resultLabel;
+            const colorMap = {
+                'NEEDS_SUPPORT': 'bg-danger text-white',
+                'DEVELOPING': 'bg-warning text-dark',
+                'ACHIEVED': 'bg-success text-white',
+                'ADVANCED': 'bg-primary text-white'
+            };
+            badge.className = `badge px-3 py-1.5 rounded-pill fw-bold ${colorMap[result] || 'bg-secondary text-white'}`;
+
+            document.getElementById('drillModalRemedialBtn').href = `<?= base_url('smart/remedial-package') ?>?student_id=${studentId}&objective_id=${objId}`;
+            document.getElementById('drillModalNarrativeBtn').href = `<?= base_url('smart/narrative-drafter') ?>?classroom_id=<?= $selectedClassroom ?>&subject_id=<?= $selectedSubject ?>&student_id=${studentId}`;
+
+            cellModal.show();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
+    });
 });
+
+// Quick Filtering
+function filterHeatmap(type, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.remove('btn-primary', 'text-white');
+        b.classList.add('btn-light');
+    });
+    btn.classList.remove('btn-light');
+    btn.classList.add('btn-primary', 'text-white');
+
+    const rows = document.querySelectorAll('.student-row');
+    rows.forEach(row => {
+        const pct = parseInt(row.dataset.completion, 10) || 0;
+        if (type === 'ALL') {
+            row.style.display = '';
+        } else if (type === 'LOW') {
+            row.style.display = pct < 50 ? '' : 'none';
+        } else if (type === 'HIGH') {
+            row.style.display = pct >= 75 ? '' : 'none';
+        }
+    });
+}
+
+// Export CSV
+function exportHeatmapToCsv() {
+    const table = document.getElementById('heatmapMainTable');
+    if (!table) return;
+
+    let csv = [];
+    const rows = table.querySelectorAll('tr');
+
+    rows.forEach(row => {
+        if (row.style.display === 'none') return;
+        const cols = row.querySelectorAll('th, td');
+        let rowData = [];
+        cols.forEach(col => {
+            // Get clean text without tooltip
+            let text = col.innerText.replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
+            // Escape double quotes
+            text = '"' + text.replace(/"/g, '""') + '"';
+            rowData.push(text);
+        });
+        csv.push(rowData.join(','));
+    });
+
+    const csvFile = new Blob(["\uFEFF" + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const downloadLink = document.createElement('a');
+    downloadLink.download = `mastery_heatmap_kelas_<?= $selectedClassroom ?>_mapel_<?= $selectedSubject ?>_${new Date().toISOString().slice(0,10)}.csv`;
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    downloadLink.style.display = 'none';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+}
 </script>
-<?php endif; ?>
 <?= $this->endSection() ?>

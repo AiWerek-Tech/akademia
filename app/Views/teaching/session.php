@@ -40,12 +40,36 @@
                 </div>
 
                 <!-- Timer & Controls -->
-                <div class="d-flex flex-wrap align-items-center gap-3">
-                    <!-- Live Timer Widget -->
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <!-- Random Student Picker Tool -->
+                    <button type="button" class="btn btn-outline-purple btn-sm rounded-pill px-3 shadow-xs d-flex align-items-center gap-1.5" onclick="pickRandomStudent()" title="Panggil Siswa Acak (Alt+P)">
+                        <i data-lucide="shuffle" class="w-3.5 h-3.5 text-purple"></i>
+                        <span class="small fw-semibold">Panggil Acak</span>
+                    </button>
+
+                    <!-- Activity Countdown Dropdown -->
+                    <div class="dropdown d-inline-block">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 dropdown-toggle d-flex align-items-center gap-1.5 shadow-xs" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i data-lucide="hourglass" class="w-3.5 h-3.5 text-warning"></i>
+                            <span id="countdownLabel" class="small fw-semibold">Timer Aktivitas</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-lg rounded-3 border-0 p-2 text-xs" style="min-width: 180px;">
+                            <li><h6 class="dropdown-header text-xs text-muted text-uppercase px-2">Set Timer Mundur:</h6></li>
+                            <li><a class="dropdown-item rounded-2 py-1.5" href="#" onclick="startActivityCountdown(3)">⏱️ 3 Menit (Ice Breaking)</a></li>
+                            <li><a class="dropdown-item rounded-2 py-1.5" href="#" onclick="startActivityCountdown(5)">⏱️ 5 Menit (Kuis Cepat)</a></li>
+                            <li><a class="dropdown-item rounded-2 py-1.5" href="#" onclick="startActivityCountdown(10)">⏱️ 10 Menit (Diskusi Kelompok)</a></li>
+                            <li><a class="dropdown-item rounded-2 py-1.5" href="#" onclick="startActivityCountdown(15)">⏱️ 15 Menit (Praktik Mandiri)</a></li>
+                            <li><a class="dropdown-item rounded-2 py-1.5" href="#" onclick="startActivityCountdown(20)">⏱️ 20 Menit (Projek/Presentasi)</a></li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li><a class="dropdown-item rounded-2 py-1.5 text-danger" href="#" onclick="stopActivityCountdown()">❌ Hentikan Timer</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Live Stopwatch Widget -->
                     <div class="d-flex align-items-center gap-2 bg-light border px-3 py-1.5 rounded-pill shadow-xs">
                         <i data-lucide="timer" class="w-4 h-4 text-purple"></i>
                         <span id="sessionTimer" class="font-monospace fw-bold fs-5 text-gray-900">00:00:00</span>
-                        <button type="button" id="btnToggleTimer" class="btn btn-xs btn-outline-secondary rounded-circle p-1" title="Pause / Resume">
+                        <button type="button" id="btnToggleTimer" class="btn btn-xs btn-outline-secondary rounded-circle p-1" title="Pause / Resume (Spasi)">
                             <i data-lucide="pause" id="timerIcon" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
@@ -725,6 +749,153 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // ====================================================================
+    // KEYBOARD SHORTCUTS
+    // ====================================================================
+    document.addEventListener('keydown', function(e) {
+        // Ignore if user is currently typing in an input or textarea
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        const isInput = (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select');
+
+        // Alt + O: Focus Observation Notes
+        if (e.altKey && (e.key === 'o' || e.key === 'O')) {
+            e.preventDefault();
+            const notes = document.getElementById('obsNotes');
+            if (notes) {
+                notes.focus();
+                notes.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Alt + P: Pick Random Student
+        if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+            e.preventDefault();
+            pickRandomStudent();
+        }
+
+        // Space: Toggle Stopwatch (only when NOT in input/textarea)
+        if (!isInput && e.code === 'Space') {
+            e.preventDefault();
+            document.getElementById('btnToggleTimer')?.click();
+        }
+    });
 });
+
+// ====================================================================
+// LIVE TOOL: RANDOM STUDENT PICKER
+// ====================================================================
+const classStudents = <?= json_encode(array_column($students ?? [], 'full_name')) ?>;
+
+function pickRandomStudent() {
+    if (!classStudents || classStudents.length === 0) {
+        alert('Belum ada data siswa dalam sesi kelas ini.');
+        return;
+    }
+
+    playChimeSound(600, 'triangle', 0.1);
+
+    let count = 0;
+    const maxRolls = 15;
+    const interval = setInterval(() => {
+        const randomName = classStudents[Math.floor(Math.random() * classStudents.length)];
+        count++;
+
+        if (count >= maxRolls) {
+            clearInterval(interval);
+            playChimeSound(880, 'sine', 0.4);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: '🎯 Siswa Terpilih:',
+                    html: `<div class="fs-3 fw-bold text-primary my-2">${randomName}</div><p class="text-xs text-muted mb-0">Silakan beri respon / jawab pertanyaan guru</p>`,
+                    icon: 'success',
+                    confirmButtonText: 'Lanjutkan Kelas',
+                    confirmButtonColor: '#6366f1',
+                    customClass: { popup: 'rounded-4' }
+                });
+            } else {
+                alert(`🎯 Siswa Terpilih: ${randomName}`);
+            }
+        }
+    }, 70);
+}
+
+// ====================================================================
+// LIVE TOOL: ACTIVITY COUNTDOWN TIMER & CHIME
+// ====================================================================
+let countdownInterval = null;
+let countdownRemainingSeconds = 0;
+
+function startActivityCountdown(minutes) {
+    stopActivityCountdown();
+    countdownRemainingSeconds = minutes * 60;
+
+    const label = document.getElementById('countdownLabel');
+    updateCountdownDisplay();
+
+    countdownInterval = setInterval(() => {
+        countdownRemainingSeconds--;
+        updateCountdownDisplay();
+
+        if (countdownRemainingSeconds <= 0) {
+            stopActivityCountdown();
+            playChimeSound(1046.5, 'sine', 1.0); // High C chime
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: '⏱️ Waktu Aktivitas Habis!',
+                    text: `Aktivitas ${minutes} menit telah selesai. Waktunya reviu / transisi.`,
+                    icon: 'warning',
+                    confirmButtonText: 'Oke',
+                    customClass: { popup: 'rounded-4' }
+                });
+            } else {
+                alert(`⏱️ Waktu Aktivitas ${minutes} Menit Telah Habis!`);
+            }
+        }
+    }, 1000);
+}
+
+function updateCountdownDisplay() {
+    const label = document.getElementById('countdownLabel');
+    if (!label) return;
+    const m = Math.floor(countdownRemainingSeconds / 60);
+    const s = countdownRemainingSeconds % 60;
+    label.innerHTML = `<span class="text-warning fw-bold font-monospace">⏳ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</span>`;
+}
+
+function stopActivityCountdown() {
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+    const label = document.getElementById('countdownLabel');
+    if (label) {
+        label.textContent = 'Timer Aktivitas';
+    }
+}
+
+// Web Audio API Chime Synth
+function playChimeSound(freq = 880, type = 'sine', duration = 0.3) {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    } catch (e) {
+        // Ignore audio errors if audio context blocked
+    }
+}
 </script>
 <?= $this->endSection() ?>

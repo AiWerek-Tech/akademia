@@ -57,6 +57,14 @@ Dokumen ini adalah sumber status implementasi. Blueprint pada `docs/WMVAA_Academ
   - Intervensi manual (termasuk `ENRICHMENT`/pengayaan) via `createIntervention` + form di halaman intervensi.
   - Summative Processing Engine: pengolahan mastery TP → nilai akhir per siswa/mapel/periode (AVERAGE/LATEST/WEIGHTED/PROFICIENCY), predikat A–E, `summative_results` ber-`status` DRAFT/VALIDATED, validasi & pembukaan kembali oleh guru (jembatan ke rapor Phase 9).
   - RBAC ketat: guru hanya untuk assessment milik sendiri; mastery/intervensi/policy/summatif hanya untuk peran manajemen (`assessment.mastery`).
+- **Phase 7 Cocurricular & Character Engine (Selesai & Modern):**
+  - Program kokurikuler dengan klasifikasi per tujuan (COCURRICULAR/EXTRACURRICULAR/FIXED_SCHOOL_ACTIVITY/FORMATION/SERVICE) dan workflow `DRAFT` → `ACTIVE` → `COMPLETED` → `ARCHIVED` yang tervalidasi.
+  - Junction lintas-disiplin: dimensi profil lulusan, mapel, TP, guru, kelas, mitra, dan sumber daya dengan pola sinkronisasi (bukan timpa) — satu bukti menyumbang ke banyak alignment.
+  - Eksekusi sesi terjadwal (`PLAN` → `EXECUTED`/`CANCELLED`) dengan waktu aktual.
+  - Asesmen formatif (observasi, jurnal, peer feedback, self assessment, refleksi) dan bukti sumatif (performance, project, action, product, presentation, final reflection) berfokus pada Dimensi Profil Lulusan, dengan unduhan file terproteksi.
+  - Hasil akhir murid × dimensi (`EMERGING`/`DEVELOPING`/`PROFICIENT`/`EXEMPLARY`), matriks laporan dengan distribusi per dimensi, dan narasi otomatis per siswa untuk rapor.
+  - Evaluasi model INPUT → PROCESS → OUTPUT → OUTCOME dengan skor kesehatan program (SANGAT SEHAT/BAIK/CUKUP/PERLU INTERVENSI).
+  - Dukungan opsional Gerakan 7 Kebiasaan Anak Indonesia Hebat (7KAIH): definisi kebiasaan, tantangan mingguan, diary/check-in mingguan, monitoring guru, dan partisipasi orang tua — dikendalikan feature flag `ialos_7kahi`.
 
 ## Status roadmap blueprint
 
@@ -68,15 +76,16 @@ Dokumen ini adalah sumber status implementasi. Blueprint pada `docs/WMVAA_Academ
 | 4. Lesson Plan Engine | Selesai & Modern | Studio RPP Deep Learning 3D, auto-populasi dari Learning Pack, aktivitas plugged/unplugged, rubrik, workflow state machine. |
 | 5. Daily Teaching Workspace | Selesai & Modern | Today dashboard guru, pelaksanaan sesi kelas langsung, Teaching Mode, quick attendance, observasi formatif real-time, refleksi. |
 | 6. Assessment & Mastery | Selesai | Gradebook, mastery level, intervensi, remedial, dan reporting terpadu. |
-| 7. Kokurikuler | Belum dimulai | Workflow proyek penguatan profil lulusan dan evidence. |
-| 8. Ekstrakurikuler & karakter | Belum dimulai | Layanan kepanduan/Pathfinder, kehadiran, dan penilaian kualitatif. |
+| 7. Kokurikuler | Selesai | Program kokurikuler, junction lintas-disiplin, asesmen dimensi profil lulusan, laporan, narasi otomatis, evaluasi IPOO, dan 7KAIH opsional. |
+| 8. Ekstrakurikuler & karakter | Selesai | Program, keanggotaan, kehadiran per sesi, kompetensi, pencapaian, evaluasi INPUT→PROCESS→OUTPUT→OUTCOME. |
 | 9. Reporting & portfolio | Belum dimulai | Rapor semester berbasis data pembelajaran dan portofolio murid. |
 | 10. AI academic copilot | Belum dimulai | Human approval, provenance, prompt/output audit, dan guardrails data. |
 | 11. Hardening | Berjalan berkelanjutan | Regression, security, observability, backup/restore, dan performance gate mengikuti tiap fase. |
 
 ## Verifikasi build ini
 
-- **Full Combined Regression Suite (Phase 1, 2, 3, 4, 5, 6):** 88 unit, database engine & route security tests, 329 assertions — **100% PASSED (0 Errors, 0 Failures)**.
+- **Full Combined Regression Suite (Phase 1–6):** 88 unit, database engine & route security tests, 329 assertions — **100% PASSED (0 Errors, 0 Failures)**.
 - **Phase 6 Assessment & Mastery Suite:** 31 test (17 engine + 14 route security), 115 assertions — **100% PASSED (0 Errors, 0 Failures)**.
+- **Phase 7 Cocurricular & Character Suite:** 33 test (19 engine + 10 route security + 4 unit role permissions), 131 assertions — **100% PASSED (0 Errors, 0 Failures)** terhadap baseline test DB (permissions `cocurricular.view`/`cocurricular.manage`, flag `ialos_phase7_cocurricular` aktif).
 - Composer strict validation, security audit, PHP syntax lint, dan unit isolation verification: 100% lulus.
 - Seluruh route IALOS membawa filter autentikasi, unit access, password-change guard, dan permission domain yang ketat.

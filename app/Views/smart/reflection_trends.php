@@ -26,26 +26,35 @@
         </div>
     </div>
 
-    <!-- Teacher Selector (for management roles) -->
-    <?php if (!empty($teachers)): ?>
+    <!-- Filter Card (Teacher & Date Range) -->
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-3">
             <form method="GET" action="<?= base_url('smart/reflection-trends') ?>" class="row g-2 align-items-end">
-                <div class="col-md-8">
+                <?php if (!empty($teachers)): ?>
+                <div class="col-md-4">
                     <label class="form-label text-xs text-muted fw-semibold mb-1">Pilih Guru</label>
-                    <select name="teacher_id" class="form-select form-select-sm shadow-sm" onchange="this.form.submit()">
+                    <select name="teacher_id" class="form-select form-select-sm shadow-sm">
                         <?php foreach ($teachers as $t): ?>
                             <option value="<?= $t['id'] ?>" <?= (int) $selectedTeacher === (int) $t['id'] ? 'selected' : '' ?>><?= esc($t['full_name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <button type="submit" class="btn btn-sm btn-primary shadow-sm w-100"><i data-lucide="search" class="w-3.5 h-3.5 me-1"></i> Tampilkan</button>
+                <?php endif; ?>
+                <div class="<?= !empty($teachers) ? 'col-md-3' : 'col-md-4' ?>">
+                    <label class="form-label text-xs text-muted fw-semibold mb-1">Dari Tanggal</label>
+                    <input type="date" name="from_date" class="form-control form-control-sm shadow-sm" value="<?= esc($fromDate ?? '') ?>">
+                </div>
+                <div class="<?= !empty($teachers) ? 'col-md-3' : 'col-md-4' ?>">
+                    <label class="form-label text-xs text-muted fw-semibold mb-1">Sampai Tanggal</label>
+                    <input type="date" name="to_date" class="form-control form-control-sm shadow-sm" value="<?= esc($toDate ?? '') ?>">
+                </div>
+                <div class="<?= !empty($teachers) ? 'col-md-2' : 'col-md-4' ?> d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary shadow-sm w-100"><i data-lucide="filter" class="w-3.5 h-3.5 me-1"></i> Filter</button>
+                    <a href="<?= base_url('smart/reflection-trends') ?>" class="btn btn-sm btn-outline-secondary shadow-sm">Reset</a>
                 </div>
             </form>
         </div>
     </div>
-    <?php endif; ?>
 
     <?php if (!$trends): ?>
         <div class="card border-0 shadow-sm rounded-4">
