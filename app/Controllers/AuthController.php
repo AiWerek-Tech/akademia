@@ -39,15 +39,22 @@ class AuthController extends BaseController
         $ip = $request->getIPAddress();
         $userAgent = substr($request->getUserAgent()->getAgentString(), 0, 255);
 
-        // 2. IP Lockout Check (Max 5 failures in 15 minutes)
-        $timeWindow = date('Y-m-d H:i:s', strtotime('-15 minutes'));
+        // 2. IP Lockout Check (configurable via system_settings)
+        $secSettings = $db->table('system_settings')->where('group_key', 'security')->get()->getResultArray();
+        $secMap = [];
+        foreach ($secSettings as $s) { $secMap[$s['setting_key']] = $s['setting_value']; }
+        $maxAttempts = (int) ($secMap['max_login_attempts'] ?? 5);
+        $lockoutMins = (int) (($secMap['lockout_duration'] ?? 900) / 60);
+        if ($lockoutMins < 1) $lockoutMins = 15;
+
+        $timeWindow = date('Y-m-d H:i:s', strtotime("-{$lockoutMins} minutes"));
         $failedIpAttempts = $db->table('login_attempts')
             ->where('ip_address', $ip)
             ->where('successful', 0)
             ->where('attempted_at >=', $timeWindow)
             ->countAllResults();
 
-        if ($failedIpAttempts >= 5) {
+        if ($failedIpAttempts >= $maxAttempts) {
             // Log attempt
             $db->table('login_attempts')->insert([
                 'username'       => $username,
@@ -58,7 +65,7 @@ class AuthController extends BaseController
                 'attempted_at'   => date('Y-m-d H:i:s')
             ]);
 
-            return redirect()->back()->withInput()->with('error', 'Terlahu banyak percobaan masuk gagal dari IP Anda. Silakan coba lagi dalam 15 menit.');
+            return redirect()->back()->withInput()->with('error', "Terlalu banyak percobaan masuk gagal. Silakan coba lagi dalam {$lockoutMins} menit.");
         }
 
         // 3. User Lookup

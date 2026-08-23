@@ -147,6 +147,51 @@
             </div>
         </div>
 
+        <!-- Digital Completion & Mastery Update Form (No-print) -->
+        <div class="card remedial-card shadow-sm bg-white mb-4 no-print border-start border-4 border-success">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h6 class="fw-bold text-gray-900 mb-0 d-flex align-items-center gap-2">
+                        <i data-lucide="check-circle-2" class="w-5 h-5 text-success"></i>
+                        <span>Verifikasi Hasil & Selesaikan Remedial</span>
+                    </h6>
+                    <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1 text-xs fw-semibold">
+                        Update Langsung ke Mastery TP
+                    </span>
+                </div>
+                <p class="text-xs text-muted mb-3">
+                    Setelah siswa menyelesaikan seluruh alur scaffolding dan exit check di atas, catat hasil asesmen remedial untuk memperbarui status ketercapaian TP siswa di sistem.
+                </p>
+
+                <form method="POST" action="<?= base_url('smart/remedial/complete') ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="student_id" value="<?= (int) $studentId ?>">
+                    <input type="hidden" name="objective_id" value="<?= (int) $objectiveId ?>">
+
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label text-xs fw-semibold text-muted">Status Mastery Baru</label>
+                            <select name="new_result" class="form-select form-select-sm shadow-xs rounded-3">
+                                <option value="ACHIEVED" selected>✅ Tercapai (ACHIEVED)</option>
+                                <option value="DEVELOPING">🟡 Sedang Berkembang (DEVELOPING)</option>
+                                <option value="ADVANCED">🌟 Mahir (ADVANCED)</option>
+                                <option value="NEEDS_SUPPORT">🔴 Masih Perlu Bimbingan (NEEDS_SUPPORT)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-xs fw-semibold text-muted">Catatan Bukti / Skor Exit Check</label>
+                            <input type="text" name="remedial_notes" class="form-control form-control-sm shadow-xs rounded-3" placeholder="Contoh: Siswa telah menyelesaikan 3 tahap dan lulus exit-check dengan skor 85" required>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-4 shadow-sm w-100 fw-semibold">
+                                <i data-lucide="save" class="w-3.5 h-3.5 me-1"></i> Perbarui Mastery TP
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Verification Sign-off Box (for print) -->
         <div class="card remedial-card shadow-sm bg-white mb-4">
             <div class="card-body p-4">

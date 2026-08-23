@@ -30,6 +30,14 @@ final class RolePermissionsTest extends CIUnitTestCase
             'teaching.reflect',
             'assessment.view',
             'assessment.manage',
+            'cocurricular.view',
+            'cocurricular.manage',
+            'extracurricular.view',
+            'extracurricular.manage',
+            'reporting.view',
+            'teacher_reflection.view',
+            'teacher_reflection.manage',
+            'supervision.view',
         ], RolePermissions::GURU);
 
         $this->assertSame(
@@ -45,6 +53,7 @@ final class RolePermissionsTest extends CIUnitTestCase
                 'class_students.view',
                 'class_schedule.view',
                 'class_electives.manage',
+                'reporting.manage',
             ],
             array_values(array_diff(RolePermissions::WALI_KELAS, RolePermissions::GURU))
         );

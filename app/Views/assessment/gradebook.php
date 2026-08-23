@@ -52,16 +52,21 @@
             $rubricMap[(int) $criterion['id']] = $levels;
         }
         ?>
-        <!-- View Mode Switcher -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <!-- View Mode Switcher & Tools -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <span class="text-muted small">Total <?= count($rows) ?> siswa terdaftar</span>
-            <div class="btn-group btn-group-sm shadow-sm" role="group" aria-label="View Mode">
-                <button type="button" class="btn btn-outline-primary active" id="btnTableView" onclick="setViewMode('table')">
-                    <i data-lucide="table" class="w-3.5 h-3.5 me-1"></i> Mode Tabel
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-success btn-sm shadow-sm" onclick="exportGradebookToCsv()">
+                    <i data-lucide="download" class="w-3.5 h-3.5 me-1"></i> Ekspor CSV
                 </button>
-                <button type="button" class="btn btn-outline-primary" id="btnCardView" onclick="setViewMode('card')">
-                    <i data-lucide="layout-grid" class="w-3.5 h-3.5 me-1"></i> Mode Kartu
-                </button>
+                <div class="btn-group btn-group-sm shadow-sm" role="group" aria-label="View Mode">
+                    <button type="button" class="btn btn-outline-primary active" id="btnTableView" onclick="setViewMode('table')">
+                        <i data-lucide="table" class="w-3.5 h-3.5 me-1"></i> Mode Tabel
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="btnCardView" onclick="setViewMode('card')">
+                        <i data-lucide="layout-grid" class="w-3.5 h-3.5 me-1"></i> Mode Kartu
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -306,11 +311,28 @@
                 </div>
             </div>
 
-            <div class="card-footer bg-white border-0 py-3 px-4 d-flex gap-2 justify-content-end">
-                <a href="<?= base_url('assessment/' . $assessment['id']) ?>" class="btn btn-outline-secondary shadow-sm">Batal</a>
-                <?php if ($assessment['status'] !== 'CLOSED'): ?>
-                    <button type="submit" class="btn btn-primary shadow-sm"><i data-lucide="save" class="w-4 h-4 me-1"></i> Simpan Nilai</button>
-                <?php endif; ?>
+            <div class="card-footer bg-white border-0 py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3 sticky-bottom shadow-lg" style="border-radius: 0 0 16px 16px;">
+                <div class="d-flex flex-wrap align-items-center gap-4 text-xs">
+                    <div>
+                        <span class="text-muted">Rata-rata Kelas:</span>
+                        <strong id="liveClassAvg" class="text-primary fs-6 ms-1">0.00</strong>
+                    </div>
+                    <div>
+                        <span class="text-muted">Siswa Lengkap:</span>
+                        <strong id="liveCompleteCount" class="text-success fs-6 ms-1">0 / <?= count($rows) ?></strong>
+                    </div>
+                    <div>
+                        <span class="text-muted">Perlu Pendampingan (< 70):</span>
+                        <strong id="liveNeedsSupportCount" class="text-danger fs-6 ms-1">0</strong>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <a href="<?= base_url('assessment/' . $assessment['id']) ?>" class="btn btn-outline-secondary shadow-sm rounded-pill px-4">Batal</a>
+                    <?php if ($assessment['status'] !== 'CLOSED'): ?>
+                        <button type="submit" class="btn btn-primary shadow-sm rounded-pill px-4"><i data-lucide="save" class="w-4 h-4 me-1"></i> Simpan Nilai</button>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </form>
@@ -340,6 +362,7 @@ function setViewMode(mode) {
 function syncRubricLevel(studentId, criterionId, val) {
     const target = document.querySelector(`select[name="students[${studentId}][criteria][${criterionId}][level_index]"]`);
     if (target) target.value = val;
+    recalculateGradebookStats();
 }
 
 function syncStatus(studentId, criterionId, val) {
@@ -355,18 +378,103 @@ function syncCriterionScore(studentId, criterionId, val) {
 function syncTotalScore(studentId, val) {
     const target = document.querySelector(`input[name="students[${studentId}][score]"]`);
     if (target) target.value = val;
+    recalculateGradebookStats();
 }
 
 function syncComplete(studentId, checked) {
     const target = document.querySelector(`input[type="checkbox"][name="students[${studentId}][is_complete]"]`);
     if (target) target.checked = checked;
+    recalculateGradebookStats();
 }
 
-// Automatically choose card view on small screens on initial load
+// Live Statistics Bar Calculation
+function recalculateGradebookStats() {
+    const scoreInputs = document.querySelectorAll('input[name$="[score]"]');
+    const completeChecks = document.querySelectorAll('input[type="checkbox"][name$="[is_complete]"]');
+    
+    let totalScore = 0;
+    let scoreCount = 0;
+    let needsSupportCount = 0;
+
+    scoreInputs.forEach(input => {
+        const val = parseFloat(input.value);
+        if (!isNaN(val)) {
+            totalScore += val;
+            scoreCount++;
+            if (val < 70) needsSupportCount++;
+        }
+    });
+
+    let completeCount = 0;
+    completeChecks.forEach(chk => {
+        if (chk.checked) completeCount++;
+    });
+
+    const avg = scoreCount > 0 ? (totalScore / scoreCount).toFixed(2) : '0.00';
+
+    const avgEl = document.getElementById('liveClassAvg');
+    const completeEl = document.getElementById('liveCompleteCount');
+    const supportEl = document.getElementById('liveNeedsSupportCount');
+
+    if (avgEl) avgEl.textContent = avg;
+    if (completeEl) completeEl.textContent = `${completeCount} / <?= count($rows) ?>`;
+    if (supportEl) supportEl.textContent = needsSupportCount;
+}
+
+// Export CSV
+function exportGradebookToCsv() {
+    const table = document.querySelector('.gradebook-table');
+    if (!table) return;
+
+    let csv = [];
+    const rows = table.querySelectorAll('tr');
+
+    rows.forEach(row => {
+        if (row.closest('details') || row.classList.contains('gradebook-details-row')) return;
+        const cols = row.querySelectorAll('th, td');
+        let rowData = [];
+        cols.forEach(col => {
+            let select = col.querySelector('select');
+            let input = col.querySelector('input');
+            let text = '';
+            if (select) {
+                text = select.options[select.selectedIndex]?.text || '';
+            } else if (input && input.type !== 'checkbox') {
+                text = input.value || '';
+            } else {
+                text = col.innerText || '';
+            }
+            text = text.replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
+            rowData.push('"' + text.replace(/"/g, '""') + '"');
+        });
+        if (rowData.length > 0) {
+            csv.push(rowData.join(','));
+        }
+    });
+
+    const csvFile = new Blob(["\uFEFF" + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const downloadLink = document.createElement('a');
+    downloadLink.download = `gradebook_asesmen_<?= $assessment['id'] ?>_${new Date().toISOString().slice(0,10)}.csv`;
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    downloadLink.style.display = 'none';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+}
+
+// Automatically choose card view on small screens and init stats
 document.addEventListener('DOMContentLoaded', () => {
     if (window.innerWidth < 768) {
         setViewMode('card');
     }
+    
+    // Bind all inputs for recalculation
+    document.querySelectorAll('input[name$="[score]"], input[type="checkbox"][name$="[is_complete]"]').forEach(el => {
+        el.addEventListener('input', recalculateGradebookStats);
+        el.addEventListener('change', recalculateGradebookStats);
+    });
+
+    recalculateGradebookStats();
 });
 </script>
 

@@ -141,18 +141,34 @@
                 <!-- Final Editable Narrative Draft -->
                 <div class="narrative-box mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label fw-bold text-gray-900 mb-0">
-                            <i data-lucide="sparkles" class="w-4 h-4 text-indigo me-1 d-inline-block"></i> Draf Deskripsi Rapor (Dapat Diedit)
-                        </label>
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="copyNarrative()">
-                            <i data-lucide="copy" class="w-3.5 h-3.5 me-1"></i> Salin Teks
-                        </button>
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="form-label fw-bold text-gray-900 mb-0">
+                                <i data-lucide="sparkles" class="w-4 h-4 text-indigo me-1 d-inline-block"></i> Draf Deskripsi Rapor (Dapat Diedit)
+                            </label>
+                            <span id="draftSaveStatus" class="badge <?= !empty($savedDraft) ? 'bg-success-subtle text-success border border-success' : 'bg-light text-muted border' ?> rounded-pill text-xs px-2.5 py-1">
+                                <i data-lucide="<?= !empty($savedDraft) ? 'check-circle' : 'clock' ?>" class="w-3 h-3 me-1 d-inline-block"></i>
+                                <?= !empty($savedDraft) ? 'Tersimpan di Database' : 'Belum Disimpan' ?>
+                            </span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="copyNarrative()">
+                                <i data-lucide="copy" class="w-3.5 h-3.5 me-1"></i> Salin Teks
+                            </button>
+                            <button type="button" id="btnSaveDraft" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="saveDraftToDatabase()">
+                                <i data-lucide="save" class="w-3.5 h-3.5 me-1"></i> Simpan Draf
+                            </button>
+                        </div>
                     </div>
                     <textarea id="narrativeText" class="form-control border-0 p-0 text-sm text-gray-800" rows="4" style="resize:vertical; background:transparent; font-size:.92rem; line-height:1.6;"><?= esc($narrativeData['composite_narrative']) ?></textarea>
+                    
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2">
+                        <span id="charCountLabel" class="text-xs text-muted">0 / 300 karakter</span>
+                        <span class="text-xs text-muted">Maksimal disarankan: 300 karakter</span>
+                    </div>
                 </div>
 
                 <div class="text-xs text-muted">
-                    <i data-lucide="info" class="w-3.5 h-3.5 me-1 d-inline-block"></i> Guru dapat menyunting dan menyesuaikan kalimat draf di atas sebelum dipindahkan ke buku rapor akhir.
+                    <i data-lucide="info" class="w-3.5 h-3.5 me-1 d-inline-block"></i> Guru dapat menyunting dan menyesuaikan kalimat draf di atas lalu klik <strong>Simpan Draf</strong> agar tersimpan secara permanen untuk buku rapor siswa ini.
                 </div>
             </div>
         </div>
@@ -163,6 +179,24 @@
 
 <?= $this->section('additional_js') ?>
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const textEl = document.getElementById('narrativeText');
+    const countEl = document.getElementById('charCountLabel');
+    if (textEl && countEl) {
+        function updateCharCount() {
+            const len = textEl.value.length;
+            countEl.textContent = `${len} / 300 karakter`;
+            if (len > 300) {
+                countEl.className = 'text-xs text-danger fw-bold';
+            } else {
+                countEl.className = 'text-xs text-muted';
+            }
+        }
+        textEl.addEventListener('input', updateCharCount);
+        updateCharCount();
+    }
+});
+
 function copyNarrative() {
     const text = document.getElementById('narrativeText');
     if (text) {
@@ -181,6 +215,63 @@ function copyNarrative() {
                 alert('Draf narasi berhasil disalin.');
             }
         });
+    }
+}
+
+async function saveDraftToDatabase() {
+    const textEl = document.getElementById('narrativeText');
+    const btn = document.getElementById('btnSaveDraft');
+    const statusEl = document.getElementById('draftSaveStatus');
+
+    if (!textEl || !textEl.value.trim()) {
+        alert('Teks narasi tidak boleh kosong.');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...';
+
+    try {
+        const formData = new FormData();
+        formData.append('student_id', '<?= (int) $selectedStudent ?>');
+        formData.append('subject_id', '<?= (int) $selectedSubject ?>');
+        formData.append('classroom_id', '<?= (int) $selectedClassroom ?>');
+        formData.append('narrative_text', textEl.value.trim());
+        formData.append('<?= csrf_token() ?>', '<?= csrf_hash() ?>');
+
+        const res = await fetch('<?= base_url('smart/narrative-drafter/save') ?>', {
+            method: 'POST',
+            body: formData,
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        const json = await res.json();
+
+        if (json.status === 'success') {
+            statusEl.className = 'badge bg-success-subtle text-success border border-success rounded-pill text-xs px-2.5 py-1';
+            statusEl.innerHTML = '<i data-lucide="check-circle" class="w-3 h-3 me-1 d-inline-block"></i> Tersimpan di Database';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Draf narasi berhasil disimpan ke database!',
+                    showConfirmButton: false,
+                    timer: 2500
+                });
+            } else {
+                alert('Draf narasi berhasil disimpan.');
+            }
+        } else {
+            alert(json.message || 'Gagal menyimpan draf narasi.');
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan jaringan.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="save" class="w-3.5 h-3.5 me-1"></i> Simpan Draf';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 }
 </script>

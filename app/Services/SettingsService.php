@@ -2,129 +2,266 @@
 
 namespace App\Services;
 
-use Config\Database;
+use CodeIgniter\Database\BaseConnection;
 
 class SettingsService
 {
-    private static array $cache = [];
+    private BaseConnection $db;
+
+    public function __construct(?BaseConnection $db = null)
+    {
+        $this->db = $db ?? \Config\Database::connect();
+    }
+
+    // ====================================================================
+    // KEY-VALUE SETTINGS
+    // ====================================================================
 
     /**
-     * Parse dot-notated key into group and key
+     * Get all settings grouped by group_key.
      */
-    private static function parseKey(string $key, ?string $group): array
+    public function getAllGrouped(): array
     {
-        if ($group === null && strpos($key, '.') !== false) {
-            list($group, $key) = explode('.', $key, 2);
+        $rows = $this->db->table('system_settings')
+            ->orderBy('group_key', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->get()->getResultArray();
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $grouped[$row['group_key']][$row['setting_key']] = $this->castValue($row['setting_value'], $row['value_type']);
         }
-        return [$group ?? 'general', $key];
+        return $grouped;
     }
 
     /**
-     * Gets a configuration value, parsing dot-notated keys automatically
+     * Get a single setting value.
      */
-    public static function get(string $key, ?string $group = null, $default = null)
+    public function get(string $group, string $key, mixed $default = null): mixed
     {
-        list($group, $key) = self::parseKey($key, $group);
-        $cacheKey = "{$group}.{$key}";
-
-        if (array_key_exists($cacheKey, self::$cache)) {
-            return self::$cache[$cacheKey];
-        }
-
-        $db = Database::connect();
-        $row = $db->table('application_settings')
-            ->where('setting_group', $group)
+        $row = $this->db->table('system_settings')
+            ->where('group_key', $group)
             ->where('setting_key', $key)
-            ->get()
-            ->getRowArray();
+            ->get()->getRowArray();
 
-        if (!$row) {
-            return $default;
-        }
-
-        $value = self::castValue($row['setting_value'], $row['value_type']);
-        self::$cache[$cacheKey] = $value;
-
-        return $value;
+        if (! $row) return $default;
+        return $this->castValue($row['setting_value'], $row['value_type']);
     }
 
     /**
-     * Updates a setting value, casts correctly, logs to audit
+     * Save multiple settings at once.
      */
-    public static function set(string $key, $value, ?string $group = null, ?int $userId = null): bool
+    public function saveBulk(array $groupData): void
     {
-        list($group, $key) = self::parseKey($key, $group);
-        $cacheKey = "{$group}.{$key}";
+        $now = date('Y-m-d H:i:s');
+        foreach ($groupData as $group => $settings) {
+            foreach ($settings as $key => $value) {
+                $existing = $this->db->table('system_settings')
+                    ->where('group_key', $group)
+                    ->where('setting_key', $key)
+                    ->get()->getRowArray();
 
-        $db = Database::connect();
-        $row = $db->table('application_settings')
-            ->where('setting_group', $group)
-            ->where('setting_key', $key)
-            ->get()
-            ->getRowArray();
+                if ($existing) {
+                    $this->db->table('system_settings')
+                        ->where('id', $existing['id'])
+                        ->update([
+                            'setting_value' => (string) $value,
+                            'updated_at'    => $now,
+                        ]);
+                } else {
+                    $this->db->table('system_settings')->insert([
+                        'group_key'     => $group,
+                        'setting_key'   => $key,
+                        'setting_value' => (string) $value,
+                        'value_type'    => 'string',
+                        'created_at'    => $now,
+                        'updated_at'    => $now,
+                    ]);
+                }
+            }
+        }
+    }
 
-        if (!$row) {
+    // ====================================================================
+    // SCHOOL PROFILE (per-unit)
+    // ====================================================================
+
+    public function getUnitProfile(int $unitId): ?array
+    {
+        return $this->db->table('school_units')->where('id', $unitId)->get()->getRowArray();
+    }
+
+    public function updateUnitProfile(int $unitId, array $data): void
+    {
+        $this->db->table('school_units')->where('id', $unitId)->update($data);
+    }
+
+    // ====================================================================
+    // DATABASE MANAGEMENT
+    // ====================================================================
+
+    /**
+     * List all tables with row counts and sizes.
+     */
+    public function listTables(): array
+    {
+        $dbName = $this->db->database;
+        $tables = $this->db->query("SHOW TABLE STATUS FROM `{$dbName}`")->getResultArray();
+
+        $result = [];
+        foreach ($tables as $t) {
+            $result[] = [
+                'name'   => $t['Name'],
+                'rows'   => (int) $t['Rows'],
+                'engine' => $t['Engine'] ?? 'InnoDB',
+                'size'   => $this->formatBytes(($t['Data_length'] ?? 0) + ($t['Index_length'] ?? 0)),
+                'size_bytes' => (int) (($t['Data_length'] ?? 0) + ($t['Index_length'] ?? 0)),
+            ];
+        }
+
+        usort($result, fn($a, $b) => $b['size_bytes'] <=> $a['size_bytes']);
+        return $result;
+    }
+
+    /**
+     * Get total database size.
+     */
+    public function getTotalSize(): string
+    {
+        $tables = $this->listTables();
+        $total = array_sum(array_column($tables, 'size_bytes'));
+        return $this->formatBytes($total);
+    }
+
+    /**
+     * Group tables by module.
+     */
+    public function getTablesByModule(): array
+    {
+        $prefixes = [
+            'Curriculum & Learning'  => ['regulations', 'curriculum_sources', 'graduate_profile', 'learning_', 'elements', 'subject_', 'unit_', 'bab_', 'concept_', 'activities', 'prerequisites', 'misconceptions', 'resources', 'teacher_guidance'],
+            'Digital KSP'           => ['ksp_', 'regulation_', 'evidence'],
+            'Lesson Plans & RPP'    => ['lesson_plans', 'lesson_'],
+            'Teaching & Attendance'  => ['schedule_', 'attendance', 'teaching_', 'teacher_attendance'],
+            'Assessment & Mastery'  => ['assessments', 'criteria', 'rubrics', 'gradebook', 'mastery_', 'summative_', 'interventions', 'evidence_'],
+            'Cocurricular & Extra'  => ['cocurricular_', 'extracurricular_', 'program_'],
+            'Reporting & Portfolio' => ['report_', 'portfolio_', 'narratives'],
+            'Quality & AI'          => ['teacher_reflections', 'supervision_', 'ai_copilot_', 'improvement_'],
+            'Users & Auth'          => ['users', 'roles', 'permissions', 'user_', 'login_', 'audit_'],
+            'Academic Structure'    => ['school_units', 'academic_', 'subjects', 'teachers', 'classrooms', 'students', 'employees'],
+            'Sync & Mobile'         => ['sync_', 'mobile_', 'app_files_'],
+            'System & Settings'     => ['system_settings'],
+        ];
+
+        $allTables = $this->listTables();
+        $grouped = ['Lainnya' => []];
+
+        foreach ($allTables as $t) {
+            $matched = false;
+            foreach ($prefixes as $module => $patterns) {
+                foreach ($patterns as $pat) {
+                    if (str_starts_with($t['name'], $pat)) {
+                        $grouped[$module][] = $t;
+                        $matched = true;
+                        break 2;
+                    }
+                }
+            }
+            if (! $matched) {
+                $grouped['Lainnya'][] = $t;
+            }
+        }
+
+        // Remove empty groups
+        return array_filter($grouped, fn($g) => ! empty($g));
+    }
+
+    /**
+     * Get columns for a table.
+     */
+    public function getTableColumns(string $table): array
+    {
+        return $this->db->getFieldData($table);
+    }
+
+    /**
+     * Truncate a specific table.
+     */
+    public function truncateTable(string $table): bool
+    {
+        try {
+            $this->db->table($table)->truncate();
+            return true;
+        } catch (\Exception $e) {
             return false;
         }
-
-        $before = ['value' => $row['setting_value']];
-        $after  = ['value' => (string)$value];
-
-        $db->table('application_settings')->where('id', $row['id'])->update([
-            'setting_value' => (string)$value,
-            'updated_at'    => date('Y-m-d H:i:s'),
-            'updated_by'    => $userId
-        ]);
-
-        self::$cache[$cacheKey] = self::castValue((string)$value, $row['value_type']);
-
-        // Log audit trail
-        AuditService::log(
-            'settings',
-            'update_setting',
-            'ApplicationSetting',
-            $row['id'],
-            $before,
-            $after,
-            "Application setting {$group}.{$key} updated"
-        );
-
-        return true;
     }
 
     /**
-     * Casts raw string values into target datatypes
+     * Export table as SQL dump (minimal).
      */
-    private static function castValue(?string $value, string $type)
+    public function exportTable(string $table): string
     {
-        if ($value === null) {
-            return null;
-        }
+        $rows = $this->db->table($table)->get()->getResultArray();
+        if (empty($rows)) return "-- Empty table: {$table}\n";
 
-        switch (strtolower($type)) {
-            case 'int':
-            case 'integer':
-                return (int)$value;
-            case 'bool':
-            case 'boolean':
-                return filter_var($value, FILTER_VALIDATE_BOOLEAN);
-            default:
-                return $value;
-        }
-    }
+        $columns = array_keys($rows[0]);
+        $colList = implode(', ', array_map(fn($c) => "`{$c}`", $columns));
 
-    /**
-     * Fetches all settings belonging to a specific group
-     */
-    public static function getGroup(string $group): array
-    {
-        $db = Database::connect();
-        $rows = $db->table('application_settings')->where('setting_group', $group)->get()->getResultArray();
-        
-        $settings = [];
+        $sql = "-- Export: {$table}\n";
+        $sql .= "TRUNCATE TABLE `{$table}`;\n";
+        $sql .= "INSERT INTO `{$table}` ({$colList}) VALUES\n";
+
+        $valueRows = [];
         foreach ($rows as $row) {
-            $settings[$row['setting_key']] = self::castValue($row['setting_value'], $row['value_type']);
+            $vals = array_map(fn($v) => $v === null ? 'NULL' : "'" . addslashes($v) . "'", $row);
+            $valueRows[] = '(' . implode(', ', $vals) . ')';
         }
-        return $settings;
+
+        $sql .= implode(",\n", $valueRows) . ";\n";
+        return $sql;
+    }
+
+    /**
+     * Get table sizes summary.
+     */
+    public function getStorageSummary(): array
+    {
+        $tables = $this->listTables();
+        $totalSize = array_sum(array_column($tables, 'size_bytes'));
+        $totalRows = array_sum(array_column($tables, 'rows'));
+
+        return [
+            'total_tables' => count($tables),
+            'total_rows'   => $totalRows,
+            'total_size'   => $this->formatBytes($totalSize),
+            'largest_tables' => array_slice($tables, 0, 5),
+        ];
+    }
+
+    // ====================================================================
+    // HELPERS
+    // ====================================================================
+
+    private function castValue(string $value, string $type): mixed
+    {
+        return match ($type) {
+            'int'  => (int) $value,
+            'bool' => (bool) $value,
+            'json' => json_decode($value, true),
+            default => $value,
+        };
+    }
+
+    private function formatBytes(int $bytes): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $i = 0;
+        $size = (float) $bytes;
+        while ($size >= 1024 && $i < count($units) - 1) {
+            $size /= 1024;
+            $i++;
+        }
+        return round($size, 1) . ' ' . $units[$i];
     }
 }

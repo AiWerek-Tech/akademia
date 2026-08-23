@@ -1,10 +1,24 @@
 <?php
-$globalThemeColor = 'purple';
-$schoolName = 'IALOS Education';
+// Load settings from system_settings table (cached in session)
+$_settingsCache = session()->get('_app_settings');
+if (! $_settingsCache) {
+    $_db = \Config\Database::connect();
+    $_rows = $_db->table('system_settings')->get()->getResultArray();
+    $_settingsCache = [];
+    foreach ($_rows as $_r) { $_settingsCache[$_r['group_key']][$_r['setting_key']] = $_r['setting_value']; }
+    session()->set('_app_settings', $_settingsCache);
+}
+$_app = $_settingsCache['appearance'] ?? [];
+$globalThemeColor = $_app['primary_color'] ?? '#6366f1';
+$schoolName = $_app['app_name'] ?? 'IALOS Education';
 $appInfo = (object) [
-    'name' => 'IALOS Education',
-    'version' => '2.0.0',
-    'developer' => 'WMVAA'
+    'name'     => $_app['app_name'] ?? 'IALOS Education',
+    'tagline'  => $_app['app_tagline'] ?? 'ACADEMIC SUITE',
+    'version'  => '2.0.0',
+    'developer'=> 'WMVAA',
+    'font'     => $_app['font_family'] ?? 'Inter',
+    'fontSize' => $_app['font_size'] ?? '14',
+    'theme'    => $_app['theme'] ?? 'light',
 ];
 
 $userId = session()->get('user_id');
@@ -133,8 +147,19 @@ $renderMenuLink = static function (string $href, string $icon, string $label, bo
         . '</a>';
 };
 $requestedMenuScope = strtolower(trim((string) service('request')->getGet('scope')));
-$isMenuItemActive = static function (array $item) use ($isCurrentPath, $requestedMenuScope): bool {
-    $active = $isCurrentPath($item['patterns'] ?? []);
+$isMenuItemActive = static function (array $item) use ($isCurrentPath, $currentPath, $requestedMenuScope): bool {
+    // exactOnly: match only when $currentPath exactly equals a pattern (no prefix match)
+    if (!empty($item['exactOnly'])) {
+        $active = false;
+        foreach ($item['patterns'] ?? [] as $pattern) {
+            if (trim((string) $pattern, '/') === $currentPath) {
+                $active = true;
+                break;
+            }
+        }
+    } else {
+        $active = $isCurrentPath($item['patterns'] ?? []);
+    }
     foreach ($item['excludePatterns'] ?? [] as $excludedPattern) {
         if ($isCurrentPath([$excludedPattern])) {
             $active = false;
@@ -178,8 +203,8 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <!-- Google Fonts: Poppins, Inter & Plus Jakarta Sans -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Google Fonts: Poppins, Inter, Plus Jakarta Sans & more -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Nunito:wght@300;400;600;700&family=Roboto:wght@300;400;500;700&family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
     <!-- SweetAlert2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <!-- Mobile Dashboard Optimization CSS -->
@@ -191,6 +216,15 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
     <link href="<?= base_url('assets/css/admin-dashboard.css?v=1.0.1') ?>" rel="stylesheet">
     <link href="<?= base_url('assets/css/mobile-first-polish.css?v=1.0.0') ?>" rel="stylesheet">
     <link href="<?= base_url('assets/css/academia-ui.css?v=2.1.3') ?>" rel="stylesheet">
+
+    <!-- Dynamic Settings (must load last to override all CSS) -->
+    <style>
+        body { font-family: '<?= esc($appInfo->font) ?>', sans-serif !important; font-size: <?= (int)($appInfo->fontSize) ?>px !important; }
+        .brand-text, .brand-kicker { font-family: '<?= esc($appInfo->font) ?>', sans-serif !important; }
+    </style>
+    <?php if ($appInfo->theme === 'dark'): ?>
+    <script>document.documentElement.classList.add('dark-mode');</script>
+    <?php endif; ?>
 
     <!-- Lucide Icons CDN with local fallback -->
     <script src="https://unpkg.com/lucide@0.309.0/dist/umd/lucide.min.js"></script>
@@ -221,7 +255,7 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                 </div>
                 <div class="brand-copy">
                     <h5 class="brand-text"><?= esc($schoolName) ?></h5>
-                    <span class="brand-kicker">Academic Suite</span>
+                    <span class="brand-kicker"><?= esc($appInfo->tagline) ?></span>
                 </div>
             </div>
 
@@ -306,7 +340,7 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                                 ['permissionAny' => ['teaching.workspace', 'teacher_schedule.view'], 'href' => 'teaching/today', 'icon' => 'sparkles', 'label' => 'Ruang Mengajar Harian', 'patterns' => ['teaching/today']],
                                 ['permission' => 'teacher_schedule.view', 'href' => 'portal/schedule', 'icon' => 'calendar-days', 'label' => 'Jadwal Mengajar', 'patterns' => ['portal/schedule'], 'excludeQueryScopes' => ['classroom']],
                                 ['permission' => 'teacher_electives.view', 'href' => 'portal/electives', 'icon' => 'users-round', 'label' => 'Mapel Pilihan Saya', 'patterns' => ['portal/electives']],
-                                ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart-2', 'label' => 'Beban Mengajar', 'patterns' => ['portal/workload']],
+                                ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart', 'label' => 'Beban Mengajar', 'patterns' => ['portal/workload']],
                                 ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Pembagian Tugas', 'patterns' => ['portal/assignment-document']],
                                 ['permission' => 'teacher_duty_schedule.view', 'href' => 'portal/duty-schedule', 'icon' => 'shield-check', 'label' => 'Jadwal Piket', 'patterns' => ['portal/duty-schedule']],
                             ],
@@ -328,10 +362,10 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                         'label' => 'Tugas Mengajar Saya',
                         'icon' => 'briefcase',
                         'items' => [
-                            ['permissionAny' => ['teaching.workspace', 'teacher_schedule.view'], 'href' => 'teaching/today', 'icon' => 'sparkles', 'label' => 'Ruang Mengajar Harian', 'patterns' => ['teaching']],
+                            ['permissionAny' => ['teaching.workspace', 'teacher_schedule.view'], 'href' => 'teaching/today', 'icon' => 'sparkles', 'label' => 'Ruang Mengajar Harian', 'patterns' => ['teaching/today']],
                             ['permission' => 'teacher_schedule.view', 'href' => 'portal/schedule', 'icon' => 'calendar-days', 'label' => 'Jadwal Mengajar', 'patterns' => ['portal/schedule']],
                             ['permission' => 'teacher_electives.view', 'href' => 'portal/electives', 'icon' => 'users-round', 'label' => 'Mapel Pilihan Saya', 'patterns' => ['portal/electives']],
-                            ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart-2', 'label' => 'Beban Mengajar', 'patterns' => ['portal/workload']],
+                            ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart', 'label' => 'Beban Mengajar', 'patterns' => ['portal/workload']],
                             ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Pembagian Tugas', 'patterns' => ['portal/assignment-document']],
                         ],
                     ],
@@ -359,40 +393,32 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                 } else {
                     $menuGroups = [
                     [
-                        'key' => 'organization',
-                        'label' => 'Organisasi',
-                        'icon' => 'building-2',
-                        'items' => [
-                            ['permission' => 'units.view', 'href' => 'settings/units', 'icon' => 'building', 'label' => 'Unit Sekolah', 'patterns' => ['settings/units']],
-                            ['permissionAny' => ['academic_years.view', 'academic_periods.view'], 'href' => 'academic-periods', 'icon' => 'calendar', 'label' => 'Tahun & Periode', 'patterns' => ['academic-years', 'academic-periods']],
-                        ],
-                    ],
-                    [
                         'key' => 'master-data',
                         'label' => 'Master Data',
-                        'icon' => 'database',
+                        'icon' => 'hard-drive',
                         'items' => [
-                            ['permission' => 'teachers.view', 'href' => 'teachers', 'icon' => 'users', 'label' => 'Master Guru', 'patterns' => ['teachers']],
+                            ['permissionAny' => ['academic_years.view', 'academic_periods.view'], 'href' => 'academic-periods', 'icon' => 'calendar-clock', 'label' => 'Tahun Pelajaran', 'patterns' => ['academic-years', 'academic-periods']],
+                            ['permission' => 'teachers.view', 'href' => 'teachers', 'icon' => 'users-round', 'label' => 'Master Guru', 'patterns' => ['teachers']],
                             ['permission' => 'duplicates.view', 'href' => 'duplicates', 'icon' => 'copy-check', 'label' => 'Review Duplikat', 'patterns' => ['duplicates']],
                             ['permission' => 'subjects.view', 'href' => 'subjects', 'icon' => 'book-open', 'label' => 'Mata Pelajaran', 'patterns' => ['subjects']],
                             ['permission' => 'curriculum.view', 'href' => 'routine-activities', 'icon' => 'clock', 'label' => 'Kegiatan Rutin Sekolah', 'patterns' => ['routine-activities']],
                             ['permission' => 'grade_levels.view', 'href' => 'grade-levels', 'icon' => 'layers', 'label' => 'Tingkat Kelas', 'patterns' => ['grade-levels']],
-                            ['permission' => 'classrooms.view', 'href' => 'classrooms', 'icon' => 'door-open', 'label' => 'Kelas / Rombel', 'patterns' => ['classrooms']],
-                            ['permission' => 'students.view', 'href' => 'students', 'icon' => 'user-check', 'label' => 'Peserta Didik', 'patterns' => ['students']],
-                            ['permission' => 'rooms.view', 'href' => 'rooms', 'icon' => 'building-2', 'label' => 'Ruang Sekolah', 'patterns' => ['rooms']],
+                            ['permission' => 'classrooms.view', 'href' => 'classrooms', 'icon' => 'layout-grid', 'label' => 'Kelas / Rombel', 'patterns' => ['classrooms']],
+                            ['permission' => 'students.view', 'href' => 'students', 'icon' => 'user-round', 'label' => 'Peserta Didik', 'patterns' => ['students']],
+                            ['permission' => 'rooms.view', 'href' => 'rooms', 'icon' => 'door-closed', 'label' => 'Ruang Sekolah', 'patterns' => ['rooms']],
                             ['permission' => 'regulations.view', 'href' => 'references/regulations', 'icon' => 'landmark', 'label' => 'Regulasi Pendidikan', 'patterns' => ['references/regulations']],
                             ['permission' => 'curriculum_sources.view', 'href' => 'references/curriculum-sources', 'icon' => 'library', 'label' => 'Sumber Kurikulum', 'patterns' => ['references/curriculum-sources']],
                             ['permission' => 'graduate_profile.view', 'href' => 'references/graduate-profile', 'icon' => 'badge-check', 'label' => 'Profil Lulusan', 'patterns' => ['references/graduate-profile']],
-                            ['permissionAny' => ['teachers.import', 'subjects.import'], 'href' => 'imports/master', 'icon' => 'file-up', 'label' => 'Import Master', 'patterns' => ['imports/master']],
+                            ['permissionAny' => ['teachers.import', 'subjects.import'], 'href' => 'imports/master', 'icon' => 'upload', 'label' => 'Import Master', 'patterns' => ['imports/master']],
                         ],
                     ],
                     [
                         'key' => 'planning',
                         'label' => 'Perencanaan',
-                        'icon' => 'workflow',
+                        'icon' => 'map',
                         'items' => [
-                            ['permission' => 'curriculum.view', 'href' => 'curriculum', 'icon' => 'grid', 'label' => 'Struktur Kurikulum', 'patterns' => ['curriculum'], 'excludePatterns' => ['curriculum/imports', 'curriculum/outcomes', 'curriculum/objectives', 'curriculum/sequences', 'curriculum/coverage', 'curriculum/learning-packs', 'curriculum/education-imports']],
-                            ['permission' => 'curriculum.import', 'href' => 'curriculum/imports', 'icon' => 'file-spreadsheet', 'label' => 'Import Kurikulum', 'patterns' => ['curriculum/imports']],
+                            ['permission' => 'curriculum.view', 'href' => 'curriculum', 'icon' => 'layout-list', 'label' => 'Struktur Kurikulum', 'patterns' => ['curriculum'], 'exactOnly' => true],
+                            ['permission' => 'curriculum.import', 'href' => 'curriculum/imports', 'icon' => 'table-2', 'label' => 'Import Kurikulum', 'patterns' => ['curriculum/imports']],
                             ['permission' => 'learning_outcomes.view', 'href' => 'curriculum/outcomes', 'icon' => 'network', 'label' => 'IALOS Education', 'patterns' => ['curriculum/outcomes']],
                             ['permission' => 'learning_objectives.view', 'href' => 'curriculum/objectives', 'icon' => 'target', 'label' => 'Adaptasi TP', 'patterns' => ['curriculum/objectives']],
                             ['permission' => 'learning_sequences.view', 'href' => 'curriculum/sequences', 'icon' => 'route', 'label' => 'ATP & Coverage', 'patterns' => ['curriculum/sequences', 'curriculum/coverage']],
@@ -405,38 +431,25 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                     [
                         'key' => 'scheduling',
                         'label' => 'Penugasan & Jadwal',
-                        'icon' => 'calendar-days',
+                        'icon' => 'calendar-range',
                         'items' => [
-                            ['permission' => 'assignments.view', 'href' => 'assignments', 'icon' => 'briefcase', 'label' => 'Penugasan Mengajar', 'patterns' => ['assignments']],
-                            ['permission' => 'workloads.view', 'href' => 'workloads', 'icon' => 'bar-chart-2', 'label' => 'Beban Kerja Guru', 'patterns' => ['workloads']],
-                            ['permission' => 'schedules.view', 'href' => 'schedules', 'icon' => 'calendar-days', 'label' => 'Jadwal Pelajaran', 'patterns' => ['schedules'], 'excludePatterns' => ['schedules/substitutions']],
+                            ['permission' => 'assignments.view', 'href' => 'assignments', 'icon' => 'clipboard-pen', 'label' => 'Penugasan Mengajar', 'patterns' => ['assignments']],
+                            ['permission' => 'workloads.view', 'href' => 'workloads', 'icon' => 'bar-chart', 'label' => 'Beban Kerja Guru', 'patterns' => ['workloads']],
+                            ['permission' => 'schedules.view', 'href' => 'schedules', 'icon' => 'calendar-days', 'label' => 'Jadwal Pelajaran', 'patterns' => ['schedules'], 'exactOnly' => true],
                             ['permission' => 'schedules.view', 'href' => 'schedules/substitutions', 'icon' => 'user-round-cog', 'label' => 'Substitusi Guru', 'patterns' => ['schedules/substitutions']],
                             ['permissionAny' => ['duty_schedules.view', 'schedules.view'], 'href' => 'duty-schedules', 'icon' => 'shield-check', 'label' => 'Jadwal Piket', 'patterns' => ['duty-schedules']],
-                            ['permission' => 'attendances.view', 'href' => 'attendances', 'icon' => 'activity', 'label' => 'Absensi & Jurnal Kelas', 'patterns' => ['attendances']],
+                            ['permission' => 'attendances.view', 'href' => 'attendances', 'icon' => 'clipboard-check', 'label' => 'Absensi & Jurnal Kelas', 'patterns' => ['attendances']],
                         ],
                     ],
                     [
                         'key' => 'portal',
                         'label' => 'Portal Guru (Supervisi)',
-                        'icon' => 'user-check',
+                        'icon' => 'contact',
                         'items' => [
-                            ['permission' => 'teacher_schedule.view', 'href' => 'portal/schedule', 'icon' => 'calendar', 'label' => 'Jadwal Mengajar Guru', 'patterns' => ['portal/schedule']],
-                            ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'bar-chart', 'label' => 'Penugasan & Beban Guru', 'patterns' => ['portal/workload']],
+                            ['permission' => 'teacher_schedule.view', 'href' => 'portal/schedule', 'icon' => 'calendar-days', 'label' => 'Jadwal Mengajar Guru', 'patterns' => ['portal/schedule']],
+                            ['permission' => 'teacher_workload.view', 'href' => 'portal/workload', 'icon' => 'gauge', 'label' => 'Penugasan & Beban Guru', 'patterns' => ['portal/workload']],
                             ['permission' => 'teacher_assignment_document.view', 'href' => 'portal/assignment-document', 'icon' => 'file-signature', 'label' => 'SK Tugas Guru', 'patterns' => ['portal/assignment-document']],
                             ['permission' => 'teacher_duty_schedule.view', 'href' => 'portal/duty-schedule', 'icon' => 'shield-check', 'label' => 'Piket Guru', 'patterns' => ['portal/duty-schedule']],
-                        ],
-                    ],
-                    [
-                        'key' => 'system',
-                        'label' => 'Sistem',
-                        'icon' => 'settings',
-                        'items' => [
-                            ['permission' => 'users.view', 'href' => 'users', 'icon' => 'shield-alert', 'label' => 'User Management', 'patterns' => ['users']],
-                            ['permission' => 'roles.view', 'href' => 'roles', 'icon' => 'shield-check', 'label' => 'Role & Permission', 'patterns' => ['roles']],
-                            ['permission' => 'audit.view', 'href' => 'audit', 'icon' => 'history', 'label' => 'Audit Log', 'patterns' => ['audit']],
-                            ['permission' => 'settings.view', 'href' => 'settings/application', 'icon' => 'settings', 'label' => 'Pengaturan Aplikasi', 'patterns' => ['settings/application']],
-                            ['permission' => 'academic_calendar.manage', 'href' => 'settings/academic-operations', 'icon' => 'calendar-cog', 'label' => 'Operasional Akademik', 'patterns' => ['settings/academic-operations']],
-                            ['permission' => 'attendances.admin', 'href' => 'settings/attendance', 'icon' => 'clipboard-cog', 'label' => 'Pengaturan Absensi', 'patterns' => ['settings/attendance']],
                         ],
                     ],
                     ];
@@ -475,9 +488,9 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                 $menuGroups[] = [
                     'key' => 'ialos-education',
                     'label' => 'IALOS Education',
-                    'icon' => 'network',
+                    'icon' => 'graduation-cap',
                     'items' => [
-                        ['permissionAny' => ['regulations.view','curriculum_sources.view','graduate_profile.view','learning_outcomes.view','learning_objectives.view','learning_sequences.view','learning_packs.view','lesson_plans.view','teaching.workspace','ksp.view'], 'href' => 'education', 'icon' => 'layout-dashboard', 'label' => 'Control Center', 'patterns' => ['education'], 'excludePatterns' => ['education/ksp']],
+                        ['permissionAny' => ['regulations.view','curriculum_sources.view','graduate_profile.view','learning_outcomes.view','learning_objectives.view','learning_sequences.view','learning_packs.view','lesson_plans.view','teaching.workspace','ksp.view'], 'href' => 'education', 'icon' => 'layout-dashboard', 'label' => 'Control Center', 'patterns' => ['education'], 'exactOnly' => true],
                         ['permission' => 'ksp.view', 'href' => 'education/ksp', 'icon' => 'book-open-check', 'label' => 'Digital KSP', 'patterns' => ['education/ksp']],
                         ['permission' => 'regulations.view', 'href' => 'references/regulations', 'icon' => 'landmark', 'label' => 'Regulasi Pendidikan', 'patterns' => ['references/regulations']],
                         ['permission' => 'curriculum_sources.view', 'href' => 'references/curriculum-sources', 'icon' => 'library', 'label' => 'Sumber Kurikulum', 'patterns' => ['references/curriculum-sources']],
@@ -499,17 +512,100 @@ $isMenuItemActive = static function (array $item) use ($isCurrentPath, $requeste
                 $menuGroups[] = [
                     'key' => 'assessment-mastery',
                     'label' => 'Penilaian & Mastery',
-                    'icon' => 'clipboard-list',
+                    'icon' => 'bar-chart',
                     'items' => [
                         ['permission' => 'assessment.view', 'href' => 'assessment', 'icon' => 'clipboard-check', 'label' => 'Assessment & Nilai', 'patterns' => ['assessment']],
                         ['permission' => 'assessment.mastery', 'href' => 'mastery', 'icon' => 'bar-chart-3', 'label' => 'Mastery TP', 'patterns' => ['mastery']],
                         ['permission' => 'assessment.view', 'href' => 'smart/mastery-heatmap', 'icon' => 'grid-3x3', 'label' => 'Mastery Heatmap', 'patterns' => ['smart/mastery-heatmap']],
                         ['permission' => 'assessment.mastery', 'href' => 'interventions', 'icon' => 'heart-handshake', 'label' => 'Intervensi Belajar', 'patterns' => ['interventions']],
-                        ['permission' => 'assessment.mastery', 'href' => 'reporting-policies', 'icon' => 'settings-2', 'label' => 'Kebijakan Pelaporan', 'patterns' => ['reporting-policies']],
+                        ['permission' => 'assessment.mastery', 'href' => 'reporting-policies', 'icon' => 'settings', 'label' => 'Kebijakan Pelaporan', 'patterns' => ['reporting-policies']],
                         ['permission' => 'assessment.mastery', 'href' => 'summative', 'icon' => 'sigma', 'label' => 'Pengolahan Sumatif', 'patterns' => ['summative']],
-                        ['permission' => 'assessment.view', 'href' => 'smart/narrative-drafter', 'icon' => 'file-text', 'label' => 'Draf Narasi Rapor', 'patterns' => ['smart/narrative-drafter']],
+                        ['permission' => 'assessment.view', 'href' => 'smart/narrative-drafter', 'icon' => 'pen-line', 'label' => 'Draf Narasi Rapor', 'patterns' => ['smart/narrative-drafter']],
                     ],
                 ];
+
+                // Phase 7 & 8: Kokurikuler, Ekstrakurikuler & Karakter (Digabung jadi 1 grup terpadu).
+                $phase7CocurricularEnabled = \App\Services\FeatureFlagService::isEnabled('ialos_phase7_cocurricular');
+                $phase7KaihEnabled         = $phase7CocurricularEnabled && \App\Services\FeatureFlagService::isEnabled('ialos_7kahi');
+                $coExtraItems = [];
+                if ($phase7CocurricularEnabled) {
+                    $coExtraItems[] = ['permission' => 'cocurricular.view', 'href' => 'cocurricular', 'icon' => 'star', 'label' => 'Program Kokurikuler', 'patterns' => ['cocurricular'], 'exactOnly' => true];
+                }
+                $coExtraItems[] = ['permission' => 'extracurricular.view', 'href' => 'extracurricular', 'icon' => 'trophy', 'label' => 'Program Ekstrakurikuler', 'patterns' => ['extracurricular']];
+                if ($phase7KaihEnabled) {
+                    $coExtraItems[] = ['permissionAny' => ['cocurricular.view', 'cocurricular.manage'], 'href' => 'cocurricular/habits', 'icon' => 'smile', 'label' => 'Kebiasaan (7KAIH)', 'patterns' => ['cocurricular/habits']];
+                    $coExtraItems[] = ['permissionAny' => ['cocurricular.view', 'cocurricular.manage'], 'href' => 'cocurricular/checkins', 'icon' => 'calendar-check-2', 'label' => 'Check-in Kebiasaan', 'patterns' => ['cocurricular/checkins']];
+                }
+                if ($coExtraItems !== []) {
+                    $menuGroups[] = [
+                        'key'   => 'cocurricular-extracurricular',
+                        'label' => 'Kokurikuler & Ekstra',
+                        'icon'  => 'award',
+                        'items' => $coExtraItems,
+                    ];
+                }
+
+                // Phase 10: Quality & AI Copilot
+                if (has_permission('teacher_reflection.view') || has_permission('supervision.view') || has_permission('ksp_evaluation.view')) {
+                    $menuGroups[] = [
+                        'key'   => 'quality-copilot',
+                        'label' => 'Mutu & AI Copilot',
+                        'icon'  => 'sparkle',
+                        'items' => [
+                            ['permission' => 'teacher_reflection.view', 'href' => 'quality', 'icon' => 'gauge', 'label' => 'Dashboard Mutu', 'patterns' => ['quality'], 'exactOnly' => true],
+                            ['permission' => 'teacher_reflection.view', 'href' => 'quality/reflections', 'icon' => 'notebook-pen', 'label' => 'Refleksi Guru', 'patterns' => ['quality/reflections', 'quality/reflection']],
+                            ['permission' => 'supervision.view', 'href' => 'quality/supervisions', 'icon' => 'scan-eye', 'label' => 'Supervisi', 'patterns' => ['quality/supervisions', 'quality/supervision']],
+                            ['permission' => 'ksp_evaluation.view', 'href' => 'quality/ksp', 'icon' => 'clipboard-check', 'label' => 'Evaluasi KSP', 'patterns' => ['quality/ksp']],
+                            ['permission' => 'teacher_reflection.view', 'href' => 'quality/copilot', 'icon' => 'brain', 'label' => 'AI Copilot', 'patterns' => ['quality/copilot']],
+                            ['permission' => 'ksp_evaluation.view', 'href' => 'quality/report', 'icon' => 'file-bar-chart', 'label' => 'Laporan Mutu', 'patterns' => ['quality/report']],
+                        ],
+                    ];
+                }
+                if (has_permission('reporting.view')) {
+                    $menuGroups[] = [
+                        'key'   => 'reporting-portfolio',
+                        'label' => 'Rapor & Portofolio',
+                        'icon'  => 'file-output',
+                        'items' => [
+                            ['permission' => 'reporting.view', 'href' => 'reporting', 'icon' => 'file-check', 'label' => 'Laporan Semester', 'patterns' => ['reporting']],
+                            ['permission' => 'reporting.view', 'href' => 'reporting/class-dashboard', 'icon' => 'line-chart', 'label' => 'Dashboard Kelas', 'patterns' => ['reporting/class-dashboard']],
+                            ['permission' => 'reporting.view', 'href' => 'reporting/promotion', 'icon' => 'trending-up', 'label' => 'Kesiapan Kenaikan Kelas', 'patterns' => ['reporting/promotion']],
+                        ],
+                    ];
+                }
+
+                // Phase 11 & 12: Universal Sync & System Diagnostics
+                if (has_permission('sync.view')) {
+                    $menuGroups[] = [
+                        'key'   => 'system-sync',
+                        'label' => 'Integrasi & Sistem',
+                        'icon'  => 'plug-zap',
+                        'items' => [
+                            ['permission' => 'sync.view', 'href' => 'system/sync', 'icon' => 'smartphone', 'label' => 'Sync Mobile (Kodular)', 'patterns' => ['system/sync*']],
+                            ['permission' => 'sync.view', 'href' => 'system/diagnostics', 'icon' => 'activity', 'label' => 'Diagnostik Sistem', 'patterns' => ['system/diagnostics*']],
+                        ],
+                    ];
+                }
+
+                // Settings group — always at the bottom.
+                if (has_permission('settings.view') || has_permission('settings.manage') || has_permission('users.view') || has_permission('roles.view') || has_permission('audit.view')) {
+                    $menuGroups[] = [
+                        'key' => 'system',
+                        'label' => 'Sistem',
+                        'icon'  => 'settings-2',
+                        'items' => [
+                            ['permission' => 'settings.view', 'href' => 'settings/school-profile', 'icon' => 'building', 'label' => 'Profil Sekolah', 'patterns' => ['settings/school-profile']],
+                            ['permission' => 'settings.view', 'href' => 'settings/appearance', 'icon' => 'palette', 'label' => 'Tampilan & Tema', 'patterns' => ['settings/appearance']],
+                            ['permission' => 'settings.manage', 'href' => 'settings/database', 'icon' => 'server', 'label' => 'Manajemen Database', 'patterns' => ['settings/database']],
+                            ['permission' => 'settings.view', 'href' => 'settings/application', 'icon' => 'cog', 'label' => 'Pengaturan Aplikasi', 'patterns' => ['settings/application']],
+                            ['permission' => 'academic_calendar.manage', 'href' => 'settings/academic-operations', 'icon' => 'calendar-check', 'label' => 'Operasional Akademik', 'patterns' => ['settings/academic-operations']],
+                            ['permission' => 'attendances.admin', 'href' => 'settings/attendance', 'icon' => 'clipboard-list', 'label' => 'Pengaturan Absensi', 'patterns' => ['settings/attendance']],
+                            ['permission' => 'users.view', 'href' => 'users', 'icon' => 'users-round', 'label' => 'User Management', 'patterns' => ['users']],
+                            ['permission' => 'roles.view', 'href' => 'roles', 'icon' => 'key-round', 'label' => 'Role & Permission', 'patterns' => ['roles']],
+                            ['permission' => 'audit.view', 'href' => 'audit', 'icon' => 'scroll-text', 'label' => 'Audit Log', 'patterns' => ['audit']],
+                        ],
+                    ];
+                }
                 ?>
 
                 <?php foreach ($menuGroups as $group): ?>

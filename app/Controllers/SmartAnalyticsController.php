@@ -171,11 +171,13 @@ class SmartAnalyticsController extends BaseController
         }
 
         $subjectId = (int) ($this->request->getGet('subject_id') ?: 0) ?: null;
+        $fromDate  = $this->request->getGet('from_date') ?: null;
+        $toDate    = $this->request->getGet('to_date') ?: null;
 
         $trends = null;
         if ($teacherId > 0) {
             $trendsService = new ReflectionTrendsService();
-            $trends = $trendsService->buildTrends($teacherId, $periodId, $subjectId);
+            $trends = $trendsService->buildTrends($teacherId, $periodId, $subjectId, $fromDate, $toDate);
         }
 
         return view('smart/reflection_trends', [
@@ -186,6 +188,8 @@ class SmartAnalyticsController extends BaseController
             'selectedTeacher'   => $selectedTeacher,
             'subjectId'         => $subjectId,
             'teacherId'         => $teacherId,
+            'fromDate'          => $fromDate,
+            'toDate'            => $toDate,
         ]);
     }
 
@@ -216,6 +220,34 @@ class SmartAnalyticsController extends BaseController
         ]);
     }
 
+    /**
+     * Complete remedial activity and update student TP mastery.
+     */
+    public function completeRemedial()
+    {
+        $studentId   = (int) $this->request->getPost('student_id');
+        $objectiveId = (int) $this->request->getPost('objective_id');
+        $newResult   = strtoupper((string) $this->request->getPost('new_result'));
+        $notes       = (string) ($this->request->getPost('remedial_notes') ?: 'Penyelesaian paket remedial terarah');
+        $userId      = (int) (session()->get('user_id') ?: 1);
+
+        if (!$studentId || !$objectiveId || !$newResult) {
+            return redirect()->back()->with('error', 'Parameter verifikasi remedial tidak lengkap.');
+        }
+
+        $allowed = ['NEEDS_SUPPORT', 'DEVELOPING', 'ACHIEVED', 'ADVANCED'];
+        if (!in_array($newResult, $allowed, true)) {
+            return redirect()->back()->with('error', 'Status mastery tidak valid.');
+        }
+
+        $masteryService = new \App\Services\MasteryService();
+        $masteryService->setMastery($studentId, $objectiveId, $newResult, $userId, [
+            'notes' => $notes,
+        ]);
+
+        return redirect()->to(base_url('smart/mastery-heatmap'))->with('success', 'Status TP berhasil diperbarui setelah verifikasi remedial.');
+    }
+
     // ====================================================================
     // PHASE 6: NARRATIVE REPORT DRAFTER
     // ====================================================================
@@ -234,9 +266,23 @@ class SmartAnalyticsController extends BaseController
         $studentId   = (int) ($this->request->getGet('student_id') ?: 0);
 
         $narrativeData = null;
+        $savedDraft    = null;
+
         if ($studentId && $subjectId) {
             $narrativeService = new NarrativeService();
             $narrativeData = $narrativeService->generateStudentNarrative($studentId, $subjectId, $periodId);
+
+            // Check if saved draft exists in DB
+            $draftModel = new \App\Models\StudentNarrativeDraftModel();
+            $savedDraft = $draftModel->where([
+                'student_id'         => $studentId,
+                'subject_id'         => $subjectId,
+                'academic_period_id' => $periodId,
+            ])->first();
+
+            if ($savedDraft && !empty($savedDraft['narrative_text']) && $narrativeData) {
+                $narrativeData['composite_narrative'] = $savedDraft['narrative_text'];
+            }
         }
 
         $db = Database::connect();
@@ -267,6 +313,7 @@ class SmartAnalyticsController extends BaseController
             'title'             => 'Penyusun Draf Narasi Rapor',
             'breadcrumb_active' => 'Draf Narasi Rapor',
             'narrativeData'     => $narrativeData,
+            'savedDraft'        => $savedDraft,
             'classrooms'        => $classrooms,
             'subjects'          => $subjects,
             'students'          => $students,
@@ -274,6 +321,44 @@ class SmartAnalyticsController extends BaseController
             'selectedSubject'   => $subjectId,
             'selectedStudent'   => $studentId,
         ]);
+    }
+
+    /**
+     * AJAX endpoint: save report card narrative draft to database.
+     */
+    public function saveNarrativeDraft()
+    {
+        $studentId   = (int) $this->request->getPost('student_id');
+        $subjectId   = (int) $this->request->getPost('subject_id');
+        $classroomId = (int) $this->request->getPost('classroom_id');
+        $narrative   = trim((string) $this->request->getPost('narrative_text'));
+        $tone        = (string) ($this->request->getPost('tone') ?: 'STANDARD');
+        $userId      = (int) (session()->get('user_id') ?: 1);
+
+        $period   = get_active_period();
+        $periodId = $period ? (int) $period['id'] : 1;
+
+        if (!$studentId || !$subjectId || $narrative === '') {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Data narasi tidak lengkap']);
+        }
+
+        $draftModel = new \App\Models\StudentNarrativeDraftModel();
+        $success = $draftModel->upsertDraft([
+            'student_id'         => $studentId,
+            'subject_id'         => $subjectId,
+            'classroom_id'       => $classroomId,
+            'academic_period_id' => $periodId,
+            'narrative_text'     => $narrative,
+            'tone'               => $tone,
+            'created_by'         => $userId,
+            'updated_by'         => $userId,
+        ]);
+
+        if ($success) {
+            return $this->response->setJSON(['status' => 'success', 'message' => 'Draf narasi rapor berhasil disimpan ke database']);
+        }
+
+        return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal menyimpan draf narasi']);
     }
 
     // ====================================================================

@@ -46,7 +46,7 @@ class AcademicPeriodController extends BaseController
 
         return view('academic_periods/index', [
             'title'             => 'Tahun Pelajaran & Periode Akademik',
-            'breadcrumb_active' => 'Tahun & Periode',
+            'breadcrumb_active' => 'Tahun Pelajaran',
             'years'             => $years,
             'periods'           => $periods,
             'filters'           => ['academic_year_id' => $yearId ?: '', 'state' => $state],
@@ -64,7 +64,7 @@ class AcademicPeriodController extends BaseController
 
         return view('academic_periods/create', [
             'title'             => 'Tambah Periode Akademik',
-            'breadcrumb_active' => 'Tambah Periode',
+            'breadcrumb_active' => 'Tambah Tahun Pelajaran',
             'years'             => $years
         ]);
     }
@@ -169,7 +169,7 @@ class AcademicPeriodController extends BaseController
 
         return view('academic_periods/show', [
             'title'             => 'Detail Periode Akademik',
-            'breadcrumb_active' => 'Detail Periode',
+            'breadcrumb_active' => 'Detail Tahun Pelajaran',
             'period'            => $period
         ]);
     }
@@ -192,7 +192,7 @@ class AcademicPeriodController extends BaseController
 
         return view('academic_periods/edit', [
             'title'             => 'Edit Periode Akademik',
-            'breadcrumb_active' => 'Edit Periode',
+            'breadcrumb_active' => 'Edit Tahun Pelajaran',
             'period'            => $period,
             'year'              => $year
         ]);
