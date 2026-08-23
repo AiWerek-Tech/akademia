@@ -263,9 +263,14 @@ foreach ($reports as $r) {
                                         </div>
                                     </td>
                                     <td class="text-end pe-3 py-3">
-                                        <a href="<?= base_url('extracurricular/' . $program['id'] . '/report/' . $r['member']['student_id']) ?>" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                            Profil Rapor
-                                        </a>
+                                        <div class="d-inline-flex gap-1">
+                                            <a href="<?= base_url('extracurricular/' . $program['id'] . '/certificate/' . $r['member']['student_id']) ?>" target="_blank" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-2.5" title="Cetak Piagam Resmi">
+                                                <i data-lucide="award" class="w-3.5 h-3.5 d-inline-block text-warning"></i> Piagam
+                                            </a>
+                                            <a href="<?= base_url('extracurricular/' . $program['id'] . '/report/' . $r['member']['student_id']) ?>" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                                Profil Rapor
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

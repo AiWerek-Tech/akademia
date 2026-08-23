@@ -579,6 +579,39 @@ class ExtracurricularController extends BaseController
         ]);
     }
 
+    public function certificate(int $id, int $studentId, ?int $achievementId = null)
+    {
+        $program = $this->assertProgramUnit($id);
+        if (! $program) {
+            return redirect()->to(base_url('extracurricular'))->with('error', 'Program tidak ditemukan.');
+        }
+
+        try {
+            $certData = $this->extService->getCertificateData($id, $studentId, $achievementId);
+            return view('extracurricular/certificate', [
+                'title'    => 'Sertifikat — ' . $certData['student']['full_name'],
+                'cert'     => $certData,
+            ]);
+        } catch (Exception $e) {
+            return redirect()->back()->with('error', 'Gagal memuat sertifikat: ' . $e->getMessage());
+        }
+    }
+
+    public function studentSummary(int $studentId): \CodeIgniter\HTTP\ResponseInterface
+    {
+        $period   = get_active_period();
+        $periodId = $period ? (int) $period['id'] : 0;
+
+        $items = $this->extService->getStudentExtracurricularReportCardData($studentId, $periodId);
+
+        return $this->response->setJSON([
+            'status'     => 'success',
+            'student_id' => $studentId,
+            'period_id'  => $periodId,
+            'data'       => $items,
+        ]);
+    }
+
     // ================================================================
     // HELPERS
     // ================================================================

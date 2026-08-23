@@ -25,11 +25,31 @@ $routes->post('context/period', 'ContextController::changePeriod');
 $routes->get('settings/units', 'UnitController::index');
 $routes->get('settings/units/(:segment)/edit', 'UnitController::edit/$1');
 $routes->post('settings/units/(:segment)', 'UnitController::update/$1');
-$routes->get('settings/application', 'UnitController::index');
+$routes->get('settings/application', 'SettingsController::application', ['filter' => 'permission:settings.view']);
+$routes->post('settings/application/save', 'SettingsController::saveApplication', ['filter' => 'permission:settings.manage']);
+$routes->post('settings/application/save-maintenance', 'SettingsController::saveMaintenance', ['filter' => 'permission:settings.manage']);
+$routes->post('settings/application/save-registration', 'SettingsController::saveRegistration', ['filter' => 'permission:settings.manage']);
 $routes->get('settings/academic-operations', 'AcademicOperatingSettingsController::index', ['filter' => 'permission:academic_calendar.manage']);
 $routes->post('settings/academic-operations', 'AcademicOperatingSettingsController::save', ['filter' => 'permission:academic_calendar.manage']);
 $routes->get('settings/attendance', 'AttendanceSettingsController::index', ['filter' => 'permission:attendances.admin']);
 $routes->post('settings/attendance', 'AttendanceSettingsController::save', ['filter' => 'permission:attendances.admin']);
+
+// Settings: School Profile
+$routes->get('settings/school-profile', 'SettingsController::schoolProfile', ['filter' => 'permission:settings.view']);
+$routes->post('settings/school-profile', 'SettingsController::saveSchoolProfile', ['filter' => 'permission:settings.manage']);
+
+// Settings: Database Manager
+$routes->get('settings/database', 'SettingsController::database', ['filter' => 'permission:settings.manage']);
+$routes->get('settings/database/(:segment)/export', 'SettingsController::databaseExport/$1', ['filter' => 'permission:settings.manage']);
+$routes->post('settings/database/(:segment)/truncate', 'SettingsController::databaseTruncate/$1', ['filter' => 'permission:settings.manage']);
+$routes->get('settings/database/(:segment)/detail', 'SettingsController::databaseTableDetail/$1', ['filter' => 'permission:settings.manage']);
+$routes->post('settings/database/save-backup', 'SettingsController::saveBackup', ['filter' => 'permission:settings.manage']);
+
+// Settings: System Appearance
+$routes->get('settings/appearance', 'SettingsController::appearance', ['filter' => 'permission:settings.view']);
+$routes->post('settings/appearance/save', 'SettingsController::saveAppearance', ['filter' => 'permission:settings.manage']);
+$routes->post('settings/appearance/save-email', 'SettingsController::saveEmail', ['filter' => 'permission:settings.manage']);
+$routes->post('settings/appearance/save-security', 'SettingsController::saveSecurity', ['filter' => 'permission:settings.manage']);
 
 // Academic Years
 $routes->get('academic-years', 'AcademicYearController::index');
@@ -389,6 +409,9 @@ $routes->post('extracurricular/competency/(:num)/delete', 'ExtracurricularContro
 $routes->get('extracurricular/(:num)/reports', 'ExtracurricularController::reports/$1', ['filter' => 'permission:extracurricular.view']);
 $routes->get('extracurricular/(:num)/report/(:num)', 'ExtracurricularController::studentReport/$1/$2', ['filter' => 'permission:extracurricular.view']);
 $routes->get('extracurricular/(:num)/student-narrative/(:num)', 'ExtracurricularController::studentNarrative/$1/$2', ['filter' => 'permission:extracurricular.view']);
+$routes->get('extracurricular/(:num)/certificate/(:num)', 'ExtracurricularController::certificate/$1/$2', ['filter' => 'permission:extracurricular.view']);
+$routes->get('extracurricular/(:num)/certificate/(:num)/(:num)', 'ExtracurricularController::certificate/$1/$2/$3', ['filter' => 'permission:extracurricular.view']);
+$routes->get('extracurricular/student/(:num)/summary', 'ExtracurricularController::studentSummary/$1', ['filter' => 'permission:extracurricular.view']);
 
 // ====================================================================
 // PHASE 9 — REPORTING & PORTFOLIO
@@ -400,11 +423,78 @@ $routes->post('reporting/(:num)/lock', 'ReportingController::lock/$1', ['filter'
 $routes->post('reporting/(:num)/publish', 'ReportingController::publish/$1', ['filter' => 'permission:reporting.manage']);
 $routes->post('reporting/narrative/(:num)/save', 'ReportingController::saveNarrative/$1', ['filter' => 'permission:reporting.manage']);
 $routes->get('reporting/narrative/(:num)/generate', 'ReportingController::generateNarrative/$1', ['filter' => 'permission:reporting.manage']);
+$routes->post('reporting/narrative/(:num)/approve', 'ReportingController::approveNarrative/$1', ['filter' => 'permission:reporting.manage']);
 $routes->get('reporting/portfolio/(:num)', 'ReportingController::portfolio/$1', ['filter' => 'permission:reporting.view']);
 $routes->post('reporting/portfolio/(:num)/add', 'ReportingController::addPortfolioItem/$1', ['filter' => 'permission:reporting.manage']);
+$routes->post('reporting/portfolio/(:num)/import', 'ReportingController::importPortfolio/$1', ['filter' => 'permission:reporting.manage']);
 $routes->post('reporting/portfolio/(:num)/delete', 'ReportingController::deletePortfolioItem/$1', ['filter' => 'permission:reporting.manage']);
 $routes->post('reporting/portfolio/(:num)/highlight', 'ReportingController::toggleHighlight/$1', ['filter' => 'permission:reporting.manage']);
 $routes->get('reporting/class-dashboard', 'ReportingController::classDashboard', ['filter' => 'permission:reporting.view']);
+$routes->get('reporting/promotion', 'ReportingController::promotion', ['filter' => 'permission:reporting.view']);
+$routes->post('reporting/bulk-generate', 'ReportingController::bulkGenerate', ['filter' => 'permission:reporting.manage']);
+$routes->post('reporting/bulk-publish', 'ReportingController::bulkPublish', ['filter' => 'permission:reporting.manage']);
+$routes->get('reporting/(:num)/print', 'ReportingController::print/$1', ['filter' => 'permission:reporting.view']);
+$routes->get('reporting/student/(:num)/card', 'ReportingController::studentReportCardApi/$1', ['filter' => 'permission:reporting.view']);
+
+// ====================================================================
+// PHASE 10 — QUALITY & AI COPILOT
+// ====================================================================
+$routes->get('quality', 'QualityController::index', ['filter' => 'permission:teacher_reflection.view|supervision.view|ksp_evaluation.view']);
+// Reflections
+$routes->get('quality/reflections', 'QualityController::reflections', ['filter' => 'permission:teacher_reflection.view']);
+$routes->get('quality/reflections/create', 'QualityController::createReflection', ['filter' => 'permission:teacher_reflection.manage']);
+$routes->get('quality/reflection/create', 'QualityController::createReflection', ['filter' => 'permission:teacher_reflection.manage']);
+$routes->post('quality/reflection/create', 'QualityController::storeReflection', ['filter' => 'permission:teacher_reflection.manage']);
+$routes->get('quality/reflection/(:num)', 'QualityController::detailReflection/$1', ['filter' => 'permission:teacher_reflection.view']);
+$routes->get('quality/reflections/(:num)', 'QualityController::detailReflection/$1', ['filter' => 'permission:teacher_reflection.view']);
+$routes->get('quality/reflection/(:num)/edit', 'QualityController::detailReflection/$1', ['filter' => 'permission:teacher_reflection.manage']);
+$routes->post('quality/reflection/(:num)/edit', 'QualityController::updateReflection/$1', ['filter' => 'permission:teacher_reflection.manage']);
+$routes->post('quality/reflection/(:num)/publish', 'QualityController::publishReflection/$1', ['filter' => 'permission:teacher_reflection.manage']);
+// Supervisions
+$routes->get('quality/supervisions', 'QualityController::supervisions', ['filter' => 'permission:supervision.view']);
+$routes->get('quality/supervisions/create', 'QualityController::createSupervision', ['filter' => 'permission:supervision.manage']);
+$routes->get('quality/supervision/create', 'QualityController::createSupervision', ['filter' => 'permission:supervision.manage']);
+$routes->post('quality/supervisions', 'QualityController::storeSupervision', ['filter' => 'permission:supervision.manage']);
+$routes->post('quality/supervision/create', 'QualityController::storeSupervision', ['filter' => 'permission:supervision.manage']);
+$routes->get('quality/supervision/(:num)', 'QualityController::detailSupervision/$1', ['filter' => 'permission:supervision.view']);
+$routes->get('quality/supervisions/(:num)', 'QualityController::detailSupervision/$1', ['filter' => 'permission:supervision.view']);
+$routes->get('quality/supervision/(:num)/print', 'QualityController::printSupervision/$1', ['filter' => 'permission:supervision.view']);
+$routes->get('quality/supervisions/(:num)/print', 'QualityController::printSupervision/$1', ['filter' => 'permission:supervision.view']);
+$routes->post('quality/supervision/(:num)/edit', 'QualityController::updateSupervision/$1', ['filter' => 'permission:supervision.manage']);
+// KSP Evaluation
+$routes->get('quality/ksp', 'QualityController::kspDashboard', ['filter' => 'permission:ksp_evaluation.view']);
+// AI Copilot
+$routes->get('quality/copilot', 'QualityController::copilot', ['filter' => 'permission:teacher_reflection.view|assessment.view']);
+$routes->post('quality/copilot/generate', 'QualityController::generateDraft', ['filter' => 'permission:teacher_reflection.view|assessment.view']);
+$routes->post('quality/copilot/(:num)/accept', 'QualityController::acceptDraft/$1', ['filter' => 'permission:teacher_reflection.manage']);
+$routes->post('quality/copilot/(:num)/reject', 'QualityController::rejectDraft/$1', ['filter' => 'permission:teacher_reflection.manage']);
+$routes->post('quality/copilot/(:num)/feedback', 'QualityController::feedback/$1', ['filter' => 'permission:teacher_reflection.view']);
+// Quality Report
+$routes->get('quality/report', 'QualityController::qualityReport', ['filter' => 'permission:ksp_evaluation.view']);
+
+// ====================================================================
+// PHASE 11 — UNIVERSAL SYNC ENGINE & MOBILE OFFLINE-FIRST API GATEWAY
+// ====================================================================
+// Central Router Entrypoint (?action=login, sync_all, sync_delta, upload_file, health)
+$routes->match(['get', 'post'], 'api/v1/sync', 'Api\MobileSyncController::router');
+$routes->match(['get', 'post'], 'api/sync', 'Api\MobileSyncController::router');
+
+// Explicit REST Endpoints
+$routes->post('api/v1/auth/login', 'Api\MobileSyncController::login');
+$routes->get('api/v1/sync/all', 'Api\MobileSyncController::syncAll');
+$routes->post('api/v1/sync/delta', 'Api\MobileSyncController::syncDelta');
+$routes->post('api/v1/storage/upload', 'Api\MobileSyncController::uploadFile');
+$routes->get('api/v1/health', 'Api\MobileSyncController::health');
+
+// Web Admin Sync Dashboard
+$routes->get('system/sync', 'SystemIntegrationController::index', ['filter' => 'permission:sync.view']);
+$routes->post('system/sync/bump/(:segment)', 'SystemIntegrationController::bumpVersion/$1', ['filter' => 'permission:sync.manage']);
+$routes->post('system/sync/revoke/(:num)', 'SystemIntegrationController::revokeSession/$1', ['filter' => 'permission:sync.manage']);
+
+// Phase 12: System Diagnostics & Health
+$routes->get('system/diagnostics', 'SystemDiagnosticsController::index', ['filter' => 'permission:sync.view']);
+$routes->post('system/diagnostics/purge-sessions', 'SystemDiagnosticsController::purgeSessions', ['filter' => 'permission:sync.manage']);
+$routes->get('api/v1/system/diagnostics', 'SystemDiagnosticsController::apiHealthReport');
 
 // ====================================================================
 // SMART ANALYTICS — Enhanced Features (Phases 1, 5, 6)

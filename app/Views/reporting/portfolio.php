@@ -87,6 +87,42 @@
         <?php endforeach; ?>
     <?php endif; ?>
 
+    <!-- Import from evidence (auto-pull, blueprint §11) -->
+    <?php if (has_permission('reporting.manage') && ! empty($suggestions)): ?>
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white border-0 p-4 pb-2 d-flex align-items-center justify-content-between">
+                <h5 class="fw-bold mb-0">Rekomendasi Bukti Belajar</h5>
+                <span class="text-muted small">Diambil otomatis dari bukti penilaian, kokurikuler, dan ekstrakurikuler</span>
+            </div>
+            <div class="card-body p-4 pt-3">
+                <form method="POST" action="<?= base_url('reporting/portfolio/' . $student['id'] . '/import') ?>" id="importSuggestionForm">
+                    <?= csrf_field() ?>
+                    <div class="row g-3 mb-3">
+                        <?php foreach ($suggestions as $s): ?>
+                            <div class="col-md-6">
+                                <div class="p-3 rounded-3 bg-light border">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="suggestions[]" value="<?= esc($s['key'], 'attr') ?>" id="sg-<?= md5($s['key']) ?>">
+                                        <label class="form-check-label w-100" for="sg-<?= md5($s['key']) ?>">
+                                            <span class="badge bg-light text-dark border" style="font-size:.6rem"><?= esc($s['category']) ?></span>
+                                            <h6 class="fw-bold mb-1 mt-1"><?= esc($s['title']) ?></h6>
+                                            <?php if ($s['description']): ?>
+                                                <p class="text-muted small mb-0"><?= esc($s['description']) ?></p>
+                                            <?php endif; ?>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <button type="submit" class="btn btn-primary rounded-pill px-3">
+                        <i data-lucide="download" class="w-4 h-4 me-1"></i> Tambahkan yang Dipilih
+                    </button>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Add Portfolio Modal -->
     <div class="modal fade" id="addPortfolioModal" tabindex="-1">
         <div class="modal-dialog">

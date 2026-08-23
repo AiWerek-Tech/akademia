@@ -54,10 +54,32 @@ final class ExtracurricularEngineTest extends CIUnitTestCase
             $this->teacherId = (int) $teacher['id'];
         }
 
+        $classroom = $this->db->table('classrooms')->where('unit_id', $this->unitId)->get()->getRowArray();
+        if (! $classroom) {
+            $this->db->table('classrooms')->insert([
+                'uuid'              => '82000000-0000-4000-8000-000000000002',
+                'academic_period_id'=> $this->periodId,
+                'unit_id'           => $this->unitId,
+                'name'              => 'X-EKSKUL',
+                'grade_level_id'    => $this->gradeId,
+                'is_active'         => 1,
+                'created_at'        => date('Y-m-d H:i:s'),
+            ]);
+            $classroomId = (int) $this->db->insertID();
+        } else {
+            $classroomId = (int) $classroom['id'];
+        }
+
+        $period = $this->db->table('academic_periods')->where('id', $this->periodId)->get()->getRowArray();
+        $yearId = $period ? (int) $period['academic_year_id'] : 1;
+
         $student = $this->db->table('elective_students')->where('unit_id', $this->unitId)->get()->getRowArray();
         if (! $student) {
             $this->db->table('elective_students')->insert([
                 'uuid'             => '82000000-0000-4000-8000-000000000001',
+                'academic_year_id' => $yearId,
+                'classroom_id'     => $classroomId,
+                'current_grade'    => 10,
                 'full_name'        => 'Siswa Ekskul Test',
                 'student_number'   => 'EKS-001',
                 'unit_id'          => $this->unitId,
@@ -253,5 +275,90 @@ final class ExtracurricularEngineTest extends CIUnitTestCase
 
         $result->assertStatus(200);
         $result->assertJSONFragment(['status' => 'success']);
+    }
+
+    public function testReportCardDataAndCertificateGeneration(): void
+    {
+        $programId = $this->service->createProgram([
+            'unit_id'           => $this->unitId,
+            'academic_period_id'=> $this->periodId,
+            'title'             => 'Klub Pramuka / Pathfinder',
+            'category'          => 'SCOUT',
+            'status'            => 'ACTIVE',
+        ], 1);
+
+        $memberId = $this->service->addMember([
+            'program_id' => $programId,
+            'student_id' => $this->studentId,
+            'role'       => 'LEADER',
+        ], 1);
+
+        $compId = $this->service->addCompetency([
+            'program_id'      => $programId,
+            'code'            => 'SCOUT-HONOR-01',
+            'name'            => 'Pioneering & Semaphore Master',
+            'assessment_type' => 'QUALITATIVE',
+        ], 1);
+
+        $achId = $this->service->addAchievement([
+            'member_id'     => $memberId,
+            'competency_id' => $compId,
+            'achieved_date' => date('Y-m-d'),
+            'level'         => 'EXCELLENT',
+            'score'         => 98.0,
+            'remarks'       => 'Mastery Lencana Semaphore Tk. Utama',
+        ], 1);
+
+        // 1. Report card aggregator for Phase 9 integration
+        $reportData = $this->service->getStudentExtracurricularReportCardData($this->studentId, $this->periodId);
+        $this->assertNotEmpty($reportData);
+        $this->assertEquals('Klub Pramuka / Pathfinder', $reportData[0]['program_title']);
+        $this->assertEquals('A', $reportData[0]['predicate']);
+        $this->assertNotEmpty($reportData[0]['narrative']);
+
+        // 2. Certificate metadata generator
+        $certData = $this->service->getCertificateData($programId, $this->studentId, $achId);
+        $this->assertArrayHasKey('certificate_no', $certData);
+        $this->assertArrayHasKey('verification_token', $certData);
+        $this->assertEquals('Mastery Lencana Semaphore Tk. Utama', $certData['achievement']['remarks']);
+    }
+
+    public function testCertificateAndSummaryRoutes(): void
+    {
+        $programId = $this->service->createProgram([
+            'unit_id'           => $this->unitId,
+            'academic_period_id'=> $this->periodId,
+            'title'             => 'Paduan Suara & Orkestra',
+            'category'          => 'ARTS',
+            'status'            => 'ACTIVE',
+        ], 1);
+
+        $this->service->addMember([
+            'program_id' => $programId,
+            'student_id' => $this->studentId,
+            'role'       => 'MEMBER',
+        ], 1);
+
+        // 1. Certificate HTML view route
+        $resultCert = $this->withSession([
+            'logged_in'      => true,
+            'user_id'        => 1,
+            'active_unit_id' => $this->unitId,
+            'permissions'    => ['extracurricular.view'],
+        ])->get("extracurricular/{$programId}/certificate/{$this->studentId}");
+
+        $resultCert->assertStatus(200);
+        $resultCert->assertSee('SERTIFIKAT TANDA KECAKAPAN');
+
+        // 2. Portal summary JSON route
+        $resultSummary = $this->withSession([
+            'logged_in'      => true,
+            'user_id'        => 1,
+            'active_unit_id' => $this->unitId,
+            'permissions'    => ['extracurricular.view'],
+        ])->get("extracurricular/student/{$this->studentId}/summary");
+
+        $resultSummary->assertStatus(200);
+        $resultSummary->assertJSONFragment(['status' => 'success']);
     }
 }

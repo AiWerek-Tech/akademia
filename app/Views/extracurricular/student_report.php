@@ -21,7 +21,10 @@ $narrative = $narrative ?? ((new \App\Services\ExtracurricularService())->genera
             <h1 class="h3 fw-bold text-gray-900 mb-0">Lembar Capaian Ekstrakurikuler</h1>
             <p class="text-muted mb-0"><?= esc($report['member']['student_name']) ?> — <?= esc($report['member']['classroom_name'] ?? 'Kelas Siswa') ?></p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="<?= base_url('extracurricular/' . $report['program']['id'] . '/certificate/' . $report['member']['student_id']) ?>" target="_blank" class="btn btn-outline-warning text-dark shadow-sm rounded-pill px-3">
+                <i data-lucide="award" class="w-4 h-4 me-1 text-warning"></i> Cetak Piagam Resmi
+            </a>
             <button type="button" class="btn btn-outline-dark shadow-sm rounded-pill px-3" onclick="window.print()">
                 <i data-lucide="printer" class="w-4 h-4 me-1"></i> Cetak Lembar Rapor
             </button>
@@ -128,6 +131,7 @@ $narrative = $narrative ?? ((new \App\Services\ExtracurricularService())->genera
                                 <th class="py-2.5 text-center">Level Capaian</th>
                                 <th class="py-2.5 text-center">Skor</th>
                                 <th class="py-2.5">Catatan Penghargaan</th>
+                                <th class="py-2.5 text-end">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -142,6 +146,11 @@ $narrative = $narrative ?? ((new \App\Services\ExtracurricularService())->genera
                                     </td>
                                     <td class="py-2.5 text-center small"><?= $a['score'] ? number_format((float) $a['score'], 1) : '—' ?></td>
                                     <td class="py-2.5 text-muted small"><?= esc($a['remarks'] ?? '—') ?></td>
+                                    <td class="py-2.5 text-end">
+                                        <a href="<?= base_url('extracurricular/' . $report['program']['id'] . '/certificate/' . $report['member']['student_id'] . '/' . $a['id']) ?>" target="_blank" class="btn btn-xs btn-outline-warning text-dark rounded-pill px-2.5 py-1" style="font-size: 11px;">
+                                            <i data-lucide="award" class="w-3 h-3 d-inline-block me-1"></i> Piagam
+                                        </a>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>

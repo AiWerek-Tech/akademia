@@ -25,19 +25,30 @@ class ReportingController extends BaseController
         $unitId   = (int) session()->get('active_unit_id');
         $period   = get_active_period();
         $periodId = $period ? (int) $period['id'] : 0;
+        $classroomId = (int) ($this->request->getGet('classroom_id') ?: 0);
 
         $filters = [
-            'status' => $this->request->getGet('status') ?: '',
+            'status'       => $this->request->getGet('status') ?: '',
+            'classroom_id' => $classroomId,
         ];
 
         $snapshots = $this->reportService->listSnapshots($unitId, $periodId, $filters);
         $policies  = $this->reportService->listPolicies($unitId, $periodId);
+        $stats     = $this->reportService->reportingStats($unitId, $periodId, $classroomId ?: null);
+
+        $classrooms = Database::connect()->table('classrooms')
+            ->where('unit_id', $unitId)
+            ->orderBy('name', 'ASC')
+            ->get()->getResultArray();
 
         return view('reporting/index', [
-            'title'             => 'Rapor & Pelaporan',
+            'title'             => 'Rapor & Pelaporan Terpadu',
             'breadcrumb_active' => 'Rapor',
             'snapshots'         => $snapshots,
             'policies'          => $policies,
+            'stats'             => $stats,
+            'classrooms'        => $classrooms,
+            'selectedClassroom' => $classroomId,
             'filters'           => $filters,
             'statuses'          => ReportingService::ALLOWED_STATUSES,
         ]);
@@ -60,6 +71,87 @@ class ReportingController extends BaseController
         } catch (Exception $e) {
             return redirect()->back()->with('error', 'Gagal generate laporan: ' . $e->getMessage());
         }
+    }
+
+    public function bulkGenerate()
+    {
+        $unitId      = (int) session()->get('active_unit_id');
+        $period      = get_active_period();
+        $periodId    = $period ? (int) $period['id'] : 0;
+        $userId      = (int) session()->get('user_id');
+        $classroomId = (int) $this->request->getPost('classroom_id');
+
+        if ($classroomId <= 0) {
+            return redirect()->back()->with('error', 'Silakan pilih rombongan belajar terlebih dahulu.');
+        }
+
+        try {
+            $count = $this->reportService->generateClassSnapshots($unitId, $periodId, $classroomId, $userId);
+            return redirect()->back()->with('success', "Berhasil men-generate {$count} rapor untuk rombel ini.");
+        } catch (Exception $e) {
+            return redirect()->back()->with('error', 'Gagal generate massal: ' . $e->getMessage());
+        }
+    }
+
+    public function bulkPublish()
+    {
+        $unitId      = (int) session()->get('active_unit_id');
+        $period      = get_active_period();
+        $periodId    = $period ? (int) $period['id'] : 0;
+        $userId      = (int) session()->get('user_id');
+        $classroomId = (int) $this->request->getPost('classroom_id');
+
+        if ($classroomId <= 0) {
+            return redirect()->back()->with('error', 'Silakan pilih rombongan belajar terlebih dahulu.');
+        }
+
+        try {
+            $count = $this->reportService->publishClassSnapshots($unitId, $periodId, $classroomId, $userId);
+            return redirect()->back()->with('success', "Berhasil menerbitkan {$count} rapor rombel.");
+        } catch (Exception $e) {
+            return redirect()->back()->with('error', 'Gagal menerbitkan massal: ' . $e->getMessage());
+        }
+    }
+
+    public function print(int $id)
+    {
+        $snapshot = $this->reportService->snapshotDetail($id);
+        if (! $snapshot) {
+            return redirect()->to(base_url('reporting'))->with('error', 'Laporan tidak ditemukan.');
+        }
+        UnitScopeService::assertUnit((int) $snapshot['unit_id']);
+
+        return view('reporting/print', [
+            'title'    => 'Buku Rapor — ' . ($snapshot['student_name'] ?? 'Siswa'),
+            'snapshot' => $snapshot,
+        ]);
+    }
+
+    public function studentReportCardApi(int $studentId): \CodeIgniter\HTTP\ResponseInterface
+    {
+        $unitId   = (int) session()->get('active_unit_id');
+        $period   = get_active_period();
+        $periodId = (int) (session()->get('active_period_id') ?: ($period ? (int) $period['id'] : 0));
+
+        $snapshot = Database::connect(ENVIRONMENT === 'testing' ? 'tests' : null)->table('report_snapshots')
+            ->where('student_id', $studentId)
+            ->where('academic_period_id', $periodId)
+            ->where('unit_id', $unitId)
+            ->get()->getRowArray();
+
+        if (! $snapshot) {
+            return $this->response->setJSON([
+                'status'  => 'error',
+                'message' => 'Laporan rapor belum tersedia untuk periode ini.',
+            ])->setStatusCode(404);
+        }
+
+        $detail = $this->reportService->snapshotDetail((int) $snapshot['id']);
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'data'   => $detail,
+        ]);
     }
 
     public function detail(int $id)
@@ -159,6 +251,17 @@ class ReportingController extends BaseController
         return redirect()->back()->with('draft_narrative', $draft)->with('draft_subject_result_id', $subjectResultId);
     }
 
+    public function approveNarrative(int $narrativeId)
+    {
+        $userId = (int) session()->get('user_id');
+        try {
+            $this->reportService->approveNarrative($narrativeId, $userId);
+            return redirect()->back()->with('success', 'Narasi disetujui.');
+        } catch (Exception $e) {
+            return redirect()->back()->with('error', 'Gagal menyetujui narasi: ' . $e->getMessage());
+        }
+    }
+
     // ================================================================
     // PORTFOLIO
     // ================================================================
@@ -180,13 +283,48 @@ class ReportingController extends BaseController
 
         UnitScopeService::assertUnit((int) $student['unit_id']);
 
+        $suggestions = [];
+        if (has_permission('reporting.manage')) {
+            $suggestions = $this->reportService->suggestPortfolioItems((int) $studentId, (int) $student['unit_id'], $periodId);
+        }
+
         return view('reporting/portfolio', [
             'title'             => 'Portofolio — ' . ($student['full_name'] ?? ''),
             'breadcrumb_active' => 'Portofolio',
             'student'           => $student,
             'items'             => $items,
+            'suggestions'       => $suggestions,
             'categories'        => ReportingService::PORTFOLIO_CATEGORIES,
         ]);
+    }
+
+    public function importPortfolio(int $studentId)
+    {
+        $period = get_active_period();
+        $userId = (int) session()->get('user_id');
+
+        $student = Database::connect()->table('elective_students')
+            ->where('id', $studentId)
+            ->get()->getRowArray();
+        if (! $student) {
+            return redirect()->back()->with('error', 'Siswa tidak ditemukan.');
+        }
+        UnitScopeService::assertUnit((int) $student['unit_id']);
+
+        $keys = array_values(array_filter((array) $this->request->getPost('suggestions'), static fn ($k) => is_string($k) && $k !== ''));
+
+        try {
+            $imported = $this->reportService->importPortfolioItems(
+                (int) $studentId,
+                (int) $student['unit_id'],
+                $period ? (int) $period['id'] : 0,
+                $userId,
+                $keys
+            );
+            return redirect()->back()->with('success', $imported . ' bukti berhasil ditambahkan ke portofolio.');
+        } catch (Exception $e) {
+            return redirect()->back()->with('error', 'Gagal mengimpor portofolio: ' . $e->getMessage());
+        }
     }
 
     public function addPortfolioItem(int $studentId)
@@ -254,6 +392,34 @@ class ReportingController extends BaseController
             'title'             => 'Dashboard Kelas',
             'breadcrumb_active' => 'Dashboard Kelas',
             'analytics'         => $analytics,
+        ]);
+    }
+
+    // ================================================================
+    // PROMOTION / GRADUATION DECISION SUPPORT
+    // ================================================================
+
+    public function promotion()
+    {
+        $unitId     = (int) session()->get('active_unit_id');
+        $period     = get_active_period();
+        $periodId   = $period ? (int) $period['id'] : 0;
+        $classroomId = (int) ($this->request->getGet('classroom_id') ?: 0);
+
+        $data = $this->reportService->promotionReadiness($unitId, $periodId, $classroomId ?: null);
+
+        $classrooms = Database::connect()->table('classrooms')
+            ->where('unit_id', $unitId)
+            ->orderBy('name', 'ASC')
+            ->get()->getResultArray();
+
+        return view('reporting/promotion', [
+            'title'             => 'Kesiapan Kenaikan Kelas',
+            'breadcrumb_active' => 'Kesiapan Kenaikan',
+            'rows'              => $data['rows'],
+            'summary'           => $data['summary'],
+            'classrooms'        => $classrooms,
+            'selectedClassroom' => $classroomId,
         ]);
     }
 }

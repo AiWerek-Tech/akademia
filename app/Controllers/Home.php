@@ -77,7 +77,7 @@ class Home extends BaseController
         }
 
         $readiness = [
-            ['label' => 'Unit sekolah dapat diakses', 'ready' => $totalUnits > 0, 'href' => 'settings/units'],
+            ['label' => 'Unit sekolah dapat diakses', 'ready' => $totalUnits > 0, 'href' => 'settings/school-profile'],
             ['label' => 'Periode akademik aktif', 'ready' => $activePeriod !== null, 'href' => 'academic-periods'],
             ['label' => 'Guru aktif tersedia', 'ready' => $masterCounts['teachers'] > 0, 'href' => 'teachers'],
             ['label' => 'Mata pelajaran tersedia', 'ready' => $masterCounts['subjects'] > 0, 'href' => 'subjects'],

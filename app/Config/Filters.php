@@ -41,7 +41,7 @@ class Filters extends BaseConfig
     public array $globals = [
         'before' => [
             // 'honeypot',
-            'csrf',
+            'csrf' => ['except' => ['api/*', 'api/v1/*']],
             // 'invalidchars',
         ],
         'after' => [
@@ -65,12 +65,14 @@ class Filters extends BaseConfig
                 unset($this->globals['before'][$key]);
                 $this->globals['before'] = array_values($this->globals['before']);
             }
+            if (isset($this->globals['before']['csrf'])) {
+                unset($this->globals['before']['csrf']);
+            }
         }
     }
 
     /**
      * List of filter aliases that works on a
-     * particular HTTP method (GET, POST, etc.).
      *
      * Example:
      * 'post' => ['foo', 'bar']

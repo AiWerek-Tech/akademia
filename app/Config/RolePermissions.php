@@ -34,6 +34,13 @@ final class RolePermissions
         'assessment.view', 'assessment.manage',
         // Phase 7: cocurricular program authoring & monitoring
         'cocurricular.view', 'cocurricular.manage',
+        // Phase 8: extracurricular coaching & evaluations
+        'extracurricular.view', 'extracurricular.manage',
+        // Phase 9: academic reporting & student portfolio
+        'reporting.view',
+        // Phase 10: quality, teacher reflection & AI copilot
+        'teacher_reflection.view', 'teacher_reflection.manage',
+        'supervision.view',
     ];
 
     public const WALI_KELAS = [
@@ -62,6 +69,13 @@ final class RolePermissions
         'assessment.view', 'assessment.manage',
         // Phase 7: cocurricular program authoring & monitoring
         'cocurricular.view', 'cocurricular.manage',
+        // Phase 8: extracurricular coaching & evaluations
+        'extracurricular.view', 'extracurricular.manage',
+        // Phase 9: academic reporting & class report card management
+        'reporting.view', 'reporting.manage',
+        // Phase 10: quality, teacher reflection & AI copilot
+        'teacher_reflection.view', 'teacher_reflection.manage',
+        'supervision.view',
     ];
 
     /**
@@ -96,5 +110,9 @@ final class RolePermissions
         'electives.view',
         'attendances.view',
         'attendances.admin',
+        // Phase 11: System & Mobile Integration
+        'sync.view',
+        'sync.manage',
+        'api.mobile_access',
     ];
 }

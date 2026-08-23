@@ -231,11 +231,11 @@ class ExtracurricularService
 
         $now = date('Y-m-d H:i:s');
 
-        // Soft-delete program
+        // Soft-delete program via status transition
         $this->db->table('extracurricular_programs')
             ->where('id', $id)
             ->update([
-                'deleted_at' => $now,
+                'status'     => self::STATUS_CANCELLED,
                 'updated_at' => $now,
                 'updated_by' => $userId,
             ]);
@@ -1154,6 +1154,122 @@ class ExtracurricularService
                 'OUTCOME' => ['rating' => $outcomeRating, 'percent' => round(($outcomeRating / 5) * 100), 'label' => 'Dampak & Evaluasi Mutu'],
             ],
             'attendance_stats' => $attStats,
+        ];
+    }
+
+    // ================================================================
+    // REPORT CARD INTEGRATION & OFFICIAL CERTIFICATES
+    // ================================================================
+
+    /**
+     * Get complete extracurricular report card snapshot data for a student in a period.
+     * Serves as single source of truth for Phase 9 Master Report Card.
+     */
+    public function getStudentExtracurricularReportCardData(int $studentId, int $periodId): array
+    {
+        $memberships = $this->db->table('extracurricular_members em')
+            ->select('em.*, ep.title as program_title, ep.category, ep.code as program_code, t.full_name as coach_name')
+            ->join('extracurricular_programs ep', 'ep.id = em.program_id', 'inner')
+            ->join('teachers t', 't.id = ep.coach_teacher_id', 'left')
+            ->where('em.student_id', $studentId)
+            ->where('ep.academic_period_id', $periodId)
+            ->where('em.status', self::MEMBER_ACTIVE)
+            ->whereIn('ep.status', [self::STATUS_ACTIVE, self::STATUS_COMPLETED])
+            ->get()->getResultArray();
+
+        $items = [];
+        foreach ($memberships as $m) {
+            $programId = (int) $m['program_id'];
+            $report = $this->studentReport($programId, $studentId);
+            $narrative = $this->generateStudentNarrative($programId, $studentId);
+
+            $totalSessions = $report['total_sessions'] ?? 0;
+            $attRate = $report['attendance_rate'] ?? 0;
+            $effectiveAttRate = $totalSessions > 0 ? $attRate : 100;
+            $achCount = count($report['achievements'] ?? []);
+
+            $predicate = match (true) {
+                $effectiveAttRate >= 85 && $achCount > 0 => 'A',
+                $effectiveAttRate >= 75                  => 'B',
+                $effectiveAttRate >= 50                  => 'C',
+                default                                  => 'D',
+            };
+
+            $predicateLabel = match ($predicate) {
+                'A' => 'Sangat Baik',
+                'B' => 'Baik',
+                'C' => 'Cukup',
+                default => 'Kurang',
+            };
+
+            $items[] = [
+                'program_id'       => $programId,
+                'program_title'    => $m['program_title'],
+                'category'         => $m['category'],
+                'role'             => $m['role'],
+                'coach_name'       => $m['coach_name'] ?? '—',
+                'attendance_rate'  => $attRate,
+                'achievements_count'=> $achCount,
+                'predicate'        => $predicate,
+                'predicate_label'  => $predicateLabel,
+                'narrative'        => $narrative,
+                'achievements'     => $report['achievements'] ?? [],
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
+     * Get certificate & honor badge generation data.
+     */
+    public function getCertificateData(int $programId, int $studentId, ?int $achievementId = null): array
+    {
+        $program = $this->detailProgram($programId);
+        if (! $program) {
+            throw new \RuntimeException('Program ekstrakurikuler tidak ditemukan.');
+        }
+
+        $student = $this->db->table('elective_students s')
+            ->select('s.*, c.name as classroom_name, u.name as unit_name, u.code as unit_code')
+            ->join('classrooms c', 'c.id = s.classroom_id', 'left')
+            ->join('school_units u', 'u.id = s.unit_id', 'left')
+            ->where('s.id', $studentId)
+            ->get()->getRowArray();
+
+        if (! $student) {
+            throw new \RuntimeException('Data siswa tidak ditemukan.');
+        }
+
+        $member = $this->db->table('extracurricular_members')
+            ->where('program_id', $programId)
+            ->where('student_id', $studentId)
+            ->get()->getRowArray();
+
+        $achievement = null;
+        if ($achievementId !== null) {
+            $achievement = $this->db->table('extracurricular_achievements ea')
+                ->select('ea.*, ec.name as competency_name, ec.code as competency_code, t.full_name as assessor_name')
+                ->join('extracurricular_competencies ec', 'ec.id = ea.competency_id', 'left')
+                ->join('teachers t', 't.id = ea.assessed_by', 'left')
+                ->where('ea.id', $achievementId)
+                ->get()->getRowArray();
+        }
+
+        $tokenSeed = "CERT-{$programId}-{$studentId}-" . ($achievementId ?? 'GEN');
+        $certificateNo = 'CERT/' . ($student['unit_code'] ?? 'WMVAA') . '/' . date('Y') . '/' . strtoupper(substr(md5($tokenSeed), 0, 8));
+
+        return [
+            'program'          => $program,
+            'student'          => $student,
+            'member'           => $member,
+            'achievement'      => $achievement,
+            'certificate_no'   => $certificateNo,
+            'verification_token' => strtoupper(md5($tokenSeed)),
+            'issue_date'       => date('d F Y'),
+            'coach_name'       => $program['coach_name'] ?? 'Pembina Kegiatan',
+            'headmaster_name'  => 'Kepala Satuan Pendidikan',
+            'unit_name'        => $student['unit_name'] ?? 'WMVAA School',
         ];
     }
 }
